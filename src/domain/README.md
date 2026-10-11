@@ -1,4 +1,4 @@
 # Dominio frontend
 
-Aquí vivirán los tipos y reglas de negocio consumidos por la interfaz. El contrato de datos de
-MITECO debe verificarse antes de definir entidades de estación o precio en TypeScript.
+Tipos y reglas de negocio consumidos por la interfaz: estaciones, combustibles, búsqueda,
+filtros y ordenación. No depende de React ni del acceso a datos.

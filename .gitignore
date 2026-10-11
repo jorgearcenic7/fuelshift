@@ -7,6 +7,8 @@ dist/
 coverage/
 playwright-report/
 test-results/
+.screenshots/
+.edge-profile*/
 *.tsbuildinfo
 
 # Entornos locales
@@ -28,6 +30,8 @@ htmlcov/
 data/raw/
 data/processed/
 data/cache/
+public/data/miteco/
+public/data/.miteco-*/
 *.duckdb
 *.duckdb.wal
 

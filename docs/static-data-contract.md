@@ -91,3 +91,16 @@ La generación escribe primero un directorio temporal hermano. Antes de publicar
 todos los JSON y comprueba versión, hashes, recuentos e identificadores únicos. Solo entonces
 renombra el conjunto anterior a copia de seguridad y coloca el nuevo; si el segundo renombrado
 falla, restaura la copia. Los archivos generados y las copias temporales no se versionan.
+
+## Copia estática para el mapa
+
+El frontend no lee directamente el directorio de trabajo del pipeline. El comando
+`npm run data:prepare` vuelve a comprobar la versión del contrato, las rutas relativas, los
+recuentos, los identificadores únicos, el tamaño y el SHA-256 de cada provincia antes de copiar
+atómicamente el conjunto a `public/data/miteco/`. Tanto el origen como el destino están
+ignorados por Git.
+
+La aplicación solicita primero `manifest.json` y después los archivos indicados por su campo
+`file`, con concurrencia limitada y caché en memoria. No se añade un índice ni se altera el
+esquema `1.0.0`; MapLibre realiza el clustering en el navegador sobre las provincias que van
+quedando disponibles.

@@ -9,6 +9,8 @@ export default defineConfig([
     ".next/**",
     "out/**",
     "coverage/**",
+    ".edge-profile*/**",
+    ".screenshots/**",
     "next-env.d.ts",
     "pipeline/**",
   ]),

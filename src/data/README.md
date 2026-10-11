@@ -1,4 +1,5 @@
 # Acceso a datos frontend
 
-Esta capa leerá los artefactos estáticos generados por el pipeline. No contiene endpoints,
-fixtures ni respuestas simuladas hasta que se apruebe el contrato oficial.
+Lee y valida los artefactos estáticos del contrato `1.0.0` publicados en `public/data/miteco/`
+por `npm run data:prepare`. Los fixtures de `__fixtures__/` solo se usan en pruebas y
+contienen identificadores ficticios marcados como tales.
