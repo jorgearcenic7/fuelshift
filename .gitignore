@@ -1,0 +1,35 @@
+# Next.js / Node
+node_modules/
+.next/
+out/
+dist/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# Entornos locales
+.env
+.env.*
+!.env.example
+!.env.sample
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.py[cod]
+
+# Datos generados localmente
+data/raw/
+data/processed/
+data/cache/
+*.duckdb
+*.duckdb.wal
+
+# Editores y sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
