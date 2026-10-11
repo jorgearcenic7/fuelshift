@@ -1,5 +1,6 @@
 # Next.js / Node
 node_modules/
+.npm-cache/
 .next/
 out/
 dist/
@@ -19,6 +20,8 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+.coverage
+htmlcov/
 *.py[cod]
 
 # Datos generados localmente
