@@ -12,10 +12,19 @@ import {
   setWorkerUrl,
 } from "maplibre-gl";
 
-import type { Coordinates, FuelCode, StationResult } from "@/domain/stations";
+import type {
+  Coordinates,
+  FuelCode,
+  MapBounds,
+  StationResult,
+} from "@/domain/stations";
 import { getStationPrice } from "@/domain/stations";
 
 const MAP_STYLE = "https://tiles.openfreemap.org/styles/positron";
+const CLUSTER_MAX_ZOOM = 14;
+// Por encima del último nivel agrupado, para que la estación elegida se vea
+// como punto propio y no dentro de un clúster.
+const SELECTED_ZOOM = CLUSTER_MAX_ZOOM + 1;
 setWorkerUrl(
   new URL(
     "maplibre-gl/dist/maplibre-gl-worker.mjs",
@@ -56,6 +65,11 @@ interface StationMapProps {
   selectedId: string | null;
   userLocation: Coordinates | null;
   onSelect: (stationId: string) => void;
+  /**
+   * Zona visible tras la carga y tras cada movimiento iniciado por el usuario.
+   * Los desplazamientos automáticos al seleccionar una estación no la cambian.
+   */
+  onBoundsChange?: (bounds: MapBounds) => void;
 }
 
 export function StationMap({
@@ -64,12 +78,14 @@ export function StationMap({
   selectedId,
   userLocation,
   onSelect,
+  onBoundsChange,
 }: StationMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const dataRef =
     useRef<GeoJSON.FeatureCollection<GeoJSON.Point>>(EMPTY_COLLECTION);
   const onSelectRef = useRef(onSelect);
+  const onBoundsChangeRef = useRef(onBoundsChange);
   const [providerError, setProviderError] = useState(false);
   const geoJson = useMemo(
     () => toGeoJson(stations, fuel, selectedId),
@@ -81,6 +97,10 @@ export function StationMap({
   useEffect(() => {
     onSelectRef.current = onSelect;
   }, [onSelect]);
+
+  useEffect(() => {
+    onBoundsChangeRef.current = onBoundsChange;
+  }, [onBoundsChange]);
 
   useEffect(() => {
     stationsRef.current = stations;
@@ -117,8 +137,28 @@ export function StationMap({
     map.on("error", () => {
       if (!styleLoaded) setProviderError(true);
     });
-    map.addControl(new NavigationControl({ showCompass: false }), "top-right");
+    map.addControl(
+      new NavigationControl({ showCompass: false }),
+      "bottom-right",
+    );
     map.addControl(new ScaleControl({ unit: "metric" }), "bottom-left");
+
+    function emitBounds() {
+      const bounds = map.getBounds();
+      onBoundsChangeRef.current?.({
+        west: bounds.getWest(),
+        south: bounds.getSouth(),
+        east: bounds.getEast(),
+        north: bounds.getNorth(),
+      });
+    }
+    map.on("moveend", (event) => {
+      const userInitiated =
+        event.originalEvent !== undefined ||
+        (event as { userInitiated?: boolean }).userInitiated === true;
+      if (userInitiated) emitBounds();
+    });
+    map.on("resize", emitBounds);
 
     const timeout = window.setTimeout(() => {
       if (!map.loaded()) setProviderError(true);
@@ -128,12 +168,33 @@ export function StationMap({
       styleLoaded = true;
       window.clearTimeout(timeout);
       setProviderError(false);
+      emitBounds();
       map.addSource("stations", {
         type: "geojson",
         data: dataRef.current,
         cluster: true,
-        clusterMaxZoom: 14,
+        clusterMaxZoom: CLUSTER_MAX_ZOOM,
         clusterRadius: 44,
+      });
+      // Halo translúcido bajo cada clúster para darle profundidad.
+      map.addLayer({
+        id: "station-cluster-halo",
+        type: "circle",
+        source: "stations",
+        filter: ["has", "point_count"],
+        paint: {
+          "circle-color": "#1f62b0",
+          "circle-opacity": 0.16,
+          "circle-radius": [
+            "step",
+            ["get", "point_count"],
+            24,
+            100,
+            30,
+            500,
+            37,
+          ],
+        },
       });
       map.addLayer({
         id: "station-clusters",
@@ -144,23 +205,23 @@ export function StationMap({
           "circle-color": [
             "step",
             ["get", "point_count"],
-            "#1f6f8b",
+            "#3a7bc8",
             100,
-            "#15578a",
+            "#1f62b0",
             500,
-            "#103f73",
+            "#174d8c",
           ],
           "circle-radius": [
             "step",
             ["get", "point_count"],
-            18,
+            17,
             100,
-            23,
+            22,
             500,
-            29,
+            28,
           ],
           "circle-stroke-color": "#ffffff",
-          "circle-stroke-width": 2,
+          "circle-stroke-width": 2.5,
         },
       });
       map.addLayer({
@@ -185,12 +246,12 @@ export function StationMap({
           "circle-color": [
             "case",
             ["==", ["get", "selected"], 1],
-            "#f59e0b",
-            "#0b806f",
+            "#f08c00",
+            "#1f62b0",
           ],
-          "circle-radius": ["case", ["==", ["get", "selected"], 1], 10, 7],
+          "circle-radius": ["case", ["==", ["get", "selected"], 1], 9, 6],
           "circle-stroke-color": "#ffffff",
-          "circle-stroke-width": 2,
+          "circle-stroke-width": ["case", ["==", ["get", "selected"], 1], 3, 2],
         },
       });
 
@@ -206,7 +267,11 @@ export function StationMap({
         if (clusterId === undefined || !coordinates) return;
         const source = map.getSource("stations") as GeoJSONSource;
         const zoom = await source.getClusterExpansionZoom(clusterId);
-        map.easeTo({ center: coordinates as [number, number], zoom });
+        // Ampliar un clúster es una navegación del usuario.
+        map.easeTo(
+          { center: coordinates as [number, number], zoom },
+          { userInitiated: true },
+        );
       });
       map.on("click", "station-points", (event: MapLayerMouseEvent) => {
         const stationId = event.features?.[0]?.properties?.id as
@@ -256,13 +321,13 @@ export function StationMap({
     if (station) {
       mapRef.current.easeTo({
         center: [station.location.longitude, station.location.latitude],
-        zoom: Math.max(mapRef.current.getZoom(), 13),
+        zoom: Math.max(mapRef.current.getZoom(), SELECTED_ZOOM),
       });
     }
   }, [selectedId]);
 
   return (
-    <div className="relative h-full min-h-[26rem] overflow-hidden bg-slate-100">
+    <div className="relative h-full overflow-hidden bg-[#eef2f5]">
       {/* MapLibre fuerza position: relative sobre su contenedor, así que el
           posicionamiento absoluto va en un envoltorio propio. */}
       <div className="absolute inset-0">
@@ -275,7 +340,7 @@ export function StationMap({
       </div>
       {providerError ? (
         <div
-          className="absolute inset-x-4 top-4 z-10 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 shadow-lg"
+          className="absolute inset-x-4 top-4 z-10 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-5 text-amber-950 shadow-[0_12px_30px_-14px_rgb(15_29_46/45%)] xl:right-auto xl:max-w-sm"
           role="alert"
         >
           <strong className="block font-semibold">
