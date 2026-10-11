@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "fuelshift-data"
 version = "0.1.0"
-description = "Base del pipeline de datos oficiales de FuelShift."
+description = "Pipeline de datos oficiales de carburantes de FuelShift."
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dependencies = [
