@@ -1,0 +1,152 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repo-hygiene:
+    name: repo-hygiene
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Obtener el repositorio
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Comprobar que el historial está completo
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$(git rev-parse --is-shallow-repository)" != "false" ]]; then
+            echo "El repositorio es superficial; no se puede calcular un diff fiable."
+            exit 1
+          fi
+
+      - name: Validar metadatos de la pull request
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BRANCH: ${{ github.head_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          title_pattern='^(feat|fix|refactor|perf|test|docs|style|build|ci|chore|revert)\([a-z0-9][a-z0-9-]*\): [^[:space:]].*$'
+          branch_pattern='^(feat|fix|refactor|perf|test|docs|style|build|ci|chore|revert)/.+$'
+
+          if [[ ! "$PR_TITLE" =~ $title_pattern ]]; then
+            echo "El título debe seguir: tipo(alcance): descripción en español."
+            exit 1
+          fi
+
+          if [[ ! "$PR_BRANCH" =~ $branch_pattern ]]; then
+            echo "La rama debe comenzar por un prefijo permitido seguido de '/'."
+            exit 1
+          fi
+
+      - name: Comprobar formato en los cambios de la pull request
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git cat-file -e "${BASE_SHA}^{commit}"
+          git cat-file -e "${HEAD_SHA}^{commit}"
+          git merge-base "$BASE_SHA" "$HEAD_SHA" >/dev/null
+          git diff --check "${BASE_SHA}...${HEAD_SHA}"
+
+      - name: Comprobar formato en los cambios enviados a main
+        if: github.event_name == 'push'
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          zero_sha='0000000000000000000000000000000000000000'
+          git cat-file -e "${AFTER_SHA}^{commit}"
+
+          if [[ "$BEFORE_SHA" == "$zero_sha" ]]; then
+            empty_tree="$(git hash-object -t tree /dev/null)"
+            git diff --check "$empty_tree" "$AFTER_SHA"
+          else
+            git cat-file -e "${BEFORE_SHA}^{commit}"
+            git diff --check "$BEFORE_SHA" "$AFTER_SHA"
+          fi
+
+      - name: Rechazar archivos ignorados que estén versionados
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ignored_files_output="$RUNNER_TEMP/tracked-ignored-files"
+          git ls-files --cached --ignored --exclude-standard -z \
+            > "$ignored_files_output"
+          mapfile -d '' forbidden_files < "$ignored_files_output"
+
+          if (( ${#forbidden_files[@]} > 0 )); then
+            echo "Se encontraron archivos versionados prohibidos por .gitignore:"
+            printf ' - %s\n' "${forbidden_files[@]}"
+            exit 1
+          fi
+
+      - name: Rechazar rutas sensibles o generadas
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tracked_files_output="$RUNNER_TEMP/tracked-files"
+          git ls-files -z > "$tracked_files_output"
+          mapfile -d '' tracked_files < "$tracked_files_output"
+          protected_files=()
+
+          for tracked_file in "${tracked_files[@]}"; do
+            filename="${tracked_file##*/}"
+
+            case "$filename" in
+              .env.example|.env.sample)
+                continue
+                ;;
+              .env|.env.*|*.duckdb|*.duckdb.wal)
+                protected_files+=("$tracked_file")
+                continue
+                ;;
+            esac
+
+            case "/$tracked_file/" in
+              */node_modules/*|*/.venv/*|*/venv/*|*/.next/*|*/out/*|*/dist/*|*/coverage/*|*/playwright-report/*|*/test-results/*|*/__pycache__/*|*/data/raw/*|*/data/processed/*|*/data/cache/*)
+                protected_files+=("$tracked_file")
+                ;;
+            esac
+          done
+
+          if (( ${#protected_files[@]} > 0 )); then
+            echo "Se encontraron rutas sensibles o generadas que no deben versionarse:"
+            printf ' - %s\n' "${protected_files[@]}"
+            exit 1
+          fi
