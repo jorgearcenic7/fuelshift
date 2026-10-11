@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0.0",
+  "retrieved_at": "2026-10-11T15:07:33Z",
+  "station_count": 2,
+  "province_count": 1,
+  "provinces": [
+    {
+      "id": "28",
+      "name": "MADRID",
+      "file": "provinces/28.json",
+      "station_count": 2,
+      "bytes": 100,
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "source": {
+    "attribution": "MITECO — fixture de prueba",
+    "catalog": "https://example.invalid/catalog",
+    "documentation": "https://example.invalid/help",
+    "license": {
+      "id": "CC-BY-4.0",
+      "url": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    "reported_at": {
+      "raw": "11/10/2026 17:07:30",
+      "local": "2026-10-11T17:07:30",
+      "timezone": null
+    },
+    "url": "https://example.invalid/data"
+  }
+}

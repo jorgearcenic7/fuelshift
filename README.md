@@ -1,18 +1,20 @@
 # FuelShift
 
 FuelShift es una aplicación web pública en construcción para consultar precios oficiales de
-carburantes en España, comparar costes energéticos y explorar estadísticas. El repositorio ya
-incluye una ingesta reproducible del conjunto nacional de estaciones terrestres de MITECO; el
-mapa, el comparador y las estadísticas todavía no están implementados.
+carburantes en España, comparar costes energéticos y explorar estadísticas. El repositorio
+incluye una ingesta reproducible del conjunto nacional de estaciones terrestres de MITECO y un
+mapa interactivo para consultar esos datos reales. El comparador y las estadísticas todavía no
+están implementados.
 
 ## Stack
 
 - Next.js 16 con App Router y exportación estática, React 19 y TypeScript estricto.
-- Tailwind CSS 4, Vitest, ESLint y Prettier para el frontend.
+- Tailwind CSS 4, MapLibre GL JS, Vitest, ESLint y Prettier para el frontend.
 - Python 3.12, Pydantic, Pytest y Ruff para el pipeline de datos.
 - GitHub Actions con controles reproducibles y servicios gratuitos.
 
-No se usan bases de datos, autenticación, proveedores de mapas ni APIs de pago en esta fase.
+No se usan bases de datos, autenticación ni APIs de pago. El mapa usa la instancia pública y
+gratuita de OpenFreeMap, sin clave; no ofrece garantía de disponibilidad.
 
 ## Requisitos e instalación
 
@@ -61,6 +63,26 @@ El catálogo oficial publica el conjunto bajo
 redistribución debe mantener la atribución a MITECO, enlazar la licencia e indicar las
 transformaciones realizadas.
 
+## Preparar y abrir el mapa
+
+Después de ejecutar la ingesta, valida y prepara la copia estática que sirve Next.js:
+
+```powershell
+$env:PYTHONPATH = "pipeline/src"
+.\.venv\Scripts\python.exe -m fuelshift_data --output data/processed/miteco
+npm run data:prepare
+npm run dev
+```
+
+Abre <http://localhost:3000>. `npm run data:prepare` valida de nuevo versión, rutas, tamaños,
+hashes SHA-256, recuentos e identificadores antes de sustituir `public/data/miteco/`. Los datos
+de origen y la copia web están ignorados por Git. Si no se han preparado datos, el build sigue
+funcionando y la interfaz muestra un estado vacío explícito.
+
+El navegador descarga el manifiesto y las provincias progresivamente con concurrencia limitada,
+las conserva en memoria y delega el clustering visual en MapLibre. La geolocalización solo se
+solicita al pulsar «Usar mi ubicación» y no se persiste.
+
 ## Desarrollo y comprobaciones
 
 ```powershell
@@ -74,6 +96,9 @@ npm run typecheck
 npm test
 npm run test:coverage
 npm run build
+
+# Prueba manual en navegador (requiere la web en ejecución y Edge/Chrome local)
+npm run test:browser
 
 # Python (las pruebas usan fixtures y no acceden a la red)
 .\.venv\Scripts\python.exe -m ruff format --check pipeline

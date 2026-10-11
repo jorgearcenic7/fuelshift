@@ -11,11 +11,11 @@
 }
 
 :root {
-  --accent: #0d766e;
-  --accent-soft: #d9f3ee;
-  --ink: #102a2a;
-  --line: #d8e1df;
-  --muted: #526968;
+  --accent: #15578a;
+  --accent-soft: #e5f1f8;
+  --ink: #0f2b46;
+  --line: #d7e0e8;
+  --muted: #536779;
   --surface: #ffffff;
   --font-sans: "Aptos", "Segoe UI", system-ui, sans-serif;
 }
@@ -32,16 +32,44 @@ body {
   min-height: 100vh;
   margin: 0;
   color: var(--ink);
-  background:
-    radial-gradient(circle at 82% 8%, rgb(13 118 110 / 12%), transparent 27rem),
-    linear-gradient(180deg, #f7faf8 0%, #eef4f1 100%);
+  background: #f3f6f8;
   font-family: var(--font-sans);
   text-rendering: optimizeLegibility;
 }
 
 ::selection {
   color: var(--ink);
-  background: #b6e4da;
+  background: #c9e4f4;
+}
+
+button,
+select,
+input {
+  font: inherit;
+}
+
+button:not(:disabled),
+select:not(:disabled) {
+  cursor: pointer;
+}
+
+.control {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  background: white;
+  padding: 0.625rem 0.75rem;
+  color: #0f172a;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.control:hover {
+  border-color: #94a3b8;
+}
+
+.maplibregl-ctrl-attrib {
+  font-size: 10px;
 }
 
 :focus-visible {
