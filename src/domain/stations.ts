@@ -156,6 +156,73 @@ export function filterAndSortStations(
   });
 }
 
+export interface MapBounds {
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+}
+
+export function isWithinBounds(
+  location: Coordinates,
+  bounds: MapBounds,
+): boolean {
+  return (
+    location.latitude >= bounds.south &&
+    location.latitude <= bounds.north &&
+    location.longitude >= bounds.west &&
+    location.longitude <= bounds.east
+  );
+}
+
+export interface RankedStation<T extends Station = Station> {
+  station: T;
+  price: number;
+  /** Puesto con empates: estaciones con el mismo precio comparten posición. */
+  position: number;
+}
+
+export interface PriceRanking<T extends Station = Station> {
+  entries: RankedStation<T>[];
+  /** Estaciones con precio para el combustible dentro del ámbito. */
+  total: number;
+}
+
+/**
+ * Ordena por precio ascendente las estaciones recibidas (ya filtradas) y
+ * devuelve las `limit` más baratas, opcionalmente limitadas a una zona.
+ */
+export function rankByPrice<T extends Station>(
+  stations: readonly T[],
+  fuel: FuelCode,
+  limit: number,
+  bounds: MapBounds | null = null,
+): PriceRanking<T> {
+  const priced = stations.flatMap((station) => {
+    if (bounds && !isWithinBounds(station.location, bounds)) return [];
+    const price = getStationPrice(station, fuel);
+    return price === null ? [] : [{ station, price }];
+  });
+  priced.sort(
+    (left, right) =>
+      left.price - right.price ||
+      left.station.municipality.localeCompare(right.station.municipality, "es"),
+  );
+
+  const entries: RankedStation<T>[] = [];
+  for (const [index, item] of priced.slice(0, limit).entries()) {
+    const previous = entries[index - 1];
+    entries.push({
+      ...item,
+      position:
+        previous && previous.price === item.price
+          ? previous.position
+          : index + 1,
+    });
+  }
+  return { entries, total: priced.length };
+}
+
 export function getBrands(
   stations: readonly Station[],
   fuel: FuelCode,

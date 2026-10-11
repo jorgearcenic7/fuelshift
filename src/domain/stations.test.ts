@@ -3,9 +3,62 @@ import { describe, expect, it } from "vitest";
 import provinceFixture from "@/data/__fixtures__/province.test.json";
 import { parseProvince } from "@/data/miteco";
 
-import { filterAndSortStations, getBrands, getStationPrice } from "./stations";
+import {
+  filterAndSortStations,
+  getBrands,
+  getStationPrice,
+  rankByPrice,
+  type Station,
+} from "./stations";
 
 const stations = parseProvince(provinceFixture).stations;
+
+function withPrice(base: Station, id: string, price: string): Station {
+  return { ...base, id, fuels: { ...base.fuels, diesel_a: price } };
+}
+
+describe("ranking por precio", () => {
+  const candidates = [
+    withPrice(stations[0], "a", "1.500"),
+    withPrice(stations[1], "b", "1.400"),
+    withPrice(stations[0], "c", "1.400"),
+    withPrice(stations[1], "d", "1.600"),
+    // Sin precio para el combustible: no participa.
+    { ...stations[1], id: "e", fuels: { gasoline_95_e5: "1.300" } },
+  ];
+
+  it("ordena de menor a mayor precio y comparte puesto en los empates", () => {
+    const ranking = rankByPrice(candidates, "diesel_a", 3);
+
+    expect(ranking.total).toBe(4);
+    expect(
+      ranking.entries.map(({ station, position }) => [station.id, position]),
+    ).toEqual([
+      ["b", 1],
+      ["c", 1],
+      ["a", 3],
+    ]);
+  });
+
+  it("limita el ranking a la zona visible del mapa", () => {
+    // Solo incluye la estación de Alcalá de Henares (stations[1]).
+    const bounds = { west: -3.4, south: 40.45, east: -3.3, north: 40.5 };
+    const ranking = rankByPrice(candidates, "diesel_a", 5, bounds);
+
+    expect(ranking.total).toBe(2);
+    expect(ranking.entries.map(({ station }) => station.id)).toEqual([
+      "b",
+      "d",
+    ]);
+  });
+
+  it("devuelve un ranking vacío si no hay precios en el ámbito", () => {
+    expect(rankByPrice(candidates, "hydrogen", 5)).toEqual({
+      entries: [],
+      total: 0,
+    });
+  });
+});
 
 describe("consulta de estaciones", () => {
   it("selecciona el precio del combustible exacto del contrato", () => {
