@@ -150,3 +150,72 @@ jobs:
             printf ' - %s\n' "${protected_files[@]}"
             exit 1
           fi
+
+  frontend:
+    name: frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Obtener el repositorio
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Comprobar formato
+        run: npm run format:check
+
+      - name: Ejecutar ESLint
+        run: npm run lint
+
+      - name: Comprobar tipos
+        run: npm run typecheck
+
+      - name: Ejecutar tests con cobertura
+        run: npm run test:coverage
+
+      - name: Generar exportación estática
+        run: npm run build
+
+  python:
+    name: python
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+    steps:
+      - name: Obtener el repositorio
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Preparar Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.lock
+
+      - name: Instalar dependencias
+        run: python -m pip install -r requirements-dev.lock
+
+      - name: Comprobar dependencias
+        run: python -m pip check
+
+      - name: Ejecutar Ruff
+        run: |
+          python -m ruff format --check pipeline
+          python -m ruff check pipeline
+
+      - name: Ejecutar Pytest
+        run: python -m pytest
