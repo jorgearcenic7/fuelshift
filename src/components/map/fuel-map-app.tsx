@@ -622,6 +622,7 @@ export function FuelMapApp() {
                   aria-pressed={selected}
                   className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${selected ? "bg-accent-soft ring-accent/35 ring-1" : "hover:bg-canvas"}`}
                 >
+                  <BrandMark identity={getBrandIdentity(station.brand)} />
                   <span className="min-w-0 flex-1">
                     <span className="text-ink block truncate text-sm font-semibold">
                       {station.brand ?? "Sin rótulo"}
@@ -717,6 +718,10 @@ export function FuelMapApp() {
           >
             OpenStreetMap
           </a>
+        </p>
+        <p>
+          Los logotipos son marcas de sus titulares y solo identifican la marca
+          de cada estación.
         </p>
       </footer>
 

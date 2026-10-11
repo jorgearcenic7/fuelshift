@@ -4,15 +4,27 @@ import { useState } from "react";
 
 import type { BrandIdentity } from "@/domain/brands";
 
+// Cada tamaño reserva el mismo ancho para logotipos y monogramas, de modo que
+// los textos de las listas queden alineados.
 const SIZES = {
-  sm: "size-7 rounded-lg text-[0.625rem]",
-  lg: "size-12 rounded-xl text-base",
+  sm: {
+    slot: "w-16 h-7",
+    logo: "w-16 h-7 rounded-md px-1 py-0.5",
+    square: "size-7 rounded-lg text-[0.625rem]",
+    icon: "size-3.5",
+  },
+  lg: {
+    slot: "w-20 h-12",
+    logo: "w-20 h-12 rounded-xl p-1.5",
+    square: "size-12 rounded-xl text-base",
+    icon: "size-5",
+  },
 } as const;
 
 /**
- * Marca visual decorativa: logotipo local si existe, monograma con el color
- * de la marca o, para estaciones sin rótulo, un icono genérico. El nombre se
- * muestra siempre como texto junto a ella.
+ * Marca visual decorativa: logotipo local verificado si existe, monograma con
+ * el color de la marca o, para estaciones sin rótulo, un icono genérico. El
+ * nombre se muestra siempre como texto junto a ella.
  */
 export function BrandMark({
   identity,
@@ -21,32 +33,45 @@ export function BrandMark({
   identity: BrandIdentity;
   size?: keyof typeof SIZES;
 }) {
-  const [logoFailed, setLogoFailed] = useState(false);
-  const base = `grid shrink-0 place-items-center overflow-hidden font-bold tracking-[-0.02em] ${SIZES[size]}`;
+  const [failedLogo, setFailedLogo] = useState<string | null>(null);
+  const styles = SIZES[size];
+  const logo =
+    identity.logo && identity.logo !== failedLogo ? identity.logo : null;
 
-  if (identity.logo && !logoFailed) {
-    return (
-      <span className={`${base} ring-line bg-white ring-1`} aria-hidden="true">
+  let content;
+  if (logo) {
+    content = (
+      <span
+        className={`ring-line flex items-center justify-center overflow-hidden bg-white ring-1 ${styles.logo}`}
+      >
         {/* eslint-disable-next-line @next/next/no-img-element -- recurso local estático */}
         <img
-          src={identity.logo}
+          src={logo}
           alt=""
-          className="size-full object-contain p-1"
-          onError={() => setLogoFailed(true)}
+          className="block h-full w-full object-contain"
+          loading="lazy"
+          decoding="async"
+          onError={() => setFailedLogo(logo)}
         />
       </span>
     );
-  }
-
-  if (!identity.mark) {
-    return (
+  } else if (identity.mark) {
+    content = (
       <span
-        className={`${base} bg-canvas text-muted ring-line ring-1`}
-        aria-hidden="true"
+        className={`grid place-items-center font-bold tracking-[-0.02em] ${styles.square}`}
+        style={{ backgroundColor: identity.color, color: identity.onColor }}
+      >
+        {identity.mark}
+      </span>
+    );
+  } else {
+    content = (
+      <span
+        className={`bg-canvas text-muted ring-line grid place-items-center ring-1 ${styles.square}`}
       >
         <svg
           viewBox="0 0 24 24"
-          className={size === "lg" ? "size-5" : "size-3.5"}
+          className={styles.icon}
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
@@ -63,11 +88,10 @@ export function BrandMark({
 
   return (
     <span
-      className={base}
-      style={{ backgroundColor: identity.color, color: identity.onColor }}
+      className={`flex shrink-0 items-center justify-center ${styles.slot}`}
       aria-hidden="true"
     >
-      {identity.mark}
+      {content}
     </span>
   );
 }

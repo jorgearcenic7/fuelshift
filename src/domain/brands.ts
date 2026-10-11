@@ -1,102 +1,196 @@
 import { normalizeSearch } from "./stations";
 
 /**
- * Identidad visual local de las marcas más frecuentes en los datos de MITECO.
+ * Identidad visual local de las marcas presentes en los rótulos de MITECO.
  *
- * - No se cargan recursos externos: la marca visual es un monograma propio y,
- *   si en el futuro se dispone de logotipos oficiales con permiso de uso, se
- *   pueden servir desde `public/brands/` mediante `logo`.
- * - Los colores son aproximaciones de la identidad pública de cada marca para
- *   usarlos solo como acento. Cuando no se ha verificado un color fiable,
- *   `color` es `null` y se usa el tono neutro.
+ * - Los logotipos se sirven desde `public/brands/` y nunca desde servicios
+ *   externos. Solo se incluyen archivos con procedencia y régimen de
+ *   reutilización verificados; el detalle está en `docs/brand-logos.md`.
+ * - `color` se extrae del propio logotipo incorporado. Las marcas sin logotipo
+ *   verificado usan el tono neutro para no atribuirles un color no acreditado.
+ * - El rótulo de una estación no identifica a su propietario: se reconoce la
+ *   marca comercial que aparece escrita en él, sin inferir grupos empresariales
+ *   (por ejemplo, Campsa y Petronor no se muestran como Repsol).
  */
 interface BrandDefinition {
   key: string;
   name: string;
-  /** Palabras completas (normalizadas) que identifican la marca en el rótulo. */
-  match: readonly string[];
+  /** Secuencias de palabras normalizadas que identifican la marca. */
+  aliases: readonly string[];
+  /**
+   * Solo reconoce la marca al inicio del rótulo. Se usa en nombres que también
+   * aparecen como palabras comunes ("Virgen de las Nieves").
+   */
+  anchored?: boolean;
   mark: string;
-  color: string | null;
+  color?: string;
   logo?: string;
 }
 
 const BRANDS: readonly BrandDefinition[] = [
+  // Con logotipo verificado (ordenadas por número de estaciones).
   {
     key: "repsol",
     name: "Repsol",
-    match: ["repsol"],
+    aliases: ["repsol"],
     mark: "R",
-    color: "#f37021",
+    color: "#ff7816",
+    logo: "/brands/repsol.svg",
+  },
+  {
+    key: "moeve",
+    name: "Moeve",
+    aliases: ["moeve"],
+    mark: "M",
+    color: "#047dba",
+    logo: "/brands/moeve.svg",
   },
   {
     key: "cepsa",
     name: "Cepsa",
-    match: ["cepsa"],
+    aliases: ["cepsa"],
     mark: "C",
-    color: "#e2231a",
-  },
-  { key: "galp", name: "Galp", match: ["galp"], mark: "G", color: "#f2672a" },
-  {
-    key: "shell",
-    name: "Shell",
-    match: ["shell"],
-    mark: "S",
-    color: "#fbce07",
-  },
-  { key: "bp", name: "BP", match: ["bp"], mark: "bp", color: "#009b3a" },
-  {
-    key: "carrefour",
-    name: "Carrefour",
-    match: ["carrefour"],
-    mark: "C",
-    color: "#004e9f",
-  },
-  { key: "avia", name: "Avia", match: ["avia"], mark: "A", color: "#e30613" },
-  {
-    key: "alcampo",
-    name: "Alcampo",
-    match: ["alcampo"],
-    mark: "A",
-    color: "#e2001a",
+    color: "#d52b1e",
+    logo: "/brands/cepsa.svg",
   },
   {
-    key: "eroski",
-    name: "Eroski",
-    match: ["eroski"],
-    mark: "E",
-    color: "#e30613",
-  },
-  { key: "eni", name: "Eni", match: ["eni"], mark: "eni", color: "#ffd100" },
-  // Color oficial pendiente de verificar: se muestran con el tono neutro.
-  { key: "moeve", name: "Moeve", match: ["moeve"], mark: "M", color: null },
-  {
-    key: "ballenoil",
-    name: "Ballenoil",
-    match: ["ballenoil"],
-    mark: "B",
-    color: null,
+    key: "galp",
+    name: "Galp",
+    aliases: ["galp"],
+    mark: "G",
+    color: "#ff5a00",
+    logo: "/brands/galp.svg",
   },
   {
     key: "plenergy",
     name: "Plenergy",
-    match: ["plenergy"],
+    aliases: ["plenergy"],
     mark: "P",
-    color: null,
-  },
-  {
-    key: "petroprix",
-    name: "Petroprix",
-    match: ["petroprix"],
-    mark: "P",
-    color: null,
+    color: "#fd8204",
+    logo: "/brands/plenergy.png",
   },
   {
     key: "petronor",
     name: "Petronor",
-    match: ["petronor"],
+    aliases: ["petronor"],
     mark: "P",
-    color: null,
+    color: "#233771",
+    logo: "/brands/petronor.png",
   },
+  {
+    key: "avia",
+    name: "AVIA",
+    aliases: ["avia"],
+    mark: "A",
+    color: "#ed1c24",
+    logo: "/brands/avia.svg",
+  },
+  {
+    key: "q8",
+    name: "Q8",
+    aliases: ["q8"],
+    mark: "Q8",
+    color: "#214199",
+    logo: "/brands/q8.svg",
+  },
+  {
+    key: "alcampo",
+    name: "Alcampo",
+    aliases: ["alcampo"],
+    mark: "A",
+    color: "#e0001a",
+    logo: "/brands/alcampo.png",
+  },
+  {
+    key: "eni",
+    name: "Eni",
+    aliases: ["eni"],
+    mark: "eni",
+    color: "#fab600",
+    logo: "/brands/eni.svg",
+  },
+  {
+    key: "eroski",
+    name: "Eroski",
+    aliases: ["eroski"],
+    mark: "E",
+    color: "#e42219",
+    logo: "/brands/eroski.svg",
+  },
+  {
+    key: "meroil",
+    name: "Meroil",
+    aliases: ["meroil"],
+    mark: "M",
+    color: "#47704c",
+    logo: "/brands/meroil.png",
+  },
+  {
+    key: "naturgy",
+    name: "Naturgy",
+    aliases: ["naturgy"],
+    mark: "N",
+    color: "#e57200",
+    logo: "/brands/naturgy.svg",
+  },
+  {
+    key: "costco",
+    name: "Costco",
+    aliases: ["costco"],
+    mark: "C",
+    color: "#005daa",
+    logo: "/brands/costco.svg",
+  },
+  // Reconocidas sin logotipo verificado: monograma en tono neutro.
+  { key: "bp", name: "BP", aliases: ["bp", "b p"], mark: "bp" },
+  { key: "ballenoil", name: "Ballenoil", aliases: ["ballenoil"], mark: "B" },
+  { key: "shell", name: "Shell", aliases: ["shell"], mark: "S" },
+  { key: "petroprix", name: "Petroprix", aliases: ["petroprix"], mark: "P" },
+  { key: "carrefour", name: "Carrefour", aliases: ["carrefour"], mark: "C" },
+  { key: "esclatoil", name: "Esclatoil", aliases: ["esclatoil"], mark: "E" },
+  {
+    key: "bonarea",
+    name: "bonÀrea",
+    aliases: ["bonarea", "bon area"],
+    mark: "bA",
+  },
+  { key: "campsa", name: "Campsa", aliases: ["campsa"], mark: "C" },
+  { key: "agla", name: "Agla", aliases: ["agla"], mark: "A" },
+  { key: "valcarce", name: "Valcarce", aliases: ["valcarce"], mark: "V" },
+  { key: "gasexpress", name: "Gasexpress", aliases: ["gasexpress"], mark: "G" },
+  { key: "ham", name: "HAM", aliases: ["ham"], anchored: true, mark: "H" },
+  { key: "beroil", name: "Beroil", aliases: ["beroil"], mark: "B" },
+  { key: "petrocat", name: "Petrocat", aliases: ["petrocat"], mark: "P" },
+  { key: "tamoil", name: "Tamoil", aliases: ["tamoil"], mark: "T" },
+  { key: "gmoil", name: "GM Oil", aliases: ["gm oil", "gmoil"], mark: "GM" },
+  { key: "molgas", name: "Molgas", aliases: ["molgas"], mark: "M" },
+  { key: "disa", name: "DISA", aliases: ["disa"], mark: "D" },
+  {
+    key: "nieves",
+    name: "Nieves",
+    aliases: ["nieves"],
+    anchored: true,
+    mark: "N",
+  },
+  { key: "ids", name: "IDS", aliases: ["ids"], anchored: true, mark: "I" },
+  { key: "autonetoil", name: "Autonetoil", aliases: ["autonetoil"], mark: "A" },
+  { key: "iberdoex", name: "Iberdoex", aliases: ["iberdoex"], mark: "I" },
+  {
+    key: "asc",
+    name: "ASC Carburantes",
+    aliases: ["asc carburantes"],
+    mark: "ASC",
+  },
+  { key: "easygas", name: "Easygas", aliases: ["easygas"], mark: "E" },
+  { key: "agropal", name: "Agropal", aliases: ["agropal"], mark: "A" },
+  { key: "leclerc", name: "E.Leclerc", aliases: ["e leclerc"], mark: "E" },
+  {
+    key: "familyenergy",
+    name: "Family Energy",
+    aliases: ["family energy"],
+    mark: "FE",
+  },
+  { key: "staroil", name: "Staroil", aliases: ["staroil"], mark: "S" },
 ];
 
 export const NEUTRAL_BRAND_COLOR = "#5a6b7e";
@@ -118,14 +212,15 @@ const IGNORED_WORDS = new Set([
 ]);
 
 export interface BrandIdentity {
-  /** `null` cuando la marca no está registrada. */
+  /** `null` cuando la marca no está registrada o el rótulo es ambiguo. */
   key: string | null;
-  /** Nombre de marca registrado o, si no se conoce, el rótulo original. */
+  /** Nombre comercial registrado o, si no se conoce, el rótulo original. */
   name: string | null;
   mark: string | null;
   color: string;
   /** Color de texto legible sobre `color`. */
   onColor: string;
+  /** Ruta local del logotipo verificado, si existe. */
   logo: string | null;
   known: boolean;
 }
@@ -134,6 +229,51 @@ function words(value: string): string[] {
   return normalizeSearch(value)
     .split(/[^a-z0-9ñ]+/)
     .filter(Boolean);
+}
+
+const ALIASES = BRANDS.map((definition) => ({
+  definition,
+  sequences: definition.aliases.map(words),
+}));
+
+function containsSequence(
+  haystack: readonly string[],
+  sequence: readonly string[],
+  anchored: boolean,
+): boolean {
+  const lastStart = anchored ? 0 : haystack.length - sequence.length;
+  for (let start = 0; start <= lastStart; start++) {
+    if (sequence.every((word, offset) => haystack[start + offset] === word)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Marca comercial escrita en el rótulo. Devuelve `null` si no hay ninguna
+ * registrada o si el rótulo nombra varias (por ejemplo "CEPSA-MOEVE"), porque
+ * no puede decidirse cuál muestra la estación.
+ */
+function resolveBrand(label: string): BrandDefinition | null {
+  const labelWords = words(label);
+  const matches = ALIASES.filter(({ definition, sequences }) =>
+    sequences.some((sequence) =>
+      containsSequence(labelWords, sequence, definition.anchored === true),
+    ),
+  );
+  return matches.length === 1 ? matches[0].definition : null;
+}
+
+export function resolveBrandKey(brand: string | null): string | null {
+  return brand === null ? null : (resolveBrand(brand)?.key ?? null);
+}
+
+/** Logotipos locales registrados, para comprobar que existen. */
+export function getRegisteredLogos(): string[] {
+  return BRANDS.flatMap((definition) =>
+    definition.logo ? [definition.logo] : [],
+  );
 }
 
 function channel(value: number): number {
@@ -172,27 +312,22 @@ function initials(brand: string): string | null {
     .toUpperCase();
 }
 
-export function getBrandIdentity(brand: string | null): BrandIdentity {
+function computeIdentity(brand: string | null): BrandIdentity {
   // MITECO publica algunas estaciones con el rótulo literal "(SIN RÓTULO)".
   const label =
     brand === null || normalizeSearch(brand) === "(sin rotulo)" ? null : brand;
-  if (label !== null) {
-    const brandWords = new Set(words(label));
-    const definition = BRANDS.find((candidate) =>
-      candidate.match.some((word) => brandWords.has(word)),
-    );
-    if (definition) {
-      const color = definition.color ?? NEUTRAL_BRAND_COLOR;
-      return {
-        key: definition.key,
-        name: definition.name,
-        mark: definition.mark,
-        color,
-        onColor: readableTextColor(color),
-        logo: definition.logo ?? null,
-        known: true,
-      };
-    }
+  const definition = label === null ? null : resolveBrand(label);
+  if (definition) {
+    const color = definition.color ?? NEUTRAL_BRAND_COLOR;
+    return {
+      key: definition.key,
+      name: definition.name,
+      mark: definition.mark,
+      color,
+      onColor: readableTextColor(color),
+      logo: definition.logo ?? null,
+      known: true,
+    };
   }
 
   return {
@@ -204,4 +339,16 @@ export function getBrandIdentity(brand: string | null): BrandIdentity {
     logo: null,
     known: false,
   };
+}
+
+// Hay unos pocos miles de rótulos distintos: se resuelven una sola vez.
+const identityCache = new Map<string | null, BrandIdentity>();
+
+export function getBrandIdentity(brand: string | null): BrandIdentity {
+  let identity = identityCache.get(brand);
+  if (!identity) {
+    identity = computeIdentity(brand);
+    identityCache.set(brand, identity);
+  }
+  return identity;
 }
