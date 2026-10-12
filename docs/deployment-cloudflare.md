@@ -68,7 +68,14 @@ precios; el manifiesto mantiene por separado fechas de descarga y métricas de e
 - un cambio solo en `retrieved_at`, fecha comunicada por la fuente o métricas de ejecución no
   activa una publicación;
 - un conjunto idéntico termina correctamente como comprobación sin cambios, antes del build y de
-  Wrangler.
+  Wrangler, salvo que una ejecución manual solicite expresamente publicar cambios de código.
+
+La opción manual `force_deploy` permite publicar una nueva versión del código cuando los datos de
+MITECO son idénticos. No evita ninguna protección: el manifiesto publicado debe recuperarse y
+validarse, MITECO debe responder con un conjunto válido y se ejecutan las mismas pruebas,
+preparación de datos, build y controles previos a Wrangler. El workflow y la política ejecutada en
+Node comprueban de forma independiente que el evento sea `workflow_dispatch`; una ejecución
+programada nunca puede forzar la publicación.
 
 El máximo teórico es de 6 comprobaciones diarias: entre 168 y 186 ejecuciones en un mes de 28 a
 31 días. Solo las que detectan cambios consumen un despliegue de Pages, por lo que el máximo de
@@ -87,9 +94,11 @@ defecto. Después de fusionar la PR con autorización expresa:
 3. En el primer despliegue, y solo si todavía no existe
    `/data/miteco/manifest.json`, activar `allow_missing_published_manifest`.
 4. En todos los despliegues posteriores dejar esa opción desactivada.
-5. Revisar el resultado de la comparación. Si hay cambios, deben terminar correctamente los
-   controles, la preparación de datos, el build y el control de límites antes de Wrangler. Si no
-   hay cambios, el workflow finaliza correctamente sin esos pasos.
+5. Activar `force_deploy` solo cuando sea necesario publicar cambios de código aunque el contenido
+   de MITECO sea idéntico. Dejarlo desactivado para una comprobación ordinaria.
+6. Revisar el resultado de la comparación. Si hay cambios o se solicitó el forzado manual, deben
+   terminar correctamente los controles, la preparación de datos, el build y el control de límites
+   antes de Wrangler. Si no hay cambios, el workflow finaliza correctamente sin esos pasos.
 
 GitHub exige que un workflow manual exista en la rama por defecto; por eso esta PR prepara el
 mecanismo pero no puede publicarlo por sí sola. El workflow no responde a `push` ni a
@@ -114,6 +123,10 @@ admite cuando el evento es `workflow_dispatch`; una ejecución programada ignora
 bloquea la publicación si el manifiesto está ausente, corrupto, es incompatible o no se puede
 descargar. Permitir su ausencia cuando ya debería existir eliminaría la comparación histórica y
 debe considerarse un error operativo.
+
+`force_deploy` no modifica esta regla: forzar una publicación no permite continuar con un
+manifiesto ausente, corrupto o inaccesible, salvo la excepción independiente y exclusivamente
+manual del primer despliegue.
 
 ## Fallos y recuperación
 

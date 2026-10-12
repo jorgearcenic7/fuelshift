@@ -2,7 +2,10 @@ import { createHash } from "node:crypto";
 
 import { describe, expect, it } from "vitest";
 
-import { stationDataChanged } from "./compare-miteco-data.mjs";
+import {
+  deploymentDecision,
+  stationDataChanged,
+} from "./compare-miteco-data.mjs";
 
 function provinceHash(price) {
   const province = {
@@ -64,5 +67,47 @@ describe("stationDataChanged", () => {
         }),
       ),
     ).toBe(false);
+  });
+});
+
+describe("deploymentDecision", () => {
+  it("publica cuando cambian los datos", () => {
+    expect(
+      deploymentDecision({
+        dataChanged: true,
+        eventName: "schedule",
+        forceDeployRequested: false,
+      }),
+    ).toEqual({ forced: false, shouldDeploy: true });
+  });
+
+  it("permite forzar manualmente un despliegue con datos idénticos", () => {
+    expect(
+      deploymentDecision({
+        dataChanged: false,
+        eventName: "workflow_dispatch",
+        forceDeployRequested: true,
+      }),
+    ).toEqual({ forced: true, shouldDeploy: true });
+  });
+
+  it("ignora cualquier intento de forzado en una ejecución programada", () => {
+    expect(
+      deploymentDecision({
+        dataChanged: false,
+        eventName: "schedule",
+        forceDeployRequested: true,
+      }),
+    ).toEqual({ forced: false, shouldDeploy: false });
+  });
+
+  it("no publica datos idénticos sin una petición manual explícita", () => {
+    expect(
+      deploymentDecision({
+        dataChanged: false,
+        eventName: "workflow_dispatch",
+        forceDeployRequested: false,
+      }),
+    ).toEqual({ forced: false, shouldDeploy: false });
   });
 });

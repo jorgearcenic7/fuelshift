@@ -136,6 +136,7 @@ docs/                   Contratos y decisiones técnicas
 
 El despliegue estático en Cloudflare Pages Free comprueba MITECO cada cuatro horas y también puede
 ejecutarse manualmente. Solo publica cuando cambia el contenido normalizado de las estaciones; una
-comprobación sin cambios no ejecuta el build ni Wrangler. La configuración, los secretos, la
-protección del manifiesto anterior, la recuperación y los límites están documentados en
+ejecución manual puede forzar la publicación de cambios de código sin omitir ninguna validación.
+Una comprobación programada sin cambios no ejecuta el build ni Wrangler. La configuración, los
+secretos, la protección del manifiesto anterior, la recuperación y los límites están documentados en
 [`docs/deployment-cloudflare.md`](docs/deployment-cloudflare.md).

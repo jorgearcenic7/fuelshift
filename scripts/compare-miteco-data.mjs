@@ -22,6 +22,16 @@ export function stationDataChanged(publishedBytes, candidateBytes) {
   );
 }
 
+export function deploymentDecision({
+  dataChanged,
+  eventName,
+  forceDeployRequested,
+}) {
+  const forced =
+    eventName === "workflow_dispatch" && forceDeployRequested === true;
+  return { forced, shouldDeploy: dataChanged || forced };
+}
+
 async function main() {
   const [publishedPath, candidatePath] = process.argv.slice(2);
   if (!publishedPath || !candidatePath) {
@@ -34,13 +44,27 @@ async function main() {
     await readFile(publishedPath),
     await readFile(candidatePath),
   );
+  const decision = deploymentDecision({
+    dataChanged: changed,
+    eventName: process.env.GITHUB_EVENT_NAME,
+    forceDeployRequested:
+      process.env.FORCE_DEPLOY_REQUESTED?.trim().toLowerCase() === "true",
+  });
   if (process.env.GITHUB_OUTPUT) {
-    await appendFile(process.env.GITHUB_OUTPUT, `changed=${changed}\n`, "utf8");
+    await appendFile(
+      process.env.GITHUB_OUTPUT,
+      `changed=${changed}\nshould_deploy=${decision.shouldDeploy}\nforced=${decision.forced}\n`,
+      "utf8",
+    );
   }
 
   if (changed) {
     console.log(
       "Se detectaron cambios en los datos normalizados de estaciones.",
+    );
+  } else if (decision.forced) {
+    console.log(
+      "Despliegue manual forzado: se publicarán los cambios de código tras superar todos los controles.",
     );
   } else {
     console.log(
