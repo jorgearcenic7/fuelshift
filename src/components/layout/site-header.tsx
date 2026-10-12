@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export function SiteHeader() {
+export function SiteHeader({ active = "mapa" }: { active?: "mapa" | "comparador" }) {
   return (
     <header className="bg-navy relative z-30 bg-[linear-gradient(100deg,#0e2f52_0%,#14406f_100%)] text-white shadow-[0_1px_0_rgb(255_255_255/6%),0_6px_20px_-12px_rgb(14_47_82/60%)]">
       <div className="flex h-14 w-full items-center justify-between px-4 sm:px-6">
@@ -34,9 +34,16 @@ export function SiteHeader() {
           <Link
             className="rounded-full bg-white/12 px-3.5 py-1.5 text-sm font-medium text-white ring-1 ring-white/15 transition-colors hover:bg-white/18"
             href="/"
-            aria-current="page"
+            aria-current={active === "mapa" ? "page" : undefined}
           >
             Mapa
+          </Link>
+          <Link
+            className={`ml-2 rounded-full px-3.5 py-1.5 text-sm font-medium text-white transition-colors ${active === "comparador" ? "bg-white/12 ring-1 ring-white/15" : "hover:bg-white/12"}`}
+            href="/comparador"
+            aria-current={active === "comparador" ? "page" : undefined}
+          >
+            Comparador
           </Link>
         </nav>
       </div>
