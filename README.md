@@ -134,8 +134,9 @@ docs/                   Contratos y decisiones técnicas
 .github/workflows/      Integración continua y verificación manual
 ```
 
-El despliegue estático en Cloudflare Pages Free está preparado mediante un workflow exclusivamente
-manual. La configuración, los secretos, la protección del manifiesto anterior, la recuperación y
-los límites están documentados en
-[`docs/deployment-cloudflare.md`](docs/deployment-cloudflare.md). No hay una programación
-periódica activa.
+El despliegue estático en Cloudflare Pages Free comprueba MITECO cada cuatro horas y también puede
+ejecutarse manualmente. Solo publica cuando cambia el contenido normalizado de las estaciones; una
+ejecución manual puede forzar la publicación de cambios de código sin omitir ninguna validación.
+Una comprobación programada sin cambios no ejecuta el build ni Wrangler. La configuración, los
+secretos, la protección del manifiesto anterior, la recuperación y los límites están documentados en
+[`docs/deployment-cloudflare.md`](docs/deployment-cloudflare.md).

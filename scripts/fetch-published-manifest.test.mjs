@@ -21,7 +21,21 @@ afterEach(async () => {
 
 function manifestBytes(stationCount = 11_511) {
   return Buffer.from(
-    JSON.stringify({ schema_version: "1.0.0", station_count: stationCount }),
+    JSON.stringify({
+      province_count: 1,
+      provinces: [
+        {
+          bytes: 1_024,
+          file: "provinces/28.json",
+          id: "28",
+          name: "MADRID",
+          sha256: "a".repeat(64),
+          station_count: stationCount,
+        },
+      ],
+      schema_version: "1.0.0",
+      station_count: stationCount,
+    }),
   );
 }
 
@@ -43,6 +57,14 @@ describe("validatePublishedManifest", () => {
     [{ schema_version: "2.0.0", station_count: 11_511 }],
     [{ schema_version: "1.0.0", station_count: 0 }],
     [{ schema_version: "1.0.0", station_count: "11511" }],
+    [
+      {
+        province_count: 1,
+        provinces: [{ id: "28", sha256: "no-es-un-hash" }],
+        schema_version: "1.0.0",
+        station_count: 11_511,
+      },
+    ],
   ])("rechaza un manifiesto incompatible: %j", (manifest) => {
     expect(() =>
       validatePublishedManifest(Buffer.from(JSON.stringify(manifest))),
@@ -82,6 +104,22 @@ describe("seedPublishedManifest", () => {
         log: { info: vi.fn(), warn: vi.fn() },
       }),
     ).rejects.toThrow("HTTP 404");
+  });
+
+  it("bloquea un fallo de red sin alterar el destino", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "fuelshift-manifest-"));
+    temporaryDirectories.push(directory);
+    const destination = path.join(directory, "manifest.json");
+
+    await expect(
+      seedPublishedManifest({
+        publishedSiteUrl: "https://fuelshift.pages.dev",
+        destination,
+        fetchImpl: vi.fn().mockRejectedValue(new TypeError("fetch failed")),
+        log: { info: vi.fn(), warn: vi.fn() },
+      }),
+    ).rejects.toThrow("fetch failed");
+    await expect(readFile(destination)).rejects.toThrow();
   });
 
   it("guarda un manifiesto válido para la comparación histórica", async () => {

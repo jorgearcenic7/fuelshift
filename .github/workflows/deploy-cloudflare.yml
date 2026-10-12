@@ -1,10 +1,17 @@
-name: Despliegue manual a Cloudflare Pages
+name: Actualización MITECO en Cloudflare Pages
 
 on:
+  schedule:
+    - cron: "0 */4 * * *"
   workflow_dispatch:
     inputs:
       allow_missing_published_manifest:
         description: Permitir el primer despliegue sin manifiesto publicado
+        required: true
+        type: boolean
+        default: false
+      force_deploy:
+        description: Publicar cambios de código aunque los datos sean idénticos
         required: true
         type: boolean
         default: false
@@ -51,23 +58,6 @@ jobs:
       - name: Instalar dependencias Python
         run: python -m pip install -r requirements-dev.lock
 
-      - name: Instalar dependencias Node.js
-        run: npm ci
-
-      - name: Ejecutar controles Python
-        run: |
-          python -m pip check
-          python -m ruff format --check pipeline
-          python -m ruff check pipeline
-          python -m pytest
-
-      - name: Ejecutar controles frontend
-        run: |
-          npm run format:check
-          npm run lint
-          npm run typecheck
-          npm run test:coverage
-
       - name: Validar configuración pública
         shell: bash
         run: |
@@ -79,19 +69,72 @@ jobs:
 
       - name: Recuperar el último manifiesto publicado
         env:
-          ALLOW_MISSING_PUBLISHED_MANIFEST: ${{ inputs.allow_missing_published_manifest }}
+          ALLOW_MISSING_PUBLISHED_MANIFEST: ${{ github.event_name == 'workflow_dispatch' && inputs.allow_missing_published_manifest == true }}
         run: npm run data:seed-published
+
+      - name: Conservar la referencia publicada
+        id: published
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f data/processed/miteco/manifest.json ]]; then
+            cp data/processed/miteco/manifest.json "$RUNNER_TEMP/published-manifest.json"
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Descargar y validar los datos oficiales de MITECO
         run: python -m fuelshift_data --output data/processed/miteco
 
+      - name: Comparar el contenido normalizado de las estaciones
+        id: data_change
+        env:
+          FORCE_DEPLOY_REQUESTED: ${{ github.event_name == 'workflow_dispatch' && inputs.force_deploy == true }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ steps.published.outputs.available }}" == "true" ]]; then
+            node scripts/compare-miteco-data.mjs \
+              "$RUNNER_TEMP/published-manifest.json" \
+              data/processed/miteco/manifest.json
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+            echo "forced=false" >> "$GITHUB_OUTPUT"
+            echo "Primer despliegue manual autorizado: se publicará el conjunto validado."
+          fi
+
+      - name: Instalar dependencias Node.js
+        if: steps.data_change.outputs.should_deploy == 'true'
+        run: npm ci
+
+      - name: Ejecutar controles Python
+        if: steps.data_change.outputs.should_deploy == 'true'
+        run: |
+          python -m pip check
+          python -m ruff format --check pipeline
+          python -m ruff check pipeline
+          python -m pytest
+
+      - name: Ejecutar controles frontend
+        if: steps.data_change.outputs.should_deploy == 'true'
+        run: |
+          npm run format:check
+          npm run lint
+          npm run typecheck
+          npm run test:coverage
+
       - name: Validar y preparar los datos estáticos
+        if: steps.data_change.outputs.should_deploy == 'true'
         run: npm run data:prepare
 
       - name: Generar la exportación estática
+        if: steps.data_change.outputs.should_deploy == 'true'
         run: npm run build
 
       - name: Comprobar límites y ausencia de código servidor
+        if: steps.data_change.outputs.should_deploy == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -120,6 +163,7 @@ jobs:
           echo "Exportación verificada: $file_count archivos estáticos."
 
       - name: Desplegar en Cloudflare Pages
+        if: steps.data_change.outputs.should_deploy == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
