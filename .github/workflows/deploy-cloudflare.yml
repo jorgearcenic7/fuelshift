@@ -1,0 +1,137 @@
+name: Despliegue manual a Cloudflare Pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      allow_missing_published_manifest:
+        description: Permitir el primer despliegue sin manifiesto publicado
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-pages-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: validar-construir-desplegar
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    env:
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PYTHONPATH: pipeline/src
+      CLOUDFLARE_PAGES_PROJECT_NAME: ${{ vars.CLOUDFLARE_PAGES_PROJECT_NAME }}
+      CLOUDFLARE_PAGES_URL: ${{ vars.CLOUDFLARE_PAGES_URL }}
+
+    steps:
+      - name: Obtener el repositorio
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Preparar Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.lock
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias Python
+        run: python -m pip install -r requirements-dev.lock
+
+      - name: Instalar dependencias Node.js
+        run: npm ci
+
+      - name: Ejecutar controles Python
+        run: |
+          python -m pip check
+          python -m ruff format --check pipeline
+          python -m ruff check pipeline
+          python -m pytest
+
+      - name: Ejecutar controles frontend
+        run: |
+          npm run format:check
+          npm run lint
+          npm run typecheck
+          npm run test:coverage
+
+      - name: Validar configuración pública
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$CLOUDFLARE_PAGES_PROJECT_NAME" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+            echo "::error::Configura CLOUDFLARE_PAGES_PROJECT_NAME con un nombre válido."
+            exit 1
+          fi
+
+      - name: Recuperar el último manifiesto publicado
+        env:
+          ALLOW_MISSING_PUBLISHED_MANIFEST: ${{ inputs.allow_missing_published_manifest }}
+        run: npm run data:seed-published
+
+      - name: Descargar y validar los datos oficiales de MITECO
+        run: python -m fuelshift_data --output data/processed/miteco
+
+      - name: Validar y preparar los datos estáticos
+        run: npm run data:prepare
+
+      - name: Generar la exportación estática
+        run: npm run build
+
+      - name: Comprobar límites y ausencia de código servidor
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f out/index.html
+          test -f out/data/miteco/manifest.json
+
+          if [[ -d functions || -f out/_worker.js ]]; then
+            echo "::error::El despliegue debe contener solo activos estáticos."
+            exit 1
+          fi
+          if find out -type l -print -quit | grep -q .; then
+            echo "::error::La exportación estática no puede contener enlaces simbólicos."
+            exit 1
+          fi
+
+          file_count="$(find out -type f | wc -l)"
+          if (( file_count > 20000 )); then
+            echo "::error::La exportación contiene $file_count archivos; Pages Free admite 20000."
+            exit 1
+          fi
+          oversized="$(find out -type f -size +26214400c -print -quit)"
+          if [[ -n "$oversized" ]]; then
+            echo "::error::El archivo $oversized supera el límite de 25 MiB."
+            exit 1
+          fi
+          echo "Exportación verificada: $file_count archivos estáticos."
+
+      - name: Desplegar en Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$CLOUDFLARE_API_TOKEN" || -z "$CLOUDFLARE_ACCOUNT_ID" ]]; then
+            echo "::error::Faltan las credenciales de Cloudflare en el entorno production."
+            exit 1
+          fi
+          ./node_modules/.bin/wrangler pages deploy out \
+            --project-name="$CLOUDFLARE_PAGES_PROJECT_NAME" \
+            --branch=main \
+            --commit-hash="$GITHUB_SHA" \
+            --commit-dirty=false

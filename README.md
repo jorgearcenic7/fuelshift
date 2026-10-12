@@ -134,5 +134,8 @@ docs/                   Contratos y decisiones técnicas
 .github/workflows/      Integración continua y verificación manual
 ```
 
-El mecanismo gratuito para publicar y conservar datos entre ejecuciones todavía debe decidirse
-y probarse antes de activar una programación periódica o un despliegue automático.
+El despliegue estático en Cloudflare Pages Free está preparado mediante un workflow exclusivamente
+manual. La configuración, los secretos, la protección del manifiesto anterior, la recuperación y
+los límites están documentados en
+[`docs/deployment-cloudflare.md`](docs/deployment-cloudflare.md). No hay una programación
+periódica activa.
