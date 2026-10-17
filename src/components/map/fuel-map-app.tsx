@@ -23,8 +23,11 @@ import {
 } from "@/domain/stations";
 import { getBrandIdentity } from "@/domain/brands";
 import { buildComparatorHref } from "@/domain/comparator-link";
+import { buildPriceZones } from "@/domain/price-zones";
 
 import { BrandMark } from "./brand-mark";
+import type { MapView } from "./price-zone-layer";
+import { PriceZoneLegend } from "./price-zone-legend";
 
 import {
   AlertIcon,
@@ -50,6 +53,10 @@ const RANKING_SCOPE_CONTEXT: Record<RankingScope, string> = {
   visible: "en la zona visible",
   all: "en los resultados filtrados",
 };
+const MAP_VIEWS: readonly [MapView, string][] = [
+  ["stations", "Estaciones"],
+  ["zones", "Precios por zona"],
+];
 // Coincide con el punto de ruptura `xl` de Tailwind, donde el mapa y la
 // lista se muestran a la vez.
 const SIDE_BY_SIDE_QUERY = "(min-width: 80rem)";
@@ -134,6 +141,7 @@ export function FuelMapApp() {
   const [locationStatus, setLocationStatus] = useState<string | null>(null);
   const [rankingScope, setRankingScope] = useState<RankingScope>("visible");
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
+  const [mapView, setMapView] = useState<MapView>("stations");
   const mapAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -190,6 +198,15 @@ export function FuelMapApp() {
   const selectedStation = selectedId
     ? (stations.find((station) => station.id === selectedId) ?? null)
     : null;
+  // Usa todas las estaciones cargadas del combustible, no los resultados
+  // filtrados, y espera a la carga completa para que la escala sea nacional.
+  const priceZones = useMemo(
+    () =>
+      mapView === "zones" && !loading && !loadError
+        ? buildPriceZones(stations, fuel)
+        : null,
+    [mapView, loading, loadError, stations, fuel],
+  );
 
   // El ranking parte de los resultados ya filtrados. "Zona visible" espera a
   // que el mapa comunique sus límites en lugar de sustituirlos por España.
@@ -739,10 +756,46 @@ export function FuelMapApp() {
             userLocation={userLocation}
             onSelect={setSelectedId}
             onBoundsChange={setMapBounds}
+            view={mapView}
+            priceZones={priceZones}
           />
+          <fieldset className="absolute top-3 left-3 z-10">
+            <legend className="sr-only">Vista del mapa</legend>
+            <div className="bg-canvas/95 ring-line grid grid-cols-2 gap-1 rounded-xl p-1 shadow-[0_6px_20px_-8px_rgb(15_29_46/40%)] ring-1 backdrop-blur">
+              {MAP_VIEWS.map(([value, label]) => (
+                <label
+                  key={value}
+                  className="text-muted hover:text-ink has-checked:text-accent-strong flex min-h-8 items-center justify-center rounded-lg px-3 py-1 text-center text-xs font-medium whitespace-nowrap transition-colors has-checked:bg-white has-checked:font-semibold has-checked:shadow-[0_1px_3px_rgb(15_29_46/12%)] has-focus-visible:outline-3 has-focus-visible:outline-offset-1 has-focus-visible:outline-[#f4a261]"
+                >
+                  <input
+                    type="radio"
+                    name="map-view"
+                    value={value}
+                    checked={mapView === value}
+                    onChange={() => setMapView(value)}
+                    className="sr-only"
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          {mapView === "zones" && !loadError ? (
+            <div className="absolute bottom-9 left-3 z-10 max-w-[calc(100%-4.5rem)]">
+              <PriceZoneLegend
+                zoneMap={priceZones}
+                fuel={fuel}
+                loading={loading}
+                loadingStatus={dataStatus}
+                failedProvinces={failedProvinces.length}
+                stale={manifest !== null && isStale(manifest.retrieved_at)}
+                filtersActive={filtersActive}
+              />
+            </div>
+          ) : null}
           {loading && !loadError ? (
             <div
-              className="text-ink pointer-events-none absolute top-4 left-4 z-10 inline-flex items-center gap-2 rounded-full bg-white/95 px-3.5 py-2 text-xs font-medium shadow-[0_6px_20px_-8px_rgb(15_29_46/40%)] backdrop-blur"
+              className="text-ink pointer-events-none absolute top-[3.75rem] left-3 z-10 inline-flex items-center gap-2 rounded-full bg-white/95 px-3.5 py-2 text-xs font-medium shadow-[0_6px_20px_-8px_rgb(15_29_46/40%)] backdrop-blur"
               aria-hidden="true"
             >
               <span className="border-accent size-3 animate-spin rounded-full border-2 border-t-transparent" />
