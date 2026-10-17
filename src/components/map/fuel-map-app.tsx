@@ -914,7 +914,10 @@ function StationDetail({
           </div>
         </dl>
 
-        {selectedPrice !== null && (fuel === "diesel_a" || fuel === "gasoline_95_e5" || fuel === "gasoline_98_e5") ? (
+        {selectedPrice !== null &&
+        (fuel === "diesel_a" ||
+          fuel === "gasoline_95_e5" ||
+          fuel === "gasoline_98_e5") ? (
           <a
             href={`/comparador?fuel=${encodeURIComponent(fuel)}&price=${encodeURIComponent(String(selectedPrice))}&station=${encodeURIComponent(station.id)}`}
             className="border-accent text-accent hover:bg-accent-soft mt-4 inline-flex min-h-10 w-full items-center justify-center rounded-[0.625rem] border px-4 text-sm font-semibold"

@@ -62,7 +62,11 @@ export function calculateEnergyComparison(
   const cost = (consumption: number, price: number): EnergyCost => {
     const annualUnits = (inputs.annualKm * consumption) / 100;
     const annualEuros = annualUnits * price;
-    return { annualUnits, annualEuros, periodEuros: annualEuros * inputs.years };
+    return {
+      annualUnits,
+      annualEuros,
+      periodEuros: annualEuros * inputs.years,
+    };
   };
   const gasoline = cost(inputs.gasolineConsumption, inputs.gasolinePrice);
   const diesel = cost(inputs.dieselConsumption, inputs.dieselPrice);

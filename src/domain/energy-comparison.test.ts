@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  calculateEnergyComparison,
-  EXAMPLE_INPUTS,
-} from "./energy-comparison";
+import { calculateEnergyComparison, EXAMPLE_INPUTS } from "./energy-comparison";
 
 describe("calculateEnergyComparison", () => {
   it("calcula gasto por año y proyección con tres tipos de vehículo", () => {
@@ -47,6 +44,8 @@ describe("calculateEnergyComparison", () => {
     { years: 1.5 },
     { years: 21 },
   ])("rechaza entradas inválidas: %j", (patch) => {
-    expect(calculateEnergyComparison({ ...EXAMPLE_INPUTS, ...patch })).toBeNull();
+    expect(
+      calculateEnergyComparison({ ...EXAMPLE_INPUTS, ...patch }),
+    ).toBeNull();
   });
 });

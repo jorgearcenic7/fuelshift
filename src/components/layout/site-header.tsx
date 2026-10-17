@@ -1,6 +1,10 @@
 import Link from "next/link";
 
-export function SiteHeader({ active = "mapa" }: { active?: "mapa" | "comparador" }) {
+export function SiteHeader({
+  active = "mapa",
+}: {
+  active?: "mapa" | "comparador";
+}) {
   return (
     <header className="bg-navy relative z-30 bg-[linear-gradient(100deg,#0e2f52_0%,#14406f_100%)] text-white shadow-[0_1px_0_rgb(255_255_255/6%),0_6px_20px_-12px_rgb(14_47_82/60%)]">
       <div className="flex h-14 w-full items-center justify-between px-4 sm:px-6">
