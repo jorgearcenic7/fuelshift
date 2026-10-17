@@ -1,119 +1,152 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
+
+import { parseComparatorParams } from "@/domain/comparator-link";
 import {
   calculateEnergyComparison,
   EXAMPLE_INPUTS,
+  findInvalidFields,
+  INPUT_LIMITS,
+  type EnergyField,
   type EnergyInputs,
 } from "@/domain/energy-comparison";
+import { FUEL_LABELS } from "@/domain/stations";
 
-type Field = keyof EnergyInputs;
-type Values = Record<Field, string>;
-const defaults = Object.fromEntries(
-  Object.entries(EXAMPLE_INPUTS).map(([key, value]) => [key, String(value)]),
+type Values = Record<EnergyField, string>;
+
+const FIELDS: Record<EnergyField, { label: string; unit: string }> = {
+  annualKm: { label: "Kilómetros al año", unit: "km" },
+  gasolinePrice: { label: "Gasolina", unit: "€/L" },
+  dieselPrice: { label: "Diésel", unit: "€/L" },
+  electricPrice: { label: "Electricidad", unit: "€/kWh" },
+  gasolineConsumption: { label: "Consumo gasolina", unit: "L/100 km" },
+  dieselConsumption: { label: "Consumo diésel", unit: "L/100 km" },
+  electricConsumption: { label: "Consumo eléctrico", unit: "kWh/100 km" },
+  years: { label: "Proyección", unit: "años" },
+};
+/** En modo sencillo, el resto de campos usa los supuestos de EXAMPLE_INPUTS. */
+const SIMPLE_FIELDS: readonly EnergyField[] = [
+  "annualKm",
+  "gasolinePrice",
+  "dieselPrice",
+  "electricPrice",
+];
+const EXAMPLE_VALUES = Object.fromEntries(
+  Object.entries(EXAMPLE_INPUTS).map(([field, value]) => [
+    field,
+    String(value),
+  ]),
 ) as Values;
+
 const euros = (value: number) =>
   new Intl.NumberFormat("es-ES", {
     style: "currency",
     currency: "EUR",
-    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(value);
-const decimal = (value: number) =>
-  new Intl.NumberFormat("es-ES", { maximumFractionDigits: 1 }).format(value);
+const decimal = (value: number, digits = 1) =>
+  new Intl.NumberFormat("es-ES", { maximumFractionDigits: digits }).format(
+    value,
+  );
+const toNumber = (value: string) =>
+  value.trim() === "" ? Number.NaN : Number(value);
+
+// La URL no cambia mientras la página está abierta; en el HTML estático se lee vacía.
+const subscribeToNothing = () => () => {};
+const readSearch = () => window.location.search;
+const readServerSearch = () => "";
+
+function rangeMessage(field: EnergyField): string {
+  const { min, max, integer } = INPUT_LIMITS[field];
+  return `Introduce un ${integer ? "número entero" : "valor"} entre ${decimal(min, 2)} y ${decimal(max, 2)} ${FIELDS[field].unit}.`;
+}
 
 function NumericField({
-  label,
-  unit,
   field,
   value,
-  setValue,
-  min = 0.01,
-  max = 100000,
-  step = "any",
+  invalid,
+  onChange,
 }: {
-  label: string;
-  unit: string;
-  field: Field;
+  field: EnergyField;
   value: string;
-  setValue: (field: Field, value: string) => void;
-  min?: number;
-  max?: number;
-  step?: string;
+  invalid: boolean;
+  onChange: (field: EnergyField, value: string) => void;
 }) {
+  const { label, unit } = FIELDS[field];
+  const { min, max, integer } = INPUT_LIMITS[field];
+  const errorId = `${field}-error`;
   return (
     <label className="block">
       <span className="text-muted mb-1 block text-sm font-medium">
         {label} ({unit})
       </span>
       <input
-        className="control h-11 tabular-nums"
+        className={`control h-11 tabular-nums ${invalid ? "border-amber-600" : ""}`}
         type="number"
         inputMode="decimal"
         min={min}
         max={max}
-        step={step}
+        step={integer ? 1 : "any"}
         value={value}
-        onChange={(event) => setValue(field, event.target.value)}
+        aria-invalid={invalid}
+        aria-describedby={invalid ? errorId : undefined}
+        onChange={(event) => onChange(field, event.target.value)}
       />
+      {invalid ? (
+        <span id={errorId} className="mt-1 block text-xs text-amber-900">
+          {rangeMessage(field)}
+        </span>
+      ) : null}
     </label>
   );
 }
 
 export function EnergyCalculator() {
-  const [values, setValues] = useState<Values>(defaults);
+  const search = useSyncExternalStore(
+    subscribeToNothing,
+    readSearch,
+    readServerSearch,
+  );
+  const [edits, setEdits] = useState<Partial<Values>>({});
+  const [stationDismissed, setStationDismissed] = useState(false);
   const [advanced, setAdvanced] = useState(false);
-  const [stationReference, setStationReference] = useState<string | null>(null);
 
-  useEffect(() => {
-    const query = new URLSearchParams(window.location.search);
-    const fuel = query.get("fuel");
-    const price = query.get("price");
-    const field =
-      fuel === "diesel_a"
-        ? "dieselPrice"
-        : fuel === "gasoline_95_e5" || fuel === "gasoline_98_e5"
-          ? "gasolinePrice"
-          : null;
-    if (
-      !field ||
-      !price ||
-      !/^\d{1,2}(?:\.\d{1,3})?$/.test(price) ||
-      Number(price) < 0.01 ||
-      Number(price) > 10
-    )
-      return;
-    setValues((current) => ({ ...current, [field]: price }));
-    const station = query.get("station");
-    setStationReference(
-      station && /^\d{1,10}$/.test(station)
-        ? `Precio de la estación MITECO ${station} precargado desde el mapa (editable).`
-        : "Precio precargado desde el mapa (editable).",
-    );
-  }, []);
-
-  const setValue = (field: Field, value: string) => {
-    setValues((current) => ({ ...current, [field]: value }));
-    if (field === "gasolinePrice" || field === "dieselPrice")
-      setStationReference(null);
+  const station = stationDismissed ? null : parseComparatorParams(search);
+  const values: Values = {
+    ...EXAMPLE_VALUES,
+    ...(station ? { [station.field]: String(station.price) } : {}),
+    ...edits,
   };
-  const inputs = useMemo(() => {
-    const parsed = Object.fromEntries(
-      Object.entries(values).map(([key, value]) => [
-        key,
-        value.trim() === "" ? Number.NaN : Number(value),
-      ]),
-    ) as unknown as EnergyInputs;
-    return advanced
-      ? parsed
-      : {
-          ...parsed,
-          years: EXAMPLE_INPUTS.years,
-          gasolineConsumption: EXAMPLE_INPUTS.gasolineConsumption,
-          dieselConsumption: EXAMPLE_INPUTS.dieselConsumption,
-          electricConsumption: EXAMPLE_INPUTS.electricConsumption,
-        };
-  }, [values, advanced]);
+  const stationPriceInUse = station !== null && !(station.field in edits);
+
+  const inputs = Object.fromEntries(
+    (Object.keys(EXAMPLE_INPUTS) as EnergyField[]).map((field) => [
+      field,
+      advanced || SIMPLE_FIELDS.includes(field)
+        ? toNumber(values[field])
+        : EXAMPLE_INPUTS[field],
+    ]),
+  ) as unknown as EnergyInputs;
+  const invalidFields = new Set(findInvalidFields(inputs));
   const result = calculateEnergyComparison(inputs);
+
+  const updateValue = (field: EnergyField, value: string) =>
+    setEdits((current) => ({ ...current, [field]: value }));
+  const reset = () => {
+    setEdits({});
+    setStationDismissed(true);
+  };
+  const field = (name: EnergyField) => (
+    <NumericField
+      field={name}
+      value={values[name]}
+      invalid={invalidFields.has(name)}
+      onChange={updateValue}
+    />
+  );
+
   const costs = result
     ? [
         {
@@ -156,7 +189,7 @@ export function EnergyCalculator() {
       </p>
       <div className="mt-8 grid items-start gap-6 lg:grid-cols-2">
         <section
-          className="border-line rounded-2xl border bg-white p-5 shadow-sm sm:p-6"
+          className="border-line bg-surface rounded-2xl border p-5 shadow-sm sm:p-6"
           aria-labelledby="inputs-title"
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -166,10 +199,7 @@ export function EnergyCalculator() {
             <button
               type="button"
               className="text-accent text-sm font-semibold hover:underline"
-              onClick={() => {
-                setValues(defaults);
-                setStationReference(null);
-              }}
+              onClick={reset}
             >
               Restablecer ejemplo
             </button>
@@ -177,7 +207,7 @@ export function EnergyCalculator() {
           <div
             className="bg-canvas mt-4 grid grid-cols-2 gap-1 rounded-xl p-1"
             role="group"
-            aria-label="Modo"
+            aria-label="Modo de cálculo"
           >
             {(
               [
@@ -190,7 +220,7 @@ export function EnergyCalculator() {
                 type="button"
                 aria-pressed={advanced === value}
                 onClick={() => setAdvanced(value)}
-                className={`rounded-lg px-3 py-2 text-sm font-semibold ${advanced === value ? "text-accent-strong bg-white shadow-sm" : "text-muted"}`}
+                className={`rounded-lg px-3 py-2 text-sm font-semibold ${advanced === value ? "bg-surface text-accent-strong shadow-sm" : "text-muted"}`}
               >
                 {label}
               </button>
@@ -201,50 +231,24 @@ export function EnergyCalculator() {
             oficiales. Puedes modificarlos.
           </p>
           <div className="mt-5 space-y-4">
-            <NumericField
-              field="annualKm"
-              label="Kilómetros al año"
-              unit="km/año"
-              value={values.annualKm}
-              setValue={setValue}
-              min={1}
-              max={150000}
-              step="1"
-            />
+            {field("annualKm")}
             <fieldset>
               <legend className="mb-3 text-sm font-semibold">
                 Precio de la energía
               </legend>
               <div className="grid gap-3 sm:grid-cols-2">
-                <NumericField
-                  field="gasolinePrice"
-                  label="Gasolina"
-                  unit="€/L"
-                  value={values.gasolinePrice}
-                  setValue={setValue}
-                  max={10}
-                />
-                <NumericField
-                  field="dieselPrice"
-                  label="Diésel"
-                  unit="€/L"
-                  value={values.dieselPrice}
-                  setValue={setValue}
-                  max={10}
-                />
-                <NumericField
-                  field="electricPrice"
-                  label="Electricidad"
-                  unit="€/kWh"
-                  value={values.electricPrice}
-                  setValue={setValue}
-                  min={0}
-                  max={5}
-                />
+                {field("gasolinePrice")}
+                {field("dieselPrice")}
+                {field("electricPrice")}
               </div>
-              {stationReference ? (
-                <p role="status" className="text-accent mt-2 text-xs">
-                  {stationReference} Comprueba su antigüedad en el mapa.
+              {stationPriceInUse ? (
+                <p role="status" className="text-accent mt-2 text-xs leading-5">
+                  Precio de {FUEL_LABELS[station.fuel]}
+                  {station.stationId
+                    ? ` de la estación MITECO ${station.stationId}`
+                    : ""}{" "}
+                  cargado desde el mapa. Puedes editarlo; comprueba su
+                  antigüedad en el mapa.
                 </p>
               ) : null}
             </fieldset>
@@ -254,53 +258,26 @@ export function EnergyCalculator() {
                   Consumos y plazo
                 </legend>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <NumericField
-                    field="gasolineConsumption"
-                    label="Consumo gasolina"
-                    unit="L/100 km"
-                    value={values.gasolineConsumption}
-                    setValue={setValue}
-                    max={60}
-                  />
-                  <NumericField
-                    field="dieselConsumption"
-                    label="Consumo diésel"
-                    unit="L/100 km"
-                    value={values.dieselConsumption}
-                    setValue={setValue}
-                    max={60}
-                  />
-                  <NumericField
-                    field="electricConsumption"
-                    label="Consumo eléctrico"
-                    unit="kWh/100 km"
-                    value={values.electricConsumption}
-                    setValue={setValue}
-                    max={120}
-                  />
-                  <NumericField
-                    field="years"
-                    label="Proyección"
-                    unit="años"
-                    value={values.years}
-                    setValue={setValue}
-                    min={1}
-                    max={20}
-                    step="1"
-                  />
+                  {field("gasolineConsumption")}
+                  {field("dieselConsumption")}
+                  {field("electricConsumption")}
+                  {field("years")}
                 </div>
               </fieldset>
             ) : (
               <p className="bg-accent-soft text-accent-strong rounded-xl p-3 text-xs leading-6">
-                Supuestos: gasolina 6,5 L/100 km, diésel 5,5 L/100 km, eléctrico
-                17 kWh/100 km, durante 5 años. Personaliza los consumos si
-                conoces los de tu coche.
+                Supuestos del modo sencillo: gasolina{" "}
+                {decimal(EXAMPLE_INPUTS.gasolineConsumption)} L/100 km, diésel{" "}
+                {decimal(EXAMPLE_INPUTS.dieselConsumption)} L/100 km, eléctrico{" "}
+                {decimal(EXAMPLE_INPUTS.electricConsumption)} kWh/100 km y
+                proyección a {EXAMPLE_INPUTS.years} años. Usa el modo
+                personalizado si conoces los consumos de tu coche.
               </p>
             )}
           </div>
         </section>
         <section
-          className="border-line rounded-2xl border bg-white p-5 shadow-sm sm:p-6"
+          className="border-line bg-surface rounded-2xl border p-5 shadow-sm sm:p-6 lg:sticky lg:top-6"
           aria-labelledby="results-title"
         >
           <h2 id="results-title" className="text-lg font-semibold">
@@ -309,7 +286,8 @@ export function EnergyCalculator() {
           {result ? (
             <>
               <p className="text-muted mt-1 text-sm">
-                Para {decimal(inputs.annualKm)} km al año.
+                Para {decimal(inputs.annualKm)} km al año y una proyección a{" "}
+                {inputs.years} años.
               </p>
               <div className="mt-6 space-y-5">
                 {costs.map(({ name, color, unit, data }) => (
@@ -346,52 +324,58 @@ export function EnergyCalculator() {
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   {(
                     [
-                      [
-                        "Frente a gasolina",
-                        result.gasolineVsElectricEuros,
-                        result.gasolineVsElectricPercent,
-                      ],
-                      [
-                        "Frente a diésel",
-                        result.dieselVsElectricEuros,
-                        result.dieselVsElectricPercent,
-                      ],
+                      ["Frente a gasolina", result.electricVs.gasoline],
+                      ["Frente a diésel", result.electricVs.diesel],
                     ] as const
-                  ).map(([name, diff, percent]) => (
-                    <div
-                      key={name}
-                      className={`rounded-xl border p-4 ${diff >= 0 ? "bg-positive-soft border-emerald-200" : "border-amber-200 bg-amber-50"}`}
-                    >
-                      <p className="text-muted text-xs font-medium">{name}</p>
-                      <p
-                        className={`mt-1 text-2xl font-bold tabular-nums ${diff >= 0 ? "text-positive" : "text-amber-900"}`}
+                  ).map(([name, difference]) => {
+                    const cheaper = difference.annualEuros >= 0;
+                    const comparison = cheaper ? "menos" : "más";
+                    return (
+                      <div
+                        key={name}
+                        className={`rounded-xl border p-4 ${cheaper ? "bg-positive-soft border-emerald-200" : "border-amber-200 bg-amber-50"}`}
                       >
-                        {euros(Math.abs(diff))}
-                      </p>
-                      <p className="mt-1 text-xs">
-                        {diff >= 0 ? "Menor" : "Mayor"} gasto anual (
-                        {decimal(Math.abs(percent))} %)
-                      </p>
-                    </div>
-                  ))}
+                        <p className="text-muted text-xs font-medium">{name}</p>
+                        <p
+                          className={`mt-1 text-2xl font-bold tabular-nums ${cheaper ? "text-positive" : "text-amber-900"}`}
+                        >
+                          {euros(Math.abs(difference.annualEuros))}{" "}
+                          <span className="text-xs font-semibold">
+                            {comparison} al año
+                          </span>
+                        </p>
+                        <p className="text-ink mt-1 text-xs leading-5">
+                          {decimal(Math.abs(difference.percent))} % {comparison}{" "}
+                          de gasto energético ·{" "}
+                          {euros(Math.abs(difference.periodEuros))} {comparison}{" "}
+                          en {inputs.years} años
+                        </p>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </>
           ) : (
             <p
-              role="alert"
+              role="status"
               className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-950"
             >
-              Revisa los datos: introduce valores válidos para calcular el
-              gasto.
+              Revisa los campos marcados: el cálculo se mostrará cuando todos
+              los valores sean válidos.
             </p>
           )}
-          <p className="border-line text-muted mt-6 border-t pt-4 text-xs leading-5">
-            <strong>Solo coste de energía.</strong> No incluye compra,
-            financiación, seguros, mantenimiento, impuestos ni variaciones
-            futuras de precios. Un menor gasto energético no garantiza menor
-            coste total de propiedad.
-          </p>
+          <div className="border-line mt-6 border-t pt-4 text-xs leading-5">
+            <p className="text-ink font-semibold">
+              Coste energético, no coste total de propiedad
+            </p>
+            <p className="text-muted mt-1">
+              Solo incluye el gasto en carburante o electricidad. No incluye
+              compra, financiación, seguros, mantenimiento, impuestos ni
+              variaciones futuras de precios. Un menor gasto energético no
+              garantiza un menor coste total.
+            </p>
+          </div>
         </section>
       </div>
     </main>
