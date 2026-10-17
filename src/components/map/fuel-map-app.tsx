@@ -22,6 +22,7 @@ import {
   type StationSort,
 } from "@/domain/stations";
 import { getBrandIdentity } from "@/domain/brands";
+import { buildComparatorHref } from "@/domain/comparator-link";
 
 import { BrandMark } from "./brand-mark";
 
@@ -823,6 +824,10 @@ function StationDetail({
   onClose: () => void;
 }) {
   const selectedPrice = getStationPrice(station, fuel);
+  const comparatorHref =
+    selectedPrice === null
+      ? null
+      : buildComparatorHref(station.id, fuel, selectedPrice);
   const availablePrices = Object.entries(station.fuels) as [FuelCode, string][];
   const identity = getBrandIdentity(station.brand);
 
@@ -913,6 +918,15 @@ function StationDetail({
             </dd>
           </div>
         </dl>
+
+        {comparatorHref ? (
+          <a
+            href={comparatorHref}
+            className="border-accent text-accent hover:bg-accent-soft mt-4 inline-flex min-h-10 w-full items-center justify-center rounded-[0.625rem] border px-4 text-sm font-semibold"
+          >
+            Comparar coste de conducción con este precio
+          </a>
+        ) : null}
 
         <a
           href={directionsUrl(station, userLocation)}
