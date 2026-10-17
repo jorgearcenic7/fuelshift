@@ -118,6 +118,46 @@ describe("consulta de estaciones", () => {
     expect(getBrands(stations, "gasoline_95_e5")).toEqual(["MARCA TEST"]);
   });
 
+  it("aplica el rango de precio con límites inclusivos", () => {
+    const priced = [
+      withPrice(stations[0], "a", "1.300"),
+      withPrice(stations[0], "b", "1.400"),
+      withPrice(stations[0], "c", "1.500"),
+    ];
+    const ids = (minPrice: number | null, maxPrice: number | null) =>
+      filterAndSortStations(
+        priced,
+        { fuel: "diesel_a", search: "", brand: "", minPrice, maxPrice },
+        "price",
+        null,
+      ).map((station) => station.id);
+
+    expect(ids(1.4, null)).toEqual(["b", "c"]);
+    expect(ids(null, 1.4)).toEqual(["a", "b"]);
+    expect(ids(1.4, 1.4)).toEqual(["b"]);
+  });
+
+  it("desempata por municipio cuando coincide el precio", () => {
+    const tied = [
+      withPrice(stations[0], "madrid", "1.400"),
+      withPrice(stations[1], "alcala", "1.400"),
+    ];
+    const results = filterAndSortStations(
+      tied,
+      {
+        fuel: "diesel_a",
+        search: "",
+        brand: "",
+        minPrice: null,
+        maxPrice: null,
+      },
+      "price",
+      null,
+    );
+
+    expect(results.map((station) => station.id)).toEqual(["alcala", "madrid"]);
+  });
+
   it("excluye estaciones sin precio para el combustible elegido", () => {
     const results = filterAndSortStations(
       stations,

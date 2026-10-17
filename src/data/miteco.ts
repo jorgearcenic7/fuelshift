@@ -197,7 +197,7 @@ export function parseProvince(value: unknown): ProvinceDataset {
 
     const fuels: Partial<Record<FuelCode, string>> = {};
     for (const [code, rawPrice] of Object.entries(candidate.fuels)) {
-      if (!(code in FUEL_LABELS)) {
+      if (!Object.hasOwn(FUEL_LABELS, code)) {
         throw new DataContractError(
           `El combustible ${code} no está definido en el contrato.`,
         );
