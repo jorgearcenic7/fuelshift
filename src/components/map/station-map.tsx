@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  type ExpressionSpecification,
   type GeoJSONSource,
   Map as MapLibreMap,
   type MapLayerMouseEvent,
@@ -12,6 +13,7 @@ import {
   setWorkerUrl,
 } from "maplibre-gl";
 
+import type { PriceZone, PriceZoneMap } from "@/domain/price-zones";
 import type {
   Coordinates,
   FuelCode,
@@ -19,6 +21,16 @@ import type {
   StationResult,
 } from "@/domain/stations";
 import { getStationPrice } from "@/domain/stations";
+
+import {
+  INSUFFICIENT_CLASS,
+  INSUFFICIENT_STYLE,
+  PRICE_CLASS_STYLES,
+  describeZone,
+  layerVisibility,
+  toZoneGeoJson,
+  type MapView,
+} from "./price-zone-layer";
 
 const MAP_STYLE = "https://tiles.openfreemap.org/styles/positron";
 const CLUSTER_MAX_ZOOM = 14;
@@ -35,6 +47,30 @@ const EMPTY_COLLECTION: GeoJSON.FeatureCollection<GeoJSON.Point> = {
   type: "FeatureCollection",
   features: [],
 };
+
+function zonePopupContent(zone: PriceZone, fuel: FuelCode): HTMLElement {
+  const { title, lines } = describeZone(zone, fuel);
+  const container = document.createElement("div");
+  container.className = "text-ink space-y-0.5 text-xs leading-5";
+  const heading = document.createElement("strong");
+  heading.className = "block text-sm font-semibold";
+  heading.textContent = title;
+  container.append(
+    heading,
+    ...lines.map((line) => {
+      const paragraph = document.createElement("p");
+      paragraph.textContent = line;
+      return paragraph;
+    }),
+  );
+  return container;
+}
+
+const isInsufficient: ExpressionSpecification = [
+  "==",
+  ["get", "priceClass"],
+  INSUFFICIENT_CLASS,
+];
 
 function toGeoJson(
   stations: readonly StationResult[],
@@ -70,6 +106,9 @@ interface StationMapProps {
    * Los desplazamientos automáticos al seleccionar una estación no la cambian.
    */
   onBoundsChange?: (bounds: MapBounds) => void;
+  view?: MapView;
+  /** Agregación nacional del combustible; solo se dibuja en la vista "zones". */
+  priceZones?: PriceZoneMap | null;
 }
 
 export function StationMap({
@@ -79,6 +118,8 @@ export function StationMap({
   userLocation,
   onSelect,
   onBoundsChange,
+  view = "stations",
+  priceZones = null,
 }: StationMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -93,10 +134,39 @@ export function StationMap({
   );
 
   const stationsRef = useRef(stations);
+  const zoneGeoJson = useMemo(() => toZoneGeoJson(priceZones), [priceZones]);
+  const zoneDataRef = useRef(zoneGeoJson);
+  const zonesByIdRef = useRef(new Map<string, PriceZone>());
+  const zoneFuelRef = useRef<FuelCode>(fuel);
+  const viewRef = useRef(view);
+  const popupRef = useRef<Popup | null>(null);
 
   useEffect(() => {
     onSelectRef.current = onSelect;
   }, [onSelect]);
+
+  useEffect(() => {
+    zoneDataRef.current = zoneGeoJson;
+    zonesByIdRef.current = new Map(
+      priceZones?.zones.map((zone) => [zone.id, zone]) ?? [],
+    );
+    if (priceZones) zoneFuelRef.current = priceZones.fuel;
+    popupRef.current?.remove();
+    const source = mapRef.current?.getSource("price-zones") as
+      | GeoJSONSource
+      | undefined;
+    source?.setData(zoneGeoJson);
+  }, [zoneGeoJson, priceZones]);
+
+  useEffect(() => {
+    viewRef.current = view;
+    popupRef.current?.remove();
+    const map = mapRef.current;
+    if (!map?.getLayer("station-points")) return;
+    for (const [layer, visibility] of Object.entries(layerVisibility(view))) {
+      map.setLayoutProperty(layer, "visibility", visibility);
+    }
+  }, [view]);
 
   useEffect(() => {
     onBoundsChangeRef.current = onBoundsChange;
@@ -169,6 +239,77 @@ export function StationMap({
       window.clearTimeout(timeout);
       setProviderError(false);
       emitBounds();
+      // Las zonas quedan bajo las etiquetas del mapa base para no tapar los
+      // nombres de lugares.
+      const firstLabelLayer = map
+        .getStyle()
+        .layers.find((layer) => layer.type === "symbol")?.id;
+      map.addSource("price-zones", {
+        type: "geojson",
+        data: zoneDataRef.current,
+      });
+      map.addLayer(
+        {
+          id: "price-zone-fill",
+          type: "fill",
+          source: "price-zones",
+          paint: {
+            "fill-color": [
+              "match",
+              ["get", "priceClass"],
+              0,
+              PRICE_CLASS_STYLES[0].fill,
+              1,
+              PRICE_CLASS_STYLES[1].fill,
+              2,
+              PRICE_CLASS_STYLES[2].fill,
+              INSUFFICIENT_STYLE.fill,
+            ],
+            // Más transparente al acercarse para seguir leyendo calles.
+            "fill-opacity": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              6,
+              ["case", isInsufficient, 0.22, 0.62],
+              12,
+              ["case", isInsufficient, 0.12, 0.32],
+            ],
+          },
+        },
+        firstLabelLayer,
+      );
+      map.addLayer(
+        {
+          id: "price-zone-outline",
+          type: "line",
+          source: "price-zones",
+          paint: {
+            "line-color": [
+              "match",
+              ["get", "priceClass"],
+              0,
+              PRICE_CLASS_STYLES[0].outline,
+              1,
+              PRICE_CLASS_STYLES[1].outline,
+              2,
+              PRICE_CLASS_STYLES[2].outline,
+              INSUFFICIENT_STYLE.outline,
+            ],
+            "line-opacity": ["case", isInsufficient, 0.35, 0.7],
+            "line-width": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              5,
+              0.4,
+              10,
+              1.2,
+            ],
+          },
+        },
+        firstLabelLayer,
+      );
       map.addSource("stations", {
         type: "geojson",
         data: dataRef.current,
@@ -279,13 +420,34 @@ export function StationMap({
           | undefined;
         if (stationId) onSelectRef.current(stationId);
       });
-      for (const layer of ["station-clusters", "station-points"]) {
+      map.on("click", "price-zone-fill", (event: MapLayerMouseEvent) => {
+        const zoneId = event.features?.[0]?.properties?.id as
+          | string
+          | undefined;
+        const zone = zoneId ? zonesByIdRef.current.get(zoneId) : undefined;
+        if (!zone) return;
+        popupRef.current?.remove();
+        popupRef.current = new Popup({ maxWidth: "18rem" })
+          .setLngLat(event.lngLat)
+          .setDOMContent(zonePopupContent(zone, zoneFuelRef.current))
+          .addTo(map);
+      });
+      for (const layer of [
+        "station-clusters",
+        "station-points",
+        "price-zone-fill",
+      ]) {
         map.on("mouseenter", layer, () => {
           map.getCanvas().style.cursor = "pointer";
         });
         map.on("mouseleave", layer, () => {
           map.getCanvas().style.cursor = "";
         });
+      }
+      for (const [layer, visibility] of Object.entries(
+        layerVisibility(viewRef.current),
+      )) {
+        map.setLayoutProperty(layer, "visibility", visibility);
       }
     });
 
@@ -335,7 +497,11 @@ export function StationMap({
           ref={containerRef}
           className="h-full w-full"
           role="region"
-          aria-label="Mapa interactivo de gasolineras. Los resultados también están disponibles como lista accesible."
+          aria-label={
+            view === "zones"
+              ? "Mapa de precios por zona. La leyenda incluye las zonas más baratas y más caras como texto."
+              : "Mapa interactivo de gasolineras. Los resultados también están disponibles como lista accesible."
+          }
         />
       </div>
       {providerError ? (

@@ -83,6 +83,13 @@ El navegador descarga el manifiesto y las provincias progresivamente con concurr
 las conserva en memoria y delega el clustering visual en MapLibre. La geolocalización solo se
 solicita al pulsar «Usar mi ubicación» y no se persiste.
 
+La vista «Precios por zona» reutiliza esas estaciones y no descarga nada más. Agrupa en el
+navegador las de un único combustible en cuadrículas fijas de 0,2° × 0,25° (unos 22 km), calcula
+la mediana de cada celda y la marca como insuficiente si tiene menos de 3 estaciones. Después
+colorea las celdas por tercios de las medianas nacionales: verde, amarillo y rojo. Incluye todas
+las estaciones cargadas, sin aplicar búsqueda, marca ni rango de precio, y la escala no cambia al
+mover el mapa. La paleta se validó para daltonismo en todos los pares de colores.
+
 ## Desarrollo y comprobaciones
 
 ```powershell
