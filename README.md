@@ -111,6 +111,15 @@ ignorados por Git. El workflow manual `Verificación manual MITECO` permite comp
 real y conservar el resultado durante un día como artefacto; no programa ingestas ni publica
 datos persistentes.
 
+`npm run test:coverage` mide `src/lib`, `src/domain` y `src/data`; los scripts de `scripts/` se
+prueban ejecutándolos como procesos y quedan fuera de esa medición.
+
+En Windows, Next.js 16.4 escribe las precargas de rutas anidadas como
+`out/comparador/__next.comparador/__PAGE__.txt` en lugar de `__next.comparador.__PAGE__.txt`,
+porque solo sustituye `/` y no `\`. Al servir ese `out/` local, el navegador registra un 404 de
+precarga y la navegación sigue funcionando. Los builds de CI y de Cloudflare Pages se generan en
+Linux y no tienen este problema.
+
 ## Estructura
 
 ```text

@@ -62,6 +62,80 @@ describe("contrato estático MITECO", () => {
 
     expect(() => parseProvince(invalid)).toThrow(/precio/);
   });
+
+  type Manifest = typeof manifestFixture;
+  it.each<[string, (manifest: Manifest) => unknown]>([
+    ["no es un objeto", () => []],
+    [
+      "usa otra versión del contrato",
+      (manifest) => ({ ...manifest, schema_version: "2.0.0" }),
+    ],
+    [
+      "atribuye una zona horaria que MITECO no publica",
+      (manifest) => {
+        manifest.source.reported_at.timezone = "Europe/Madrid" as never;
+        return manifest;
+      },
+    ],
+    [
+      "no cuadra el recuento de provincias",
+      (manifest) => ({ ...manifest, province_count: 2 }),
+    ],
+    [
+      "no cuadra el recuento nacional de estaciones",
+      (manifest) => ({ ...manifest, station_count: 3 }),
+    ],
+    [
+      "tiene un recuento no numérico",
+      (manifest) => {
+        manifest.provinces[0].station_count = "2" as never;
+        return manifest;
+      },
+    ],
+  ])("rechaza un manifiesto que %s", (_reason, mutate) => {
+    expect(() =>
+      parseManifest(mutate(structuredClone(manifestFixture))),
+    ).toThrow(DataContractError);
+  });
+
+  type Province = typeof provinceFixture;
+  it.each<[string, (province: Province) => void]>([
+    [
+      "duplica un identificador",
+      (province) => {
+        province.stations[1].id = province.stations[0].id;
+      },
+    ],
+    [
+      "declara un combustible fuera del contrato",
+      (province) => {
+        Object.assign(province.stations[0].fuels, { kerosene: "1.000" });
+      },
+    ],
+    [
+      "usa como combustible una clave heredada del prototipo",
+      (province) => {
+        Object.assign(province.stations[0].fuels, { toString: "1.000" });
+      },
+    ],
+    [
+      "sitúa una estación fuera de España",
+      (province) => {
+        province.stations[0].location.latitude = 48.85;
+      },
+    ],
+    [
+      "usa otra versión del contrato",
+      (province) => {
+        province.schema_version = "2.0.0";
+      },
+    ],
+  ])("rechaza un archivo provincial que %s", (_reason, mutate) => {
+    const invalid = structuredClone(provinceFixture);
+    mutate(invalid);
+
+    expect(() => parseProvince(invalid)).toThrow(DataContractError);
+  });
 });
 
 describe("carga de datos estáticos", () => {
@@ -114,5 +188,39 @@ describe("carga de datos estáticos", () => {
     expect(failed).toEqual([
       "MADRID: La provincia 28 no coincide con el manifiesto.",
     ]);
+  });
+
+  it("indica el estado HTTP cuando falla el servidor", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("", { status: 503 })),
+    );
+
+    await expect(
+      loadMitecoManifest(new AbortController().signal, "/d/"),
+    ).rejects.toThrow("No se pudo cargar /d/manifest.json (HTTP 503).");
+  });
+
+  it("no informa como fallidas las provincias de una carga cancelada", async () => {
+    const manifest = parseManifest(manifestFixture);
+    const controller = new AbortController();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        controller.abort();
+        throw new DOMException("Cancelada", "AbortError");
+      }),
+    );
+    const onProvince = vi.fn();
+
+    const { failed } = await loadMitecoStations({
+      manifest,
+      signal: controller.signal,
+      onProvince,
+      dataRoot: "/d/",
+    });
+
+    expect(onProvince).not.toHaveBeenCalled();
+    expect(failed).toEqual([]);
   });
 });

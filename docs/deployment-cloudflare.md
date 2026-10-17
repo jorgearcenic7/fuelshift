@@ -59,6 +59,13 @@ En repositorios públicos, GitHub desactiva los workflows programados tras 60 d�
 hay que volver a habilitarlo desde Actions si ocurre. Véase la documentación de GitHub sobre el
 evento [`schedule`](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule).
 
+Observación del 13 al 17 de octubre de 2026: se ejecutaron entre 3 y 5 comprobaciones diarias de
+las 6 solicitadas, con retrasos de hasta unas 2 h 30 min (por ejemplo, la franja de las 12:00 UTC
+empezó entre las 14:44 y las 16:16). Todas terminaron correctamente y todas detectaron cambios de
+precios reales, así que publicaron; no hubo fallos de MITECO en ese periodo. Si la antigüedad de los
+datos llega a ser un problema, la opción más sencilla y sin coste es mover el cron a un minuto
+distinto de cero (por ejemplo, `17 */4 * * *`), lo que requiere aprobar el cambio de frecuencia.
+
 Cada ejecución recupera y valida primero el manifiesto publicado. La ingesta genera el candidato
 con el pipeline habitual y compara los hashes SHA-256 de los archivos provinciales, ordenados por
 identificador. Esos archivos contienen el contenido normalizado de las estaciones, incluidos los
