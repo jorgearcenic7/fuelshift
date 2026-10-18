@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   loadMitecoManifest,
@@ -23,11 +23,14 @@ import {
 } from "@/domain/stations";
 import { getBrandIdentity } from "@/domain/brands";
 import { buildComparatorHref } from "@/domain/comparator-link";
-import { buildPriceZones } from "@/domain/price-zones";
+import {
+  buildFilteredHeatmap,
+  buildPriceHeatmap,
+} from "@/domain/price-heatmap";
 
 import { BrandMark } from "./brand-mark";
-import type { MapView } from "./price-zone-layer";
-import { PriceZoneLegend } from "./price-zone-legend";
+import type { MapView } from "./price-heatmap-layer";
+import { PriceHeatmapLegend } from "./price-heatmap-legend";
 
 import {
   AlertIcon,
@@ -55,7 +58,7 @@ const RANKING_SCOPE_CONTEXT: Record<RankingScope, string> = {
 };
 const MAP_VIEWS: readonly [MapView, string][] = [
   ["stations", "Estaciones"],
-  ["zones", "Precios por zona"],
+  ["heat", "Mapa de calor"],
 ];
 // Coincide con el punto de ruptura `xl` de Tailwind, donde el mapa y la
 // lista se muestran a la vez.
@@ -198,16 +201,6 @@ export function FuelMapApp() {
   const selectedStation = selectedId
     ? (stations.find((station) => station.id === selectedId) ?? null)
     : null;
-  // Usa todas las estaciones cargadas del combustible, no los resultados
-  // filtrados, y espera a la carga completa para que la escala sea nacional.
-  const priceZones = useMemo(
-    () =>
-      mapView === "zones" && !loading && !loadError
-        ? buildPriceZones(stations, fuel)
-        : null,
-    [mapView, loading, loadError, stations, fuel],
-  );
-
   // El ranking parte de los resultados ya filtrados. "Zona visible" espera a
   // que el mapa comunique sus límites en lugar de sustituirlos por España.
   const ranking = useMemo(
@@ -234,6 +227,28 @@ export function FuelMapApp() {
   );
   const filtersActive =
     search.trim() !== "" || brand !== "" || minPrice !== "" || maxPrice !== "";
+
+  // Escala del mapa de calor: P5–P95 de la superficie nacional del combustible.
+  // Solo depende de las estaciones cargadas y del combustible, así que no
+  // cambia al filtrar ni al mover el mapa. Espera a la carga completa para que
+  // no varíe mientras llegan provincias.
+  const nationalHeatmap = useMemo(
+    () =>
+      mapView === "heat" && !loading && !loadError
+        ? buildPriceHeatmap(stations, fuel)
+        : null,
+    [mapView, loading, loadError, stations, fuel],
+  );
+  // Las estaciones representadas son las de la lista (combustible y filtros).
+  // El valor diferido evita que escribir en la búsqueda espere al recálculo.
+  const deferredResults = useDeferredValue(results);
+  const heatmap = useMemo(
+    () =>
+      nationalHeatmap
+        ? buildFilteredHeatmap(nationalHeatmap, deferredResults, filtersActive)
+        : null,
+    [nationalHeatmap, deferredResults, filtersActive],
+  );
   const rankingContext =
     loading && stations.length === 0
       ? "Cargando datos oficiales…"
@@ -757,7 +772,7 @@ export function FuelMapApp() {
             onSelect={setSelectedId}
             onBoundsChange={setMapBounds}
             view={mapView}
-            priceZones={priceZones}
+            heatmap={heatmap}
           />
           <fieldset className="absolute top-3 left-3 z-10">
             <legend className="sr-only">Vista del mapa</legend>
@@ -780,10 +795,10 @@ export function FuelMapApp() {
               ))}
             </div>
           </fieldset>
-          {mapView === "zones" && !loadError ? (
+          {mapView === "heat" && !loadError ? (
             <div className="absolute bottom-9 left-3 z-10 max-w-[calc(100%-4.5rem)]">
-              <PriceZoneLegend
-                zoneMap={priceZones}
+              <PriceHeatmapLegend
+                heatmap={heatmap}
                 fuel={fuel}
                 loading={loading}
                 loadingStatus={dataStatus}

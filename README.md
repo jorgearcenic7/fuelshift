@@ -83,12 +83,18 @@ El navegador descarga el manifiesto y las provincias progresivamente con concurr
 las conserva en memoria y delega el clustering visual en MapLibre. La geolocalización solo se
 solicita al pulsar «Usar mi ubicación» y no se persiste.
 
-La vista «Precios por zona» reutiliza esas estaciones y no descarga nada más. Agrupa en el
-navegador las de un único combustible en cuadrículas fijas de 0,2° × 0,25° (unos 22 km), calcula
-la mediana de cada celda y la marca como insuficiente si tiene menos de 3 estaciones. Después
-colorea las celdas por tercios de las medianas nacionales: verde, amarillo y rojo. Incluye todas
-las estaciones cargadas, sin aplicar búsqueda, marca ni rango de precio, y la escala no cambia al
-mover el mapa. La paleta se validó para daltonismo en todos los pares de colores.
+La vista «Mapa de calor» reutiliza esas estaciones y no descarga nada más. Representa las mismas
+estaciones que la lista: el combustible elegido y los filtros activos. En el navegador calcula una
+superficie de precios con píxeles de 0,05° (unos 5 km): cada píxel es la media de los precios
+cercanos ponderada con un núcleo gaussiano de σ = 8 km, con un alcance de 24 km. Al ser una media,
+la densidad de estaciones no cambia el color, solo la opacidad. Donde no hay estaciones cerca, el
+mapa queda transparente. MapLibre dibuja la superficie como imagen con interpolación lineal, así
+que se ve como un degradado continuo. La escala va de verde a rojo pasando por amarillo, entre los
+percentiles 5 y 95 de la superficie **nacional sin filtrar** de cada combustible. Por eso no cambia
+al filtrar ni al mover el mapa, y un mismo precio conserva su color. La leyenda distingue esos
+límites de los precios mínimo y máximo reales de las estaciones mostradas. Sin filtros activos se
+reutiliza el cálculo nacional; con filtros solo se recalcula la superficie, no la escala. La rampa
+usa los colores ya validados para daltonismo y la leyenda rotula los extremos con texto.
 
 ## Desarrollo y comprobaciones
 
