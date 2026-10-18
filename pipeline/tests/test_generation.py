@@ -119,3 +119,36 @@ def test_failed_generation_preserves_last_valid_dataset(payload_factory, tmp_pat
 
     assert sentinel.read_text(encoding="utf-8") == '{"valid":true}\n'
     assert sorted(path.name for path in destination.iterdir()) == ["sentinel.json"]
+
+
+def test_ingestion_logs_rejection_reasons_sorted_and_counted(
+    payload_factory, tmp_path, caplog
+) -> None:
+    payload = payload_factory()
+    template = payload["ListaEESSPrecio"][0]
+    outside = {**template, "IDEESS": "90001", "Latitud": "60,000000"}
+    wrong_type = [
+        {**template, "IDEESS": identifier, "Localidad": 5} for identifier in ("90002", "90003")
+    ]
+    payload["ListaEESSPrecio"] = [*payload["ListaEESSPrecio"], *wrong_type, outside]
+
+    with caplog.at_level("WARNING", logger="fuelshift_data.pipeline"):
+        report = run_ingestion(
+            tmp_path / "published",
+            downloader=FakeDownloader(encode(payload)),
+            thresholds=QualityThresholds(
+                minimum_station_count=1,
+                maximum_rejection_ratio=Decimal("0.80"),
+                maximum_station_drop_ratio=Decimal("0.20"),
+            ),
+        )
+
+    [record] = [item for item in caplog.records if "Se rechazaron" in item.getMessage()]
+    reasons = record.args[1]
+    assert type(reasons) is dict
+    assert list(reasons) == ["coordinates_outside_supported_extent", "invalid_field_type"]
+    assert record.getMessage() == (
+        "Se rechazaron 3 estaciones antes del control de calidad: "
+        "{'coordinates_outside_supported_extent': 1, 'invalid_field_type': 2}"
+    )
+    assert report.accepted_station_count == 2

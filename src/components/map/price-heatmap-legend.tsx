@@ -2,18 +2,36 @@ import { useState } from "react";
 
 import { HEATMAP_SIGMA_KM, type PriceHeatmap } from "@/domain/price-heatmap";
 import { FUEL_LABELS, type FuelCode } from "@/domain/stations";
+import { formatPrice } from "@/lib/format";
 
 import { HEAT_GRADIENT_CSS } from "./price-heatmap-layer";
 
 // A partir de `md` hay espacio para mostrar la leyenda completa sobre el mapa.
 const EXPANDED_BY_DEFAULT_QUERY = "(min-width: 48rem)";
 
-const priceFormatter = new Intl.NumberFormat("es-ES", {
-  minimumFractionDigits: 3,
-  maximumFractionDigits: 3,
-});
-/** Tres decimales, como publica MITECO; la unidad no está acreditada. */
-const formatPrice = (value: number) => priceFormatter.format(value);
+/** Aviso de estado de la leyenda; `null` si hay estaciones que representar. */
+function legendStatus({
+  loading,
+  loadingStatus,
+  hasScale,
+  shownStations,
+  fuel,
+}: {
+  loading: boolean;
+  loadingStatus: string;
+  hasScale: boolean;
+  shownStations: number;
+  fuel: FuelCode;
+}): string | null {
+  if (loading) {
+    return `Se calculará con todas las provincias cargadas. ${loadingStatus}`;
+  }
+  if (!hasScale) return `No hay estaciones con precio de ${FUEL_LABELS[fuel]}.`;
+  if (shownStations === 0) {
+    return `Ninguna estación con precio de ${FUEL_LABELS[fuel]} cumple los filtros.`;
+  }
+  return null;
+}
 
 export function PriceHeatmapLegend({
   heatmap,
@@ -40,13 +58,13 @@ export function PriceHeatmapLegend({
   const scale = !loading ? (heatmap?.scale ?? null) : null;
   const flat = scale !== null && scale.high - scale.low < 1e-9;
   const shownStations = heatmap?.stationCount ?? 0;
-  const status = loading
-    ? `Se calculará con todas las provincias cargadas. ${loadingStatus}`
-    : !scale
-      ? `No hay estaciones con precio de ${FUEL_LABELS[fuel]}.`
-      : shownStations === 0
-        ? `Ninguna estación con precio de ${FUEL_LABELS[fuel]} cumple los filtros.`
-        : null;
+  const status = legendStatus({
+    loading,
+    loadingStatus,
+    hasScale: scale !== null,
+    shownStations,
+    fuel,
+  });
 
   return (
     <section
