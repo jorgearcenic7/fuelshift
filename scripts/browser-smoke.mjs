@@ -94,7 +94,7 @@ try {
   const mapView = (page, value) =>
     page.locator(`label:has(input[name="map-view"][value="${value}"])`);
   const legendOf = (page) =>
-    page.locator('[aria-labelledby="zone-legend-title"]');
+    page.locator('[aria-labelledby="heat-legend-title"]');
   const legendToggle = (page) =>
     legendOf(page).getByRole("button", { name: /la leyenda/ });
   const viewState = async () => ({
@@ -106,12 +106,10 @@ try {
     selected: await desktop.locator("#station-detail-title").innerText(),
   });
   const scaleText = () => desktop.locator(".maplibregl-ctrl-scale").innerText();
-  const zoneLegend = legendOf(desktop);
-  const beforeZones = await viewState();
-  await mapView(desktop, "zones").click();
-  await zoneLegend
-    .getByText("Más cara", { exact: true })
-    .waitFor({ state: "visible" });
+  const heatLegend = legendOf(desktop);
+  const beforeHeat = await viewState();
+  await mapView(desktop, "heat").click();
+  await heatLegend.getByText("Cómo se calcula").waitFor({ state: "visible" });
   const desktopLegendExpanded =
     (await legendToggle(desktop).getAttribute("aria-expanded")) === "true";
   const scaleBefore = await scaleText();
@@ -119,18 +117,40 @@ try {
   await desktop.waitForTimeout(1_500);
   const zoomControlWorks = (await scaleText()) !== scaleBefore;
   await desktop.screenshot({
-    path: path.join(outputDirectory, "map-zones-desktop.png"),
+    path: path.join(outputDirectory, "map-heat-desktop.png"),
   });
-  const zoneLegendText = await zoneLegend.innerText();
+  const heatLegendText = await heatLegend.innerText();
+  // Límites P5–P95: estables al quitar el filtro de búsqueda.
+  const scaleLimits = () =>
+    heatLegend.locator("p").filter({ hasText: "barato" }).first().innerText();
+  const limitsFiltered = await scaleLimits();
+  await desktop.locator("#station-search").fill("");
+  await desktop.waitForTimeout(1_000);
+  const limitsUnfiltered = await scaleLimits();
+  await desktop.locator("#station-search").fill("Alcalá");
+  await desktop.waitForTimeout(1_000);
   await mapView(desktop, "stations").click();
-  await zoneLegend.waitFor({ state: "detached" });
-  const afterZones = await viewState();
+  await heatLegend.waitFor({ state: "detached" });
+  const afterHeat = await viewState();
   await desktop
     .getByRole("button", { name: "Cerrar ficha de la estación" })
     .click();
   const detailCloses = await desktop
     .getByRole("heading", { name: /selecciona una estación/i })
     .isVisible();
+  // La escala cambia con el combustible y vuelve al mismo valor al regresar.
+  const fuelOption = (code) =>
+    desktop.locator(`label:has(input[name="fuel"][value="${code}"])`);
+  await mapView(desktop, "heat").click();
+  await heatLegend.getByText("Cómo se calcula").waitFor({ state: "visible" });
+  const limitsGasoline = await scaleLimits();
+  await fuelOption("diesel_a").click();
+  await desktop.waitForTimeout(1_000);
+  const limitsDiesel = await scaleLimits();
+  await fuelOption("gasoline_95_e5").click();
+  await desktop.waitForTimeout(1_000);
+  const limitsGasolineAgain = await scaleLimits();
+  await mapView(desktop, "stations").click();
 
   const mobile = await browser.newPage({
     viewport: { width: 390, height: 844 },
@@ -143,18 +163,17 @@ try {
     path: path.join(outputDirectory, "map-mobile.png"),
     fullPage: true,
   });
-  await mapView(mobile, "zones").click();
+  await mapView(mobile, "heat").click();
   const mobileLegend = legendOf(mobile);
   await mobileLegend
-    .getByRole("list", { name: /^Escala de / })
+    .getByText("caro", { exact: true })
     .waitFor({ state: "visible" });
   const mobileCollapsed = {
     expanded: await legendToggle(mobile).getAttribute("aria-expanded"),
     height: Math.round((await mobileLegend.boundingBox())?.height ?? 0),
-    summaryItems: await mobileLegend
-      .getByRole("list", { name: /^Escala de / })
-      .getByRole("listitem")
-      .count(),
+    scaleEnds:
+      (await mobileLegend.getByText("barato", { exact: true }).isVisible()) &&
+      (await mobileLegend.getByText("caro", { exact: true }).isVisible()),
     horizontalScroll: await mobile.evaluate(
       () => document.documentElement.scrollWidth > window.innerWidth,
     ),
@@ -164,16 +183,14 @@ try {
     .scrollIntoViewIfNeeded();
   await mobile.waitForTimeout(1_500);
   await mobile.screenshot({
-    path: path.join(outputDirectory, "map-zones-mobile.png"),
+    path: path.join(outputDirectory, "map-heat-mobile.png"),
   });
   await legendToggle(mobile).click();
-  await mobileLegend
-    .getByText("Más cara", { exact: true })
-    .waitFor({ state: "visible" });
+  await mobileLegend.getByText("Cómo se calcula").waitFor({ state: "visible" });
   const mobileExpanded =
     (await legendToggle(mobile).getAttribute("aria-expanded")) === "true";
   await mobile.screenshot({
-    path: path.join(outputDirectory, "map-zones-mobile-expanded.png"),
+    path: path.join(outputDirectory, "map-heat-mobile-expanded.png"),
   });
 
   if (browserErrors.length > 0) {
@@ -193,20 +210,23 @@ try {
     providerError: await desktop
       .getByText("El mapa base no está disponible.")
       .count(),
-    zoneLegend: ["Más barata", "Intermedia", "Más cara"].every((label) =>
-      zoneLegendText.includes(label),
+    heatLegend: ["barato", "caro", "Escala nacional", "Precios reales"].every(
+      (label) => heatLegendText.includes(label),
     ),
-    viewKeepsState: JSON.stringify(beforeZones) === JSON.stringify(afterZones),
+    viewKeepsState: JSON.stringify(beforeHeat) === JSON.stringify(afterHeat),
     desktopLegendExpanded,
+    scaleStableWithFilters: limitsFiltered === limitsUnfiltered,
+    scaleFollowsFuel:
+      limitsDiesel !== limitsGasoline && limitsGasolineAgain === limitsGasoline,
     zoomControlWorks,
     detailCloses,
     mobileLegend: { ...mobileCollapsed, expandable: mobileExpanded },
     screenshots: [
       ".screenshots/map-desktop.png",
-      ".screenshots/map-zones-desktop.png",
+      ".screenshots/map-heat-desktop.png",
       ".screenshots/map-mobile.png",
-      ".screenshots/map-zones-mobile.png",
-      ".screenshots/map-zones-mobile-expanded.png",
+      ".screenshots/map-heat-mobile.png",
+      ".screenshots/map-heat-mobile-expanded.png",
     ],
   };
   if (
@@ -214,13 +234,15 @@ try {
     report.mapHeight < 200 ||
     report.attribution !== 1 ||
     report.providerError !== 0 ||
-    !report.zoneLegend ||
+    !report.heatLegend ||
     !report.viewKeepsState ||
     !report.desktopLegendExpanded ||
+    !report.scaleStableWithFilters ||
+    !report.scaleFollowsFuel ||
     !report.zoomControlWorks ||
     !report.detailCloses ||
     report.mobileLegend.expanded !== "false" ||
-    report.mobileLegend.summaryItems !== 3 ||
+    !report.mobileLegend.scaleEnds ||
     report.mobileLegend.height > 110 ||
     report.mobileLegend.horizontalScroll ||
     !report.mobileLegend.expandable
