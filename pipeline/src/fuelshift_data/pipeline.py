@@ -1,6 +1,7 @@
 """Orquestación de la ingesta oficial completa."""
 
 import logging
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from time import perf_counter
@@ -63,9 +64,7 @@ def run_ingestion(
     source = parse_source_payload(downloaded.content)
     normalized = normalize_dataset(source)
     if normalized.rejections:
-        rejection_reasons: dict[str, int] = {}
-        for rejection in normalized.rejections:
-            rejection_reasons[rejection.reason] = rejection_reasons.get(rejection.reason, 0) + 1
+        rejection_reasons = Counter(rejection.reason for rejection in normalized.rejections)
         LOGGER.warning(
             "Se rechazaron %s estaciones antes del control de calidad: %s",
             len(normalized.rejections),

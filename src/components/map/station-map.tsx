@@ -14,13 +14,13 @@ import {
 } from "maplibre-gl";
 
 import { HEATMAP_REGIONS, type PriceHeatmap } from "@/domain/price-heatmap";
-import type {
-  Coordinates,
-  FuelCode,
-  MapBounds,
-  StationResult,
+import {
+  getStationPrice,
+  type Coordinates,
+  type FuelCode,
+  type MapBounds,
+  type StationResult,
 } from "@/domain/stations";
-import { getStationPrice } from "@/domain/stations";
 
 import {
   EMPTY_IMAGE,
@@ -59,6 +59,13 @@ function applyHeatImages(
       url: images?.get(region.id) ?? EMPTY_IMAGE,
       coordinates: imageCoordinates(region),
     });
+  }
+}
+
+/** Muestra las capas de la vista elegida y oculta las de la otra. */
+function applyLayerVisibility(map: MapLibreMap, view: MapView) {
+  for (const [layer, visibility] of Object.entries(layerVisibility(view))) {
+    map.setLayoutProperty(layer, "visibility", visibility);
   }
 }
 
@@ -153,10 +160,7 @@ export function StationMap({
   useEffect(() => {
     viewRef.current = view;
     const map = mapRef.current;
-    if (!map?.getLayer("station-points")) return;
-    for (const [layer, visibility] of Object.entries(layerVisibility(view))) {
-      map.setLayoutProperty(layer, "visibility", visibility);
-    }
+    if (map?.getLayer("station-points")) applyLayerVisibility(map, view);
   }, [view]);
 
   useEffect(() => {
@@ -386,11 +390,7 @@ export function StationMap({
           map.getCanvas().style.cursor = "";
         });
       }
-      for (const [layer, visibility] of Object.entries(
-        layerVisibility(viewRef.current),
-      )) {
-        map.setLayoutProperty(layer, "visibility", visibility);
-      }
+      applyLayerVisibility(map, viewRef.current);
     });
 
     const resizeObserver = new ResizeObserver(() => map.resize());

@@ -162,6 +162,14 @@ function percentile(sorted: readonly number[], probability: number): number {
   return sorted[lower] + (position - lower) * (sorted[upper] - sorted[lower]);
 }
 
+function percentileScale(sorted: readonly number[]): PriceScale | null {
+  if (sorted.length === 0) return null;
+  return {
+    low: percentile(sorted, SCALE_PERCENTILES.low),
+    high: percentile(sorted, SCALE_PERCENTILES.high),
+  };
+}
+
 /**
  * Construye la superficie de un único combustible a partir de las estaciones
  * recibidas. No depende de la zona visible: mover el mapa no la altera.
@@ -213,15 +221,7 @@ export function buildPriceHeatmap(
     stationCount,
     cheapest: stationCount > 0 ? cheapest : null,
     priciest: stationCount > 0 ? priciest : null,
-    scale:
-      fixedScale !== undefined
-        ? fixedScale
-        : scaleValues.length > 0
-          ? {
-              low: percentile(scaleValues, SCALE_PERCENTILES.low),
-              high: percentile(scaleValues, SCALE_PERCENTILES.high),
-            }
-          : null,
+    scale: fixedScale !== undefined ? fixedScale : percentileScale(scaleValues),
     rasters,
   };
 }

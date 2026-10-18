@@ -7,41 +7,34 @@ import {
   loadMitecoStations,
   type MitecoManifest,
 } from "@/data/miteco";
+import { getBrandIdentity } from "@/domain/brands";
+import { isStale } from "@/domain/freshness";
+import {
+  buildFilteredHeatmap,
+  buildPriceHeatmap,
+} from "@/domain/price-heatmap";
 import {
   FUEL_LABELS,
   PRIMARY_FUELS,
   filterAndSortStations,
   getBrands,
-  getStationPrice,
   normalizeSearch,
   rankByPrice,
   type Coordinates,
   type FuelCode,
   type MapBounds,
+  type PriceRanking,
   type Station,
   type StationSort,
 } from "@/domain/stations";
-import { getBrandIdentity } from "@/domain/brands";
-import { buildComparatorHref } from "@/domain/comparator-link";
-import {
-  buildFilteredHeatmap,
-  buildPriceHeatmap,
-} from "@/domain/price-heatmap";
+import { formatPrice, formatRetrievedAt } from "@/lib/format";
 
 import { BrandMark } from "./brand-mark";
+import { AlertIcon, CursorIcon, LocateIcon, SearchIcon } from "./icons";
+import { MapAttribution } from "./map-attribution";
 import type { MapView } from "./price-heatmap-layer";
 import { PriceHeatmapLegend } from "./price-heatmap-legend";
-
-import {
-  AlertIcon,
-  ClockIcon,
-  CloseIcon,
-  CursorIcon,
-  LocateIcon,
-  PinIcon,
-  RouteIcon,
-  SearchIcon,
-} from "./icons";
+import { StationDetail } from "./station-detail";
 import { StationMap } from "./station-map";
 
 const RESULT_LIMIT = 50;
@@ -67,26 +60,17 @@ const SIDE_BY_SIDE_QUERY = "(min-width: 80rem)";
 const fieldLabel = "mb-1.5 block text-xs font-medium text-muted";
 const noticeClass =
   "mt-4 flex gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-sm leading-5 text-amber-950";
-
-function formatPrice(rawPrice: string): string {
-  return new Intl.NumberFormat("es-ES", {
-    minimumFractionDigits: 3,
-    maximumFractionDigits: 3,
-  }).format(Number(rawPrice));
-}
-
-function formatRetrievedAt(value: string): string {
-  return new Intl.DateTimeFormat("es-ES", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Europe/Madrid",
-  }).format(new Date(value));
-}
-
-function isStale(retrievedAt: string): boolean {
-  const age = Date.now() - new Date(retrievedAt).getTime();
-  return Number.isFinite(age) && age > 48 * 60 * 60 * 1000;
-}
+const STATUS_STYLES = {
+  error: { tone: "bg-rose-50 text-rose-800 ring-rose-200", dot: "bg-rose-500" },
+  loading: {
+    tone: "bg-amber-50 text-amber-900 ring-amber-200",
+    dot: "animate-pulse bg-amber-500",
+  },
+  ready: {
+    tone: "bg-positive-soft text-positive ring-emerald-200",
+    dot: "bg-positive",
+  },
+} as const;
 
 /** Municipio y, si es distinta, la localidad comunicada por MITECO. */
 function placeLabel(station: Station): string {
@@ -94,6 +78,61 @@ function placeLabel(station: Station): string {
     normalizeSearch(station.locality) !== normalizeSearch(station.municipality)
     ? `${station.municipality} · ${station.locality}`
     : station.municipality;
+}
+
+function describeDataStatus({
+  loading,
+  loadError,
+  loadedProvinces,
+  manifest,
+  stationCount,
+}: {
+  loading: boolean;
+  loadError: string | null;
+  loadedProvinces: number;
+  manifest: MitecoManifest | null;
+  stationCount: number;
+}): string {
+  if (loading) {
+    const total = manifest ? ` de ${manifest.province_count}` : "";
+    return `Cargando ${loadedProvinces}${total} provincias…`;
+  }
+  if (loadError) return loadError;
+  return `${stationCount.toLocaleString("es-ES")} estaciones cargadas`;
+}
+
+function dataStatusStyle(
+  loading: boolean,
+  loadError: string | null,
+): (typeof STATUS_STYLES)[keyof typeof STATUS_STYLES] {
+  if (loadError) return STATUS_STYLES.error;
+  if (loading) return STATUS_STYLES.loading;
+  return STATUS_STYLES.ready;
+}
+
+function describeRanking({
+  waitingForData,
+  ranking,
+  rankingScope,
+  fuel,
+  filtersActive,
+}: {
+  waitingForData: boolean;
+  ranking: PriceRanking | null;
+  rankingScope: RankingScope;
+  fuel: FuelCode;
+  filtersActive: boolean;
+}): string {
+  if (waitingForData) return "Cargando datos oficiales…";
+  if (ranking === null) {
+    return "La zona visible estará disponible cuando cargue el mapa.";
+  }
+  if (ranking.total === 0) {
+    return rankingScope === "visible"
+      ? `No hay estaciones con precio de ${FUEL_LABELS[fuel]} en la zona visible. Mueve o aleja el mapa.`
+      : `No hay estaciones con precio de ${FUEL_LABELS[fuel]} para estos filtros.`;
+  }
+  return `Las ${ranking.entries.length} más baratas de ${ranking.total.toLocaleString("es-ES")} estaciones ${RANKING_SCOPE_CONTEXT[rankingScope]}${filtersActive ? ", con los filtros activos" : ""}.`;
 }
 
 function RankBadge({
@@ -113,17 +152,6 @@ function RankBadge({
       {context ? <span className="sr-only"> del ranking {context}</span> : null}
     </span>
   );
-}
-
-function directionsUrl(
-  station: Station,
-  userLocation: Coordinates | null,
-): string {
-  const destination = `${station.location.latitude},${station.location.longitude}`;
-  const origin = userLocation
-    ? `${userLocation.latitude},${userLocation.longitude}`
-    : "";
-  return `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${encodeURIComponent(origin)}%3B${encodeURIComponent(destination)}`;
 }
 
 export function FuelMapApp() {
@@ -249,16 +277,14 @@ export function FuelMapApp() {
         : null,
     [nationalHeatmap, deferredResults, filtersActive],
   );
-  const rankingContext =
-    loading && stations.length === 0
-      ? "Cargando datos oficiales…"
-      : ranking === null
-        ? "La zona visible estará disponible cuando cargue el mapa."
-        : ranking.total === 0
-          ? rankingScope === "visible"
-            ? `No hay estaciones con precio de ${FUEL_LABELS[fuel]} en la zona visible. Mueve o aleja el mapa.`
-            : `No hay estaciones con precio de ${FUEL_LABELS[fuel]} para estos filtros.`
-          : `Las ${ranking.entries.length} más baratas de ${ranking.total.toLocaleString("es-ES")} estaciones ${RANKING_SCOPE_CONTEXT[rankingScope]}${filtersActive ? ", con los filtros activos" : ""}.`;
+  const rankingContext = describeRanking({
+    waitingForData: loading && stations.length === 0,
+    ranking,
+    rankingScope,
+    fuel,
+    filtersActive,
+  });
+  const stale = manifest !== null && isStale(manifest.retrieved_at);
 
   function changeFuel(nextFuel: FuelCode) {
     setFuel(nextFuel);
@@ -303,21 +329,14 @@ export function FuelMapApp() {
     );
   }
 
-  const dataStatus = loading
-    ? `Cargando ${loadedProvinces}${manifest ? ` de ${manifest.province_count}` : ""} provincias…`
-    : loadError
-      ? loadError
-      : `${stations.length.toLocaleString("es-ES")} estaciones cargadas`;
-  const statusTone = loadError
-    ? "bg-rose-50 text-rose-800 ring-rose-200"
-    : loading
-      ? "bg-amber-50 text-amber-900 ring-amber-200"
-      : "bg-positive-soft text-positive ring-emerald-200";
-  const statusDot = loadError
-    ? "bg-rose-500"
-    : loading
-      ? "animate-pulse bg-amber-500"
-      : "bg-positive";
+  const dataStatus = describeDataStatus({
+    loading,
+    loadError,
+    loadedProvinces,
+    manifest,
+    stationCount: stations.length,
+  });
+  const statusStyle = dataStatusStyle(loading, loadError);
 
   return (
     <main
@@ -345,10 +364,10 @@ export function FuelMapApp() {
 
           <div className="mt-3 space-y-1.5" aria-live="polite">
             <span
-              className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${statusTone}`}
+              className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${statusStyle.tone}`}
             >
               <span
-                className={`size-1.5 rounded-full ${statusDot}`}
+                className={`size-1.5 rounded-full ${statusStyle.dot}`}
                 aria-hidden="true"
               />
               {dataStatus}
@@ -363,7 +382,7 @@ export function FuelMapApp() {
             ) : null}
           </div>
 
-          {manifest && isStale(manifest.retrieved_at) ? (
+          {stale ? (
             <div className={noticeClass} role="status">
               <AlertIcon className="mt-0.5 size-4 shrink-0 text-amber-600" />
               <p>
@@ -582,7 +601,7 @@ export function FuelMapApp() {
           </p>
           {ranking && ranking.entries.length > 0 ? (
             <ol className="mt-2 space-y-1" aria-label="Estaciones más baratas">
-              {ranking.entries.map(({ station, position }) => {
+              {ranking.entries.map(({ station, price, position }) => {
                 const selected = selectedId === station.id;
                 return (
                   <li key={`${station.provinceId}-${station.id}`}>
@@ -603,7 +622,7 @@ export function FuelMapApp() {
                         </span>
                       </span>
                       <span className="text-ink shrink-0 text-[0.9375rem] font-semibold tabular-nums">
-                        {formatPrice(station.fuels[fuel]!)}
+                        {formatPrice(price)}
                       </span>
                     </button>
                   </li>
@@ -676,7 +695,7 @@ export function FuelMapApp() {
                   <span
                     className={`shrink-0 text-[0.9375rem] font-semibold tabular-nums ${selected ? "text-accent-strong" : "text-ink"}`}
                   >
-                    {formatPrice(station.fuels[fuel]!)}
+                    {formatPrice(Number(station.fuels[fuel]))}
                   </span>
                 </button>
               );
@@ -702,61 +721,7 @@ export function FuelMapApp() {
         </section>
       </div>
 
-      {/* Atribución de datos y cartografía */}
-      <footer className="border-line bg-surface text-muted order-5 space-y-1 px-4 py-4 text-[0.6875rem] leading-5 sm:px-[max(1.5rem,calc((100%-48rem)/2))] xl:col-start-1 xl:row-start-2 xl:border-t xl:border-r xl:px-5 xl:py-3">
-        <p>
-          Datos:{" "}
-          {manifest ? (
-            <a
-              className="hover:text-ink font-medium underline underline-offset-2"
-              href={manifest.source.catalog}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {manifest.source.attribution}
-            </a>
-          ) : (
-            "MITECO"
-          )}
-          {" · "}
-          <a
-            className="hover:text-ink font-medium underline underline-offset-2"
-            href={
-              manifest?.source.license.url ??
-              "https://creativecommons.org/licenses/by/4.0/"
-            }
-            target="_blank"
-            rel="noreferrer"
-          >
-            CC BY 4.0
-          </a>
-          . Transformados y validados por FuelShift.
-        </p>
-        <p>
-          Cartografía:{" "}
-          <a
-            className="hover:text-ink font-medium underline underline-offset-2"
-            href="https://openfreemap.org/"
-            target="_blank"
-            rel="noreferrer"
-          >
-            OpenFreeMap
-          </a>{" "}
-          · OpenMapTiles ·{" "}
-          <a
-            className="hover:text-ink font-medium underline underline-offset-2"
-            href="https://www.openstreetmap.org/copyright"
-            target="_blank"
-            rel="noreferrer"
-          >
-            OpenStreetMap
-          </a>
-        </p>
-        <p>
-          Los logotipos son marcas de sus titulares y solo identifican la marca
-          de cada estación.
-        </p>
-      </footer>
+      <MapAttribution manifest={manifest} />
 
       {/* Mapa y ficha de estación */}
       <div
@@ -803,7 +768,7 @@ export function FuelMapApp() {
                 loading={loading}
                 loadingStatus={dataStatus}
                 failedProvinces={failedProvinces.length}
-                stale={manifest !== null && isStale(manifest.retrieved_at)}
+                stale={stale}
                 filtersActive={filtersActive}
               />
             </div>
@@ -873,178 +838,5 @@ export function FuelMapApp() {
         </aside>
       </div>
     </main>
-  );
-}
-
-function StationDetail({
-  station,
-  fuel,
-  userLocation,
-  rankPosition,
-  rankingContext,
-  onClose,
-}: {
-  station: Station;
-  fuel: FuelCode;
-  userLocation: Coordinates | null;
-  rankPosition: number | null;
-  rankingContext: string;
-  onClose: () => void;
-}) {
-  const selectedPrice = getStationPrice(station, fuel);
-  const comparatorHref =
-    selectedPrice === null
-      ? null
-      : buildComparatorHref(station.id, fuel, selectedPrice);
-  const availablePrices = Object.entries(station.fuels) as [FuelCode, string][];
-  const identity = getBrandIdentity(station.brand);
-
-  return (
-    <div>
-      {/* El color de marca se usa solo como acento. */}
-      <div
-        className="h-1.5"
-        style={{ backgroundColor: identity.color }}
-        aria-hidden="true"
-      />
-      <div className="p-5">
-        <div className="flex items-start gap-3">
-          <BrandMark identity={identity} size="lg" />
-          <div className="min-w-0 flex-1">
-            <p className="text-muted text-[0.6875rem] font-semibold tracking-[0.12em] uppercase">
-              {station.provinceName}
-            </p>
-            <h2
-              id="station-detail-title"
-              className="text-ink mt-0.5 text-xl leading-tight font-semibold tracking-[-0.02em]"
-            >
-              {station.brand ?? "Sin rótulo"}
-            </h2>
-            <p className="text-muted mt-1 text-xs">
-              {identity.known ? `${identity.name} · ` : ""}Estación MITECO{" "}
-              {station.id}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-muted hover:bg-canvas hover:text-ink -mt-1 -mr-1 grid size-8 shrink-0 place-items-center rounded-lg transition-colors"
-            aria-label="Cerrar ficha de la estación"
-          >
-            <CloseIcon className="size-4" />
-          </button>
-        </div>
-
-        {selectedPrice !== null ? (
-          <div
-            className="border-line bg-canvas/70 mt-4 rounded-xl border border-l-4 px-4 py-4"
-            style={{ borderLeftColor: identity.color }}
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-ink text-sm font-medium">
-                {FUEL_LABELS[fuel]}
-              </p>
-              {rankPosition !== null ? (
-                <span className="bg-positive-soft text-positive rounded-full px-2 py-0.5 text-xs font-semibold">
-                  #{rankPosition} {rankingContext}
-                </span>
-              ) : null}
-            </div>
-            <p className="text-ink mt-1.5 text-[2.75rem] leading-none font-bold tracking-[-0.035em] tabular-nums">
-              {formatPrice(station.fuels[fuel]!)}
-            </p>
-            <p className="text-muted mt-2.5 text-[0.6875rem] leading-4">
-              Precio comunicado · unidad no acreditada por el contrato REST
-            </p>
-          </div>
-        ) : null}
-
-        <dl className="mt-4 space-y-3 text-sm">
-          <div className="flex gap-3">
-            <dt className="text-muted mt-0.5">
-              <PinIcon className="size-4" />
-              <span className="sr-only">Dirección</span>
-            </dt>
-            <dd className="text-ink leading-5">
-              {station.address}
-              <span className="text-muted block text-xs">
-                {station.postal_code ? `${station.postal_code} · ` : ""}
-                {station.municipality}
-                {station.locality && station.locality !== station.municipality
-                  ? ` · ${station.locality}`
-                  : ""}
-              </span>
-            </dd>
-          </div>
-          <div className="flex gap-3">
-            <dt className="text-muted mt-0.5">
-              <ClockIcon className="size-4" />
-              <span className="sr-only">Horario comunicado</span>
-            </dt>
-            <dd className="text-ink leading-5">
-              {station.opening_hours ?? "Horario no comunicado"}
-            </dd>
-          </div>
-        </dl>
-
-        {comparatorHref ? (
-          <a
-            href={comparatorHref}
-            className="border-accent text-accent hover:bg-accent-soft mt-4 inline-flex min-h-10 w-full items-center justify-center rounded-[0.625rem] border px-4 text-sm font-semibold"
-          >
-            Comparar coste de conducción con este precio
-          </a>
-        ) : null}
-
-        <a
-          href={directionsUrl(station, userLocation)}
-          target="_blank"
-          rel="noreferrer"
-          className="bg-accent hover:bg-accent-strong mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-[0.625rem] px-4 text-sm font-semibold text-white shadow-[0_6px_16px_-8px_rgb(31_98_176/70%)] transition-colors"
-        >
-          <RouteIcon className="size-4" />
-          Obtener indicaciones
-          <span className="sr-only">(se abre en una pestaña nueva)</span>
-        </a>
-
-        <section
-          className="border-line mt-5 border-t pt-4"
-          aria-labelledby="available-prices-title"
-        >
-          <h3
-            id="available-prices-title"
-            className="text-muted text-xs font-semibold tracking-[0.08em] uppercase"
-          >
-            Precios disponibles
-          </h3>
-          <ul className="mt-2">
-            {availablePrices.map(([code, price]) => {
-              const current = code === fuel;
-              return (
-                <li
-                  className={`flex items-center justify-between gap-3 rounded-lg px-2 py-2 text-sm ${current ? "bg-canvas" : ""}`}
-                  key={code}
-                >
-                  <span
-                    className={current ? "text-ink font-medium" : "text-muted"}
-                  >
-                    {FUEL_LABELS[code]}
-                  </span>
-                  <span
-                    className={`font-semibold tabular-nums ${current ? "text-accent-strong" : "text-ink"}`}
-                  >
-                    {formatPrice(price)}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-          <p className="text-muted mt-3 text-[0.6875rem] leading-4">
-            MITECO comunica una fecha global del conjunto, no una fecha
-            individual para esta estación o cada precio.
-          </p>
-        </section>
-      </div>
-    </div>
   );
 }
