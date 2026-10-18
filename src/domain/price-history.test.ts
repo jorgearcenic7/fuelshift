@@ -4,36 +4,13 @@ import {
   addDays,
   buildHistorySeries,
   MIN_CHART_OBSERVATIONS,
-  type HistoryEntry,
-  type HistoryFuel,
-  type PriceHistory,
+  type HistoryObservation,
 } from "./price-history";
 
-function entry(
-  date: string,
-  mean: number,
-  provinceMean?: number,
-): HistoryEntry {
-  const fuel: HistoryFuel = {
-    national: { mean, min: mean - 0.2, max: mean + 0.2, count: 9_000 },
-    provinces:
-      provinceMean === undefined
-        ? {}
-        : { "28": { mean: provinceMean, count: 700 } },
-  };
-  return {
-    date,
-    retrieved_at: `${date}T14:00:00Z`,
-    reported_at: date,
-    station_count: 11_000,
-    province_count: 52,
-    fuels: { gasoline_95_e5: fuel, gasoline_98_e5: fuel, diesel_a: fuel },
-  };
-}
-
-const history = (...entries: HistoryEntry[]): PriceHistory => ({
-  source: { attribution: "MITECO", catalog: "", license_url: "" },
-  entries,
+const observation = (date: string, mean: number): HistoryObservation => ({
+  date,
+  mean,
+  count: 9_000,
 });
 
 describe("addDays", () => {
@@ -47,9 +24,9 @@ describe("addDays", () => {
 describe("buildHistorySeries", () => {
   it("devuelve un punto por día del periodo y deja huecos donde no hay observación", () => {
     const series = buildHistorySeries(
-      history(entry("2026-10-12", 1.8), entry("2026-10-15", 1.82)),
-      "gasoline_95_e5",
-      { periodDays: 7 },
+      [observation("2026-10-12", 1.8), observation("2026-10-15", 1.82)],
+      { first: "2026-10-12", last: "2026-10-15" },
+      7,
     );
 
     expect(series.startDate).toBe("2026-10-09");
@@ -79,13 +56,13 @@ describe("buildHistorySeries", () => {
 
   it("mantiene los huecos dentro del periodo cuando el histórico es más largo", () => {
     const series = buildHistorySeries(
-      history(
-        entry("2026-10-01", 1.79),
-        entry("2026-10-12", 1.8),
-        entry("2026-10-15", 1.82),
-      ),
-      "gasoline_95_e5",
-      { periodDays: 7 },
+      [
+        observation("2026-10-01", 1.79),
+        observation("2026-10-12", 1.8),
+        observation("2026-10-15", 1.82),
+      ],
+      { first: "2026-10-01", last: "2026-10-15" },
+      7,
     );
 
     expect(series.points).toHaveLength(7);
@@ -102,28 +79,31 @@ describe("buildHistorySeries", () => {
   });
 
   it("marca como completo un periodo con observación todos los días", () => {
-    const entries = Array.from({ length: 7 }, (_, index) =>
-      entry(addDays("2026-10-10", index), 1.8 + index / 100),
+    const observations = Array.from({ length: 7 }, (_, index) =>
+      observation(addDays("2026-10-10", index), 1.8 + index / 100),
     );
 
-    const series = buildHistorySeries(history(...entries), "diesel_a", {
-      periodDays: 7,
-    });
+    const series = buildHistorySeries(
+      observations,
+      { first: "2026-10-10", last: "2026-10-16" },
+      7,
+    );
 
     expect(series).toMatchObject({ observedDays: 7, complete: true });
+    expect(series.points[0].count).toBe(9_000);
   });
 
   it("solo muestra gráfico con observaciones suficientes en el periodo", () => {
     const single = buildHistorySeries(
-      history(entry("2026-10-12", 1.8)),
-      "gasoline_95_e5",
-      { periodDays: 30 },
+      [observation("2026-10-12", 1.8)],
+      { first: "2026-10-12", last: "2026-10-12" },
+      30,
     );
     // Dos observaciones, pero una queda fuera de los últimos 7 días.
     const outside = buildHistorySeries(
-      history(entry("2026-09-01", 1.7), entry("2026-10-12", 1.8)),
-      "gasoline_95_e5",
-      { periodDays: 7 },
+      [observation("2026-09-01", 1.7), observation("2026-10-12", 1.8)],
+      { first: "2026-09-01", last: "2026-10-12" },
+      7,
     );
 
     expect(MIN_CHART_OBSERVATIONS).toBe(2);
@@ -135,25 +115,21 @@ describe("buildHistorySeries", () => {
     });
   });
 
-  it("usa la media de la provincia y deja hueco si ese día no tenía datos", () => {
+  it("termina el periodo en la última fecha registrada aunque el ámbito no tenga dato ese día", () => {
+    // Una provincia sin estaciones de un combustible el último día.
     const series = buildHistorySeries(
-      history(entry("2026-10-12", 1.8, 1.75), entry("2026-10-13", 1.81)),
-      "gasoline_95_e5",
-      { periodDays: 7, provinceId: "28" },
+      [observation("2026-10-12", 1.75)],
+      { first: "2026-10-12", last: "2026-10-13" },
+      7,
     );
 
-    expect(series.points.slice(-2).map((point) => point.mean)).toEqual([
-      1.75,
-      null,
-    ]);
-    expect(series.points.at(-2)?.count).toBe(700);
+    expect(series.endDate).toBe("2026-10-13");
+    expect(series.points.map((point) => point.mean)).toEqual([1.75, null]);
     expect(series.observedDays).toBe(1);
   });
 
   it("devuelve una serie vacía si todavía no hay histórico", () => {
-    expect(
-      buildHistorySeries(history(), "gasoline_95_e5", { periodDays: 7 }),
-    ).toMatchObject({
+    expect(buildHistorySeries([], null, 7)).toMatchObject({
       points: [],
       observedDays: 0,
       chartable: false,

@@ -252,6 +252,22 @@ try {
       () => true,
       () => false,
     );
+  // El histórico se descarga después de hidratar: se espera a que el panel
+  // deje de indicar la carga antes de leerlo o capturarlo.
+  const historyLoaded = (page) =>
+    page
+      .waitForFunction(
+        () => {
+          const text =
+            document.querySelector("#history-title")?.parentElement
+              ?.textContent ?? "";
+          return text !== "" && !text.includes("Cargando el histórico");
+        },
+        undefined,
+        { timeout: 10_000 },
+      )
+      .catch(() => {});
+  await historyLoaded(statsDesktop);
   const historyState = await statsDesktop
     .locator("#history-title")
     .locator("xpath=..")
@@ -263,6 +279,7 @@ try {
 
   await statsMobile.goto(statisticsUrl, { waitUntil: "domcontentloaded" });
   await rankingHeading(statsMobile).waitFor({ state: "visible" });
+  await historyLoaded(statsMobile);
   const statisticsMobileScroll = await statsMobile.evaluate(
     () => document.documentElement.scrollWidth > window.innerWidth,
   );

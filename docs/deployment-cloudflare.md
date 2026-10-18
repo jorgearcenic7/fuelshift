@@ -89,7 +89,12 @@ El máximo teórico es de 6 comprobaciones diarias: entre 168 y 186 ejecuciones 
 186 queda por debajo del límite documentado de 500 despliegues mensuales del plan Free. Los
 runners estándar son gratuitos mientras el repositorio sea público; si pasa a privado, las
 ejecuciones consumirán la cuota de minutos de la cuenta y deberán revisarse antes de mantener el
-cron. No se conservan artefactos de estas ejecuciones ni se añade almacenamiento de pago.
+cron. No se añade almacenamiento de pago.
+
+Con el histórico activado (`HISTORY_ENABLED=true`, véase [price-history.md](price-history.md)), los
+controles y el build se ejecutan también con precios idénticos para registrar el día, y se
+despliega si el histórico gana o actualiza un día. Cada ejecución sigue desplegando como mucho una
+vez, así que el máximo mensual no cambia. Sin la variable, el comportamiento es el descrito arriba.
 
 ## Ejecución manual
 
@@ -168,8 +173,10 @@ Comprobado el 12 de octubre de 2026 contra la documentación oficial:
 - El repositorio público puede usar runners estándar de GitHub Actions sin coste de minutos. Si
   el repositorio se vuelve privado, se aplicará la cuota y la facturación configurada en la
   cuenta de GitHub.
-- No se suben artefactos del workflow ni se usan productos de almacenamiento persistente. Los
-  datos vigentes forman parte del propio despliegue estático.
+- No se usan productos de almacenamiento persistente: los datos vigentes forman parte del propio
+  despliegue estático. Con el histórico activado se sube un artefacto pequeño por ejecución que
+  registra, retenido 1 día, y los registros diarios se guardan en la rama `data/historico` del
+  mismo repositorio.
 
 Referencias: [límites de Pages](https://developers.cloudflare.com/pages/platform/limits/),
 [precios de activos estáticos](https://developers.cloudflare.com/pages/functions/pricing/) y

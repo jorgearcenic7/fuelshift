@@ -19,6 +19,7 @@ on:
 permissions:
   contents: read
 
+# Una ejecución cada vez: también serializa los guardados del histórico.
 concurrency:
   group: cloudflare-pages-production
   cancel-in-progress: false
@@ -30,6 +31,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: production
+    # 'true' solo si el artefacto con registros válidos se subió. Vacío con el
+    # histórico desactivado o si cualquier paso previo de la entrega falló.
+    outputs:
+      history_delivered: ${{ steps.history_delivery.outputs.delivered }}
     env:
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
       PYTHONPATH: pipeline/src
@@ -105,12 +110,57 @@ jobs:
             echo "Primer despliegue manual autorizado: se publicará el conjunto validado."
           fi
 
+      # Histórico diario (docs/price-history.md). Todos sus pasos dependen de
+      # la variable HISTORY_ENABLED: sin ella el workflow se comporta igual que
+      # antes. Solo se lee la rama de datos; nunca se ejecuta código de ella.
+      - name: Recuperar el histórico registrado
+        id: history_source
+        if: vars.HISTORY_ENABLED == 'true'
+        shell: bash
+        run: |
+          set -uo pipefail
+          target="$RUNNER_TEMP/historico"
+          mkdir -p "$target/diario"
+          remote="https://github.com/${GITHUB_REPOSITORY}.git"
+
+          git ls-remote --exit-code --heads "$remote" data/historico > /dev/null
+          code=$?
+          if (( code == 0 )); then
+            git init --quiet "$RUNNER_TEMP/historico-git"
+            if git -C "$RUNNER_TEMP/historico-git" fetch --quiet --depth=1 --no-tags "$remote" refs/heads/data/historico; then
+              if git -C "$RUNNER_TEMP/historico-git" cat-file -e FETCH_HEAD:diario 2> /dev/null; then
+                git -C "$RUNNER_TEMP/historico-git" archive FETCH_HEAD diario | tar -x -C "$target" || exit 1
+              fi
+              echo "source=branch" >> "$GITHUB_OUTPUT"
+              echo "Histórico leído de data/historico."
+              # Completa la rama con días ya publicados cuyo guardado falló.
+              node scripts/price-history.mjs restore "$CLOUDFLARE_PAGES_URL" "$target/diario" ||
+                echo "::warning::No se pudo contrastar el histórico con la copia publicada."
+              exit 0
+            fi
+          elif (( code == 2 )); then
+            echo "::warning::La rama data/historico todavía no existe: no se registra ni se guarda nada."
+            echo "source=missing" >> "$GITHUB_OUTPUT"
+            # Se republica lo ya publicado, si lo hay, para no borrar la copia.
+            node scripts/price-history.mjs restore "$CLOUDFLARE_PAGES_URL" "$target/diario" ||
+              echo "::warning::No se pudo leer la copia publicada; se publicará un histórico vacío."
+            exit 0
+          fi
+
+          echo "::warning::No se pudo leer data/historico; se recupera la copia publicada en producción."
+          if node scripts/price-history.mjs restore "$CLOUDFLARE_PAGES_URL" "$target/diario"; then
+            echo "source=site" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Histórico no disponible en esta ejecución; los precios se actualizan sin él."
+            echo "source=unavailable" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Instalar dependencias Node.js
-        if: steps.data_change.outputs.should_deploy == 'true'
+        if: steps.data_change.outputs.should_deploy == 'true' || vars.HISTORY_ENABLED == 'true'
         run: npm ci
 
       - name: Ejecutar controles Python
-        if: steps.data_change.outputs.should_deploy == 'true'
+        if: steps.data_change.outputs.should_deploy == 'true' || vars.HISTORY_ENABLED == 'true'
         run: |
           python -m pip check
           python -m ruff format --check pipeline
@@ -118,7 +168,7 @@ jobs:
           python -m pytest
 
       - name: Ejecutar controles frontend
-        if: steps.data_change.outputs.should_deploy == 'true'
+        if: steps.data_change.outputs.should_deploy == 'true' || vars.HISTORY_ENABLED == 'true'
         run: |
           npm run format:check
           npm run lint
@@ -126,15 +176,72 @@ jobs:
           npm run test:coverage
 
       - name: Validar y preparar los datos estáticos
-        if: steps.data_change.outputs.should_deploy == 'true'
+        if: steps.data_change.outputs.should_deploy == 'true' || vars.HISTORY_ENABLED == 'true'
         run: npm run data:prepare
 
       - name: Generar la exportación estática
-        if: steps.data_change.outputs.should_deploy == 'true'
+        if: steps.data_change.outputs.should_deploy == 'true' || vars.HISTORY_ENABLED == 'true'
         run: npm run build
 
+      # Orden explícito: el histórico se recupera antes del build (rama y días
+      # publicados que falten), después se registra el día y se publica todo en
+      # out/, de modo que la observación nueva va en este mismo despliegue.
+      # Ningún paso del histórico bloquea la actualización de precios: todos
+      # continúan ante un error y las decisiones se toman en history_plan.
+      - name: Registrar la observación del día
+        id: history_record
+        if: >-
+          vars.HISTORY_ENABLED == 'true' &&
+          (steps.history_source.outputs.source == 'branch' ||
+          steps.history_source.outputs.source == 'site')
+        continue-on-error: true
+        run: node scripts/price-history.mjs record out/data/estadisticas.json "$RUNNER_TEMP/historico/diario"
+
+      - name: Publicar el histórico en la exportación
+        id: history_publish
+        if: vars.HISTORY_ENABLED == 'true' && steps.history_source.outputs.source != 'unavailable'
+        continue-on-error: true
+        run: node scripts/price-history.mjs publish "$RUNNER_TEMP/historico/diario" out/data/historico
+
+      # Decisiones con valores explícitos 'true'/'false', calculadas y probadas en
+      # scripts/price-history.mjs: el workflow no compara números ni textos vacíos.
+      - name: Decidir el guardado y el despliegue del histórico
+        id: history_plan
+        if: vars.HISTORY_ENABLED == 'true'
+        continue-on-error: true
+        env:
+          HISTORY_SOURCE: ${{ steps.history_source.outputs.source }}
+          HISTORY_RESTORED: ${{ steps.history_source.outputs.restored }}
+          HISTORY_STATUS: ${{ steps.history_record.outputs.history_status }}
+          HISTORY_PUBLISH_OUTCOME: ${{ steps.history_publish.outcome }}
+        run: node scripts/price-history.mjs plan
+
+      - name: Preparar los registros válidos para el guardado
+        id: history_export
+        if: steps.history_plan.outputs.persist == 'true'
+        continue-on-error: true
+        run: node scripts/price-history.mjs export "$RUNNER_TEMP/historico/diario" "$RUNNER_TEMP/historico-entrega"
+
+      - name: Entregar los registros al guardado del histórico
+        id: history_upload
+        if: steps.history_export.outcome == 'success'
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: historico-${{ github.run_id }}
+          path: ${{ runner.temp }}/historico-entrega
+          if-no-files-found: error
+          retention-days: 1
+          # Al reejecutar el job, sustituye la entrega del intento anterior.
+          overwrite: true
+
+      - name: Confirmar la entrega
+        id: history_delivery
+        if: steps.history_upload.outcome == 'success'
+        run: echo "delivered=true" >> "$GITHUB_OUTPUT"
+
       - name: Comprobar límites y ausencia de código servidor
-        if: steps.data_change.outputs.should_deploy == 'true'
+        if: steps.data_change.outputs.should_deploy == 'true' || steps.history_plan.outputs.deploy == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -162,8 +269,9 @@ jobs:
           fi
           echo "Exportación verificada: $file_count archivos estáticos."
 
+      # Con precios idénticos solo se despliega si el histórico ganó un día.
       - name: Desplegar en Cloudflare Pages
-        if: steps.data_change.outputs.should_deploy == 'true'
+        if: steps.data_change.outputs.should_deploy == 'true' || steps.history_plan.outputs.deploy == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -179,3 +287,49 @@ jobs:
             --branch=main \
             --commit-hash="$GITHUB_SHA" \
             --commit-dirty=false
+
+  # Único job con permiso de escritura: no instala dependencias ni recibe
+  # secretos. Escribe solo en data/historico, con push normal y reintentos.
+  # Se ejecuta si deploy entregó registros válidos, aunque después fallara el
+  # despliegue: la observación ya está validada y no depende de Cloudflare.
+  # No se ejecuta si la ejecución se cancela ni si deploy se omitió.
+  registrar-historico:
+    name: registrar-historico
+    needs: deploy
+    if: >-
+      !cancelled() && vars.HISTORY_ENABLED == 'true' &&
+      github.ref == 'refs/heads/main' &&
+      needs.deploy.result != 'skipped' &&
+      needs.deploy.outputs.history_delivered == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+
+    steps:
+      - name: Obtener los scripts revisados de main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: app
+          persist-credentials: false
+          sparse-checkout: scripts
+
+      - name: Obtener la rama de datos del histórico
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: data/historico
+          path: historico
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - name: Recibir los registros validados
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: historico-${{ github.run_id }}
+          path: ${{ runner.temp }}/diario
+
+      - name: Guardar las observaciones en data/historico
+        run: node app/scripts/history-git.mjs persist historico "$RUNNER_TEMP/diario"

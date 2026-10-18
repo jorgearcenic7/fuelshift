@@ -1,28 +1,51 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-
 import type {
-  HistoryEntry,
-  HistoryFuel,
-  PriceHistory,
+  HistoryObservation,
+  HistoryTimeline,
 } from "@/domain/price-history";
-import { PRIMARY_FUELS } from "@/domain/stations";
+import { PRIMARY_FUELS, type FuelCode } from "@/domain/stations";
 
 import { DataContractError } from "./miteco";
 
 const HISTORY_SCHEMA_VERSION = "1.0.0";
 
 /**
- * Ubicación esperada en el build. Hoy no existe: se creará solo cuando se
- * autorice la recogida automática descrita en docs/price-history.md.
+ * JSON estáticos que genera `scripts/price-history.mjs publish` a partir de
+ * la rama de datos `data/historico`. Se descargan en el navegador al abrir
+ * «Estadísticas»: el histórico no forma parte del HTML.
  */
-export const PRICE_HISTORY_FILE = path.join(
-  process.cwd(),
-  "public",
-  "data",
-  "history",
-  "precios.json",
-);
+export const HISTORY_BASE_PATH = "/data/historico";
+
+export interface NationalHistoryEntry {
+  date: string;
+  retrieved_at: string;
+  station_count: number;
+  fuels: Partial<
+    Record<
+      FuelCode,
+      {
+        mean: number;
+        min: number;
+        max: number;
+        count: number;
+        excluded: number;
+      }
+    >
+  >;
+}
+
+export interface NationalHistory {
+  /** Registros diarios descartados al publicar por no superar la validación. */
+  discarded: number;
+  entries: NationalHistoryEntry[];
+}
+
+export interface ProvinceHistory {
+  provinceId: string;
+  entries: {
+    date: string;
+    fuels: Partial<Record<FuelCode, { mean: number; count: number }>>;
+  }[];
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -35,64 +58,30 @@ function positive(value: unknown, field: string): number {
   return value;
 }
 
-function count(value: unknown, field: string): number {
-  if (!Number.isSafeInteger(value) || (value as number) <= 0) {
+function count(value: unknown, field: string, minimum = 1): number {
+  if (!Number.isSafeInteger(value) || (value as number) < minimum) {
     throw new DataContractError(`El campo ${field} no es un recuento válido.`);
   }
   return value as number;
 }
 
 function text(value: unknown, field: string): string {
-  if (typeof value !== "string") {
+  if (typeof value !== "string" || value === "") {
     throw new DataContractError(`El campo ${field} no es una cadena.`);
   }
   return value;
 }
 
-function parseFuel(value: unknown, field: string): HistoryFuel {
-  if (
-    !isRecord(value) ||
-    !isRecord(value.national) ||
-    !isRecord(value.provinces)
-  ) {
-    throw new DataContractError(`El campo ${field} está incompleto.`);
-  }
-  const { national } = value;
-  return {
-    national: {
-      mean: positive(national.mean, `${field}.national.mean`),
-      min: positive(national.min, `${field}.national.min`),
-      max: positive(national.max, `${field}.national.max`),
-      count: count(national.count, `${field}.national.count`),
-    },
-    provinces: Object.fromEntries(
-      Object.entries(value.provinces).map(([id, province]) => {
-        if (!/^\d{2}$/.test(id) || !isRecord(province)) {
-          throw new DataContractError(
-            `La provincia ${id} de ${field} no es válida.`,
-          );
-        }
-        return [
-          id,
-          {
-            mean: positive(province.mean, `${field}.${id}.mean`),
-            count: count(province.count, `${field}.${id}.count`),
-          },
-        ];
-      }),
-    ),
-  };
-}
-
-export function parsePriceHistory(value: unknown): PriceHistory {
+/** Comprueba la cabecera común y devuelve las entradas en bruto. */
+function parseEntries(value: unknown): Record<string, unknown>[] {
   if (!isRecord(value) || value.schema_version !== HISTORY_SCHEMA_VERSION) {
     throw new DataContractError("La versión del histórico no es compatible.");
   }
-  if (!isRecord(value.source) || !Array.isArray(value.entries)) {
+  if (!Array.isArray(value.entries)) {
     throw new DataContractError("El histórico está incompleto.");
   }
   let previousDate = "";
-  const entries = value.entries.map((raw, index): HistoryEntry => {
+  return value.entries.map((raw, index) => {
     if (!isRecord(raw) || !isRecord(raw.fuels)) {
       throw new DataContractError(`La observación ${index} no es válida.`);
     }
@@ -103,41 +92,142 @@ export function parsePriceHistory(value: unknown): PriceHistory {
       );
     }
     previousDate = date;
-    const fuels = raw.fuels;
+    return raw;
+  });
+}
+
+/** Aplica `parse` a cada combustible presente; ignora claves desconocidas. */
+function parseFuels<T>(
+  fuels: Record<string, unknown>,
+  parse: (value: Record<string, unknown>, field: string) => T,
+  field: string,
+): Partial<Record<FuelCode, T>> {
+  return Object.fromEntries(
+    PRIMARY_FUELS.filter((fuel) => fuel in fuels).map((fuel) => {
+      const value = fuels[fuel];
+      if (!isRecord(value)) {
+        throw new DataContractError(`El campo ${field}.${fuel} no es válido.`);
+      }
+      return [fuel, parse(value, `${field}.${fuel}`)];
+    }),
+  );
+}
+
+const parseMean = (value: Record<string, unknown>, field: string) => ({
+  mean: positive(value.mean, `${field}.mean`),
+  count: count(value.count, `${field}.count`),
+});
+
+export function parseNationalHistory(value: unknown): NationalHistory {
+  const entries = parseEntries(value).map((raw): NationalHistoryEntry => {
+    const date = raw.date as string;
     return {
       date,
       retrieved_at: text(raw.retrieved_at, `${date}.retrieved_at`),
-      reported_at: text(raw.reported_at, `${date}.reported_at`),
       station_count: count(raw.station_count, `${date}.station_count`),
-      province_count: count(raw.province_count, `${date}.province_count`),
-      fuels: Object.fromEntries(
-        PRIMARY_FUELS.filter((fuel) => fuel in fuels).map((fuel) => [
-          fuel,
-          parseFuel(fuels[fuel], `${date}.${fuel}`),
-        ]),
+      fuels: parseFuels(
+        raw.fuels as Record<string, unknown>,
+        (fuel, field) => {
+          const min = positive(fuel.min, `${field}.min`);
+          const max = positive(fuel.max, `${field}.max`);
+          if (max < min) {
+            throw new DataContractError(`${field} tiene el máximo invertido.`);
+          }
+          return {
+            ...parseMean(fuel, field),
+            min,
+            max,
+            excluded: count(fuel.excluded, `${field}.excluded`, 0),
+          };
+        },
+        date,
       ),
     };
   });
   return {
-    source: {
-      attribution: text(value.source.attribution, "source.attribution"),
-      catalog: text(value.source.catalog, "source.catalog"),
-      license_url: text(value.source.license_url, "source.license_url"),
-    },
+    discarded: count(
+      (value as { discarded?: unknown }).discarded,
+      "discarded",
+      0,
+    ),
     entries,
   };
 }
 
-/** Solo para el servidor durante el build; `null` si aún no hay histórico. */
-export async function loadPriceHistory(
-  file = PRICE_HISTORY_FILE,
-): Promise<PriceHistory | null> {
-  let bytes: Buffer;
-  try {
-    bytes = await readFile(file);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException | null)?.code === "ENOENT") return null;
-    throw error;
+export function parseProvinceHistory(
+  value: unknown,
+  provinceId: string,
+): ProvinceHistory {
+  const entries = parseEntries(value).map((raw) => {
+    const date = raw.date as string;
+    return {
+      date,
+      fuels: parseFuels(raw.fuels as Record<string, unknown>, parseMean, date),
+    };
+  });
+  if ((value as { province_id?: unknown }).province_id !== provinceId) {
+    throw new DataContractError(
+      `El histórico no corresponde a la provincia ${provinceId}.`,
+    );
   }
-  return parsePriceHistory(JSON.parse(bytes.toString("utf8")));
+  return { provinceId, entries };
+}
+
+export function historyTimeline(
+  history: NationalHistory,
+): HistoryTimeline | null {
+  const first = history.entries[0]?.date;
+  const last = history.entries.at(-1)?.date;
+  return first && last ? { first, last } : null;
+}
+
+/** Observaciones de un combustible, nacionales o de una provincia. */
+export function historyObservations(
+  history: NationalHistory | ProvinceHistory,
+  fuel: FuelCode,
+): HistoryObservation[] {
+  return history.entries.flatMap(({ date, fuels }) => {
+    const value = fuels[fuel];
+    return value ? [{ date, mean: value.mean, count: value.count }] : [];
+  });
+}
+
+type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
+
+/** `null` si el archivo no está publicado (404): todavía no hay histórico. */
+async function fetchHistoryJson(
+  file: string,
+  fetchImpl: Fetch,
+): Promise<unknown | null> {
+  const response = await fetchImpl(`${HISTORY_BASE_PATH}/${file}`, {
+    headers: { Accept: "application/json" },
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new DataContractError(
+      `No se pudo descargar el histórico (HTTP ${response.status}).`,
+    );
+  }
+  return response.json();
+}
+
+export async function fetchNationalHistory(
+  fetchImpl: Fetch = fetch,
+): Promise<NationalHistory | null> {
+  const value = await fetchHistoryJson("nacional.json", fetchImpl);
+  return value === null ? null : parseNationalHistory(value);
+}
+
+export async function fetchProvinceHistory(
+  provinceId: string,
+  fetchImpl: Fetch = fetch,
+): Promise<ProvinceHistory | null> {
+  if (!/^\d{2}$/.test(provinceId)) {
+    throw new DataContractError(`La provincia ${provinceId} no es válida.`);
+  }
+  const value = await fetchHistoryJson(
+    `provincias/${provinceId}.json`,
+    fetchImpl,
+  );
+  return value === null ? null : parseProvinceHistory(value, provinceId);
 }

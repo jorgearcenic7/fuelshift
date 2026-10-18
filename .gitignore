@@ -32,7 +32,8 @@ data/processed/
 data/cache/
 public/data/miteco/
 public/data/.miteco-*/
-public/data/history/
+public/data/historico/
+data/historico/
 *.duckdb
 *.duckdb.wal
 

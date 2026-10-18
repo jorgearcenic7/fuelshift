@@ -3,12 +3,19 @@
 import { useEffect, useRef, useState } from "react";
 
 import {
+  fetchNationalHistory,
+  fetchProvinceHistory,
+  historyObservations,
+  historyTimeline,
+  type NationalHistory,
+  type ProvinceHistory,
+} from "@/data/price-history";
+import {
   buildHistorySeries,
   HISTORY_PERIODS,
   MIN_CHART_OBSERVATIONS,
   type HistoryPeriod,
   type HistorySeries,
-  type PriceHistory,
 } from "@/domain/price-history";
 import { FUEL_LABELS, type FuelCode } from "@/domain/stations";
 import {
@@ -65,6 +72,12 @@ function HistoryChart({
       : (index / (series.points.length - 1)) * plotWidth);
   const y = (value: number) =>
     CHART.top + (1 - (value - low) / (high - low)) * plotHeight;
+  // Máximo y mínimo observados; si casi coinciden, una etiqueta basta para
+  // que no se superpongan.
+  const ticks =
+    y(low + padding) - y(high - padding) < 18
+      ? [high - padding]
+      : [high - padding, low + padding];
 
   // Tramos de días consecutivos con observación: los huecos no se unen.
   const segments: string[] = [];
@@ -91,7 +104,7 @@ function HistoryChart({
         role="img"
         aria-label={`${label}: ${observed.length} observaciones entre ${formatLongDate(series.startDate!)} y ${formatLongDate(series.endDate!)}. Los datos están en la tabla siguiente.`}
       >
-        {[high - padding, low + padding].map((value) => (
+        {ticks.map((value) => (
           <g key={value}>
             <line
               x1={CHART.left}
@@ -176,21 +189,43 @@ function HistoryChart({
   );
 }
 
+/** Estado de una descarga del histórico publicado. */
+type Load<T> =
+  | { status: "loading" }
+  | { status: "ready"; value: T }
+  | { status: "missing" }
+  | { status: "error" };
+
+async function load<T>(request: () => Promise<T | null>): Promise<Load<T>> {
+  try {
+    const value = await request();
+    return value === null ? { status: "missing" } : { status: "ready", value };
+  } catch {
+    return { status: "error" };
+  }
+}
+
 export function PriceHistoryPanel({
-  history,
-  historyError,
   fuel,
   provinces,
 }: {
-  history: PriceHistory | null;
-  historyError: string | null;
   fuel: FuelCode;
   provinces: { id: string; name: string }[];
 }) {
-  const [period, setPeriod] = useState<HistoryPeriod>(30);
-  const [provinceId, setProvinceId] = useState("");
-  const scope =
-    provinces.find((province) => province.id === provinceId)?.name ?? "España";
+  const [national, setNational] = useState<Load<NationalHistory>>({
+    status: "loading",
+  });
+  useEffect(() => {
+    let active = true;
+    // El histórico se descarga aparte: si falla, las estadísticas actuales,
+    // que vienen en el HTML, siguen intactas.
+    void load(() => fetchNationalHistory()).then((result) => {
+      if (active) setNational(result);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <section
@@ -201,7 +236,14 @@ export function PriceHistoryPanel({
         Evolución del precio medio
       </h2>
 
-      {historyError ? (
+      {national.status === "loading" ? (
+        <p
+          className="bg-canvas text-muted mt-3 rounded-xl p-4 text-sm leading-6"
+          role="status"
+        >
+          Cargando el histórico…
+        </p>
+      ) : national.status === "error" ? (
         <p
           className="mt-3 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-950"
           role="alert"
@@ -209,7 +251,8 @@ export function PriceHistoryPanel({
           El histórico no se ha podido validar y no se muestra. Las estadísticas
           actuales no se ven afectadas.
         </p>
-      ) : !history || history.entries.length === 0 ? (
+      ) : national.status === "missing" ||
+        national.value.entries.length === 0 ? (
         <div className="bg-canvas mt-3 rounded-xl p-4 text-sm leading-6">
           <p className="text-ink font-medium">Todavía no hay histórico.</p>
           <p className="text-muted mt-1">
@@ -220,14 +263,9 @@ export function PriceHistoryPanel({
         </div>
       ) : (
         <HistoryContent
-          history={history}
+          history={national.value}
           fuel={fuel}
           provinces={provinces}
-          period={period}
-          setPeriod={setPeriod}
-          provinceId={provinceId}
-          setProvinceId={setProvinceId}
-          scope={scope}
         />
       )}
     </section>
@@ -238,26 +276,44 @@ function HistoryContent({
   history,
   fuel,
   provinces,
-  period,
-  setPeriod,
-  provinceId,
-  setProvinceId,
-  scope,
 }: {
-  history: PriceHistory;
+  history: NationalHistory;
   fuel: FuelCode;
   provinces: { id: string; name: string }[];
-  period: HistoryPeriod;
-  setPeriod: (period: HistoryPeriod) => void;
-  provinceId: string;
-  setProvinceId: (id: string) => void;
-  scope: string;
 }) {
-  const series = buildHistorySeries(history, fuel, {
-    periodDays: period,
-    provinceId: provinceId || null,
-  });
+  const [period, setPeriod] = useState<HistoryPeriod>(30);
+  const [provinceId, setProvinceId] = useState("");
+  // Cada provincia se descarga la primera vez que se elige.
+  const [provinceLoads, setProvinceLoads] = useState<
+    Record<string, Load<ProvinceHistory>>
+  >({});
+  const scope =
+    provinces.find((province) => province.id === provinceId)?.name ?? "España";
   const label = `Precio medio de ${FUEL_LABELS[fuel]} en ${scope}`;
+  const provinceLoad = provinceId ? provinceLoads[provinceId] : null;
+
+  function selectProvince(id: string) {
+    setProvinceId(id);
+    if (!id || provinceLoads[id]) return;
+    setProvinceLoads((current) => ({
+      ...current,
+      [id]: { status: "loading" },
+    }));
+    void load(() => fetchProvinceHistory(id)).then((result) =>
+      setProvinceLoads((current) => ({ ...current, [id]: result })),
+    );
+  }
+
+  const observations = !provinceLoad
+    ? historyObservations(history, fuel)
+    : provinceLoad.status === "ready"
+      ? historyObservations(provinceLoad.value, fuel)
+      : [];
+  const series = buildHistorySeries(
+    observations,
+    historyTimeline(history),
+    period,
+  );
 
   return (
     <>
@@ -265,6 +321,13 @@ function HistoryContent({
         Observaciones diarias reales desde el{" "}
         {formatLongDate(series.collectingSince!)}.
       </p>
+      {history.discarded > 0 ? (
+        <p className="text-muted mt-1 text-xs leading-5">
+          {history.discarded === 1
+            ? "Un registro diario no superó la validación y no se muestra."
+            : `${history.discarded} registros diarios no superaron la validación y no se muestran.`}
+        </p>
+      ) : null}
       <div className="mt-4 flex flex-wrap items-end gap-3">
         <fieldset>
           <legend className="text-muted mb-1.5 text-xs font-medium">
@@ -300,7 +363,7 @@ function HistoryContent({
             id="history-province"
             className="control"
             value={provinceId}
-            onChange={(event) => setProvinceId(event.target.value)}
+            onChange={(event) => selectProvince(event.target.value)}
           >
             <option value="">España</option>
             {provinces.map((province) => (
@@ -312,7 +375,22 @@ function HistoryContent({
         </div>
       </div>
 
-      {series.chartable ? (
+      {provinceLoad?.status === "loading" ? (
+        <p
+          className="bg-canvas text-muted mt-4 rounded-xl p-4 text-sm leading-6"
+          role="status"
+        >
+          Cargando el histórico de {scope}…
+        </p>
+      ) : provinceLoad?.status === "error" ? (
+        <p
+          className="mt-4 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-950"
+          role="alert"
+        >
+          El histórico de {scope} no se ha podido validar y no se muestra. El
+          nacional sigue disponible.
+        </p>
+      ) : series.chartable ? (
         <>
           <HistoryChart series={series} label={label} />
           {!series.complete ? (
