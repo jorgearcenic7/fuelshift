@@ -1,8 +1,13 @@
 import Link from "next/link";
 
+// El mapa arrastra MapLibre y unos 4 MB de datos: no se precarga desde otras
+// páginas. Se descarga al pulsar el enlace.
+const MAP_HREF = "/";
+
 const NAV_ITEMS = [
-  { id: "mapa", href: "/", label: "Mapa" },
+  { id: "mapa", href: MAP_HREF, label: "Mapa" },
   { id: "comparador", href: "/comparador", label: "Comparador" },
+  { id: "estadisticas", href: "/estadisticas", label: "Estadísticas" },
 ] as const;
 
 export function SiteHeader({
@@ -12,10 +17,11 @@ export function SiteHeader({
 }) {
   return (
     <header className="bg-navy relative z-30 bg-[linear-gradient(100deg,#0e2f52_0%,#14406f_100%)] text-white shadow-[0_1px_0_rgb(255_255_255/6%),0_6px_20px_-12px_rgb(14_47_82/60%)]">
-      <div className="flex h-14 w-full items-center justify-between px-4 sm:px-6">
+      <div className="flex h-14 w-full items-center justify-between gap-2 px-3 sm:px-6">
         <Link
           className="inline-flex items-center gap-2.5 rounded-lg font-semibold text-white"
-          href="/"
+          href={MAP_HREF}
+          prefetch={false}
         >
           <span
             aria-hidden="true"
@@ -35,16 +41,22 @@ export function SiteHeader({
               <path d="M14 10h2a2 2 0 0 1 2 2v4a1.5 1.5 0 0 0 3 0V8.5L18 5" />
             </svg>
           </span>
-          <span className="text-[1.05rem] tracking-[-0.02em]">
+          {/* En pantallas muy estrechas solo queda el icono a la vista para
+              que quepan los tres enlaces; el nombre sigue siendo accesible. */}
+          <span className="text-[1.05rem] tracking-[-0.02em] max-[400px]:sr-only">
             Fuel<span className="text-sky-300">Shift</span>
           </span>
         </Link>
-        <nav aria-label="Navegación principal" className="flex gap-1.5">
+        <nav
+          aria-label="Navegación principal"
+          className="flex gap-1 sm:gap-1.5"
+        >
           {NAV_ITEMS.map(({ id, href, label }) => (
             <Link
               key={id}
-              className={`rounded-full px-3.5 py-1.5 text-sm font-medium text-white transition-colors ${active === id ? "bg-white/12 ring-1 ring-white/15 hover:bg-white/18" : "hover:bg-white/12"}`}
+              className={`rounded-full px-2.5 py-1.5 text-[0.8125rem] font-medium text-white transition-colors sm:px-3.5 sm:text-sm ${active === id ? "bg-white/12 ring-1 ring-white/15 hover:bg-white/18" : "hover:bg-white/12"}`}
               href={href}
+              prefetch={href === MAP_HREF ? false : undefined}
               aria-current={active === id ? "page" : undefined}
             >
               {label}

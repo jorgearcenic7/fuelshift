@@ -193,6 +193,63 @@ try {
     path: path.join(outputDirectory, "map-heat-mobile-expanded.png"),
   });
 
+  // Estadísticas: indicadores por combustible y estados del histórico. Usa
+  // pestañas propias para que el informe final siga midiendo el mapa.
+  const statisticsUrl = new URL("/estadisticas/", targetUrl).href;
+  const statsDesktop = await browser.newPage({
+    viewport: { width: 1440, height: 1000 },
+  });
+  const statsMobile = await browser.newPage({
+    viewport: { width: 390, height: 844 },
+  });
+  for (const page of [statsDesktop, statsMobile]) {
+    page.on("pageerror", (error) => browserErrors.push(error.message));
+  }
+  const nationalMean = (page) => page.locator("dl dd").first().innerText();
+  const rankingHeading = (page) =>
+    page.getByRole("heading", { name: "Precio medio por provincia" });
+
+  await statsDesktop.goto(statisticsUrl, { waitUntil: "domcontentloaded" });
+  await rankingHeading(statsDesktop).waitFor({ state: "visible" });
+  // El HTML estático ya muestra la página antes de que React la hidrate: se
+  // espera a que termine la carga para que el clic llegue al componente.
+  await statsDesktop.waitForLoadState("networkidle");
+  const statisticsActiveNav = await statsDesktop
+    .locator('nav a[aria-current="page"]')
+    .innerText();
+  const meanGasoline = await nationalMean(statsDesktop);
+  await statsDesktop
+    .locator('label:has(input[name="statistics-fuel"][value="diesel_a"])')
+    .click();
+  const fuelChangesMean = await statsDesktop
+    .waitForFunction(
+      (previous) => document.querySelector("dl dd")?.textContent !== previous,
+      meanGasoline,
+      { timeout: 15_000 },
+    )
+    .then(
+      () => true,
+      () => false,
+    );
+  const historyState = await statsDesktop
+    .locator("#history-title")
+    .locator("xpath=..")
+    .innerText();
+  await statsDesktop.screenshot({
+    path: path.join(outputDirectory, "statistics-desktop.png"),
+    fullPage: true,
+  });
+
+  await statsMobile.goto(statisticsUrl, { waitUntil: "domcontentloaded" });
+  await rankingHeading(statsMobile).waitFor({ state: "visible" });
+  const statisticsMobileScroll = await statsMobile.evaluate(
+    () => document.documentElement.scrollWidth > window.innerWidth,
+  );
+  await statsMobile.screenshot({
+    path: path.join(outputDirectory, "statistics-mobile.png"),
+    fullPage: true,
+  });
+
   if (browserErrors.length > 0) {
     throw new Error(`Errores de navegador:\n${browserErrors.join("\n")}`);
   }
@@ -221,12 +278,23 @@ try {
     zoomControlWorks,
     detailCloses,
     mobileLegend: { ...mobileCollapsed, expandable: mobileExpanded },
+    statistics: {
+      activeNav: statisticsActiveNav,
+      fuelChangesMean,
+      historyShown:
+        /Todavía no hay histórico|Observaciones diarias reales/.test(
+          historyState,
+        ),
+      mobileScroll: statisticsMobileScroll,
+    },
     screenshots: [
       ".screenshots/map-desktop.png",
       ".screenshots/map-heat-desktop.png",
       ".screenshots/map-mobile.png",
       ".screenshots/map-heat-mobile.png",
       ".screenshots/map-heat-mobile-expanded.png",
+      ".screenshots/statistics-desktop.png",
+      ".screenshots/statistics-mobile.png",
     ],
   };
   if (
@@ -245,7 +313,11 @@ try {
     !report.mobileLegend.scaleEnds ||
     report.mobileLegend.height > 110 ||
     report.mobileLegend.horizontalScroll ||
-    !report.mobileLegend.expandable
+    !report.mobileLegend.expandable ||
+    report.statistics.activeNav !== "Estadísticas" ||
+    !report.statistics.fuelChangesMean ||
+    !report.statistics.historyShown ||
+    report.statistics.mobileScroll
   ) {
     throw new Error(
       `El mapa no superó la comprobación visual: ${JSON.stringify(report)}`,

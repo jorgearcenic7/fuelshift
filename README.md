@@ -96,6 +96,21 @@ límites de los precios mínimo y máximo reales de las estaciones mostradas. Si
 reutiliza el cálculo nacional; con filtros solo se recalcula la superficie, no la escala. La rampa
 usa los colores ya validados para daltonismo y la leyenda rotula los extremos con texto.
 
+## Estadísticas
+
+La página `/estadisticas` se calcula durante `npm run build`: el servidor lee la copia validada
+de `public/data/miteco/` y el navegador recibe solo los agregados (unos 65 KB de HTML en lugar de
+los 4 MB de estaciones). Muestra, para Gasolina 95 E5, Gasolina 98 E5 y Gasóleo A, la media
+nacional calculada con todas las estaciones válidas, el mínimo y el máximo reales, la media por
+provincia y su diferencia con la media nacional. Las provincias con menos de 10 estaciones se
+marcan como muestra reducida y las que no tienen datos se muestran sin valor. Son estadísticas
+calculadas por FuelShift, no publicadas por MITECO.
+
+El build también publica la instantánea en `/data/estadisticas.json`, que
+`scripts/price-history.mjs` convierte en un registro diario del histórico. La persistencia
+automática del histórico está pendiente de aprobación; véase
+[docs/price-history.md](docs/price-history.md).
+
 ## Desarrollo y comprobaciones
 
 ```powershell
