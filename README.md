@@ -93,7 +93,8 @@ que se ve como un degradado continuo. La escala va de verde a rojo pasando por a
 percentiles 5 y 95 de la superficie **nacional sin filtrar** de cada combustible. Por eso no cambia
 al filtrar ni al mover el mapa, y un mismo precio conserva su color. La leyenda distingue esos
 límites de los precios mínimo y máximo reales de las estaciones mostradas. Sin filtros activos se
-reutiliza el cálculo nacional; con filtros solo se recalcula la superficie, no la escala.
+reutiliza el cálculo nacional; con filtros solo se recalcula la superficie, no la escala. La rampa
+usa los colores ya validados para daltonismo y la leyenda rotula los extremos con texto.
 
 ## Desarrollo y comprobaciones
 
