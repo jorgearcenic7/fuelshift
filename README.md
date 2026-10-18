@@ -107,9 +107,10 @@ marcan como muestra reducida y las que no tienen datos se muestran sin valor. So
 calculadas por FuelShift, no publicadas por MITECO.
 
 El build también publica la instantánea en `/data/estadisticas.json`, que
-`scripts/price-history.mjs` convierte en un registro diario del histórico. La persistencia
-automática del histórico está pendiente de aprobación; véase
-[docs/price-history.md](docs/price-history.md).
+`scripts/price-history.mjs` convierte en un registro diario del histórico. El guardado automático
+en la rama de datos `data/historico` está preparado pero desactivado hasta su activación
+autorizada; la página descarga el histórico publicado en `/data/historico/` y, mientras no exista,
+muestra «Todavía no hay histórico». Véase [docs/price-history.md](docs/price-history.md).
 
 ## Desarrollo y comprobaciones
 

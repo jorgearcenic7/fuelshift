@@ -244,12 +244,7 @@ function ReadyDashboard({
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
         <ProvinceRanking key={fuel} statistics={statistics} />
         <div className="space-y-6">
-          <PriceHistoryPanel
-            history={data.history}
-            historyError={data.historyError}
-            fuel={fuel}
-            provinces={provinces}
-          />
+          <PriceHistoryPanel fuel={fuel} provinces={provinces} />
           <section aria-labelledby="method-title" className={card}>
             <h2 id="method-title" className="text-ink text-lg font-semibold">
               Cómo se calcula

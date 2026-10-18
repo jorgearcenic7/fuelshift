@@ -1,6 +1,3 @@
-import type { PriceHistory } from "@/domain/price-history";
-
-import { loadPriceHistory } from "./price-history";
 import { loadPublishedDataset } from "./published-dataset";
 import {
   buildStatisticsSnapshot,
@@ -8,51 +5,26 @@ import {
 } from "./statistics-snapshot";
 
 export type StatisticsPageData =
-  | {
-      status: "ready";
-      snapshot: StatisticsSnapshot;
-      history: PriceHistory | null;
-      historyError: string | null;
-    }
+  | { status: "ready"; snapshot: StatisticsSnapshot }
   | { status: "empty" }
   | { status: "error"; message: string };
 
-const message = (error: unknown) =>
-  error instanceof Error ? error.message : "Error desconocido.";
-
 /**
- * Se ejecuta durante el build: el navegador recibe solo los agregados. Un
- * histórico corrupto no impide mostrar las estadísticas actuales.
+ * Se ejecuta durante el build: el navegador recibe solo los agregados. El
+ * histórico se descarga aparte en el navegador, de modo que un histórico
+ * ausente o corrupto nunca impide mostrar las estadísticas actuales.
  */
 export async function loadStatisticsPageData({
   dataRoot,
-  historyFile,
-}: {
-  dataRoot?: string;
-  historyFile?: string;
-} = {}): Promise<StatisticsPageData> {
-  let snapshot: StatisticsSnapshot;
+}: { dataRoot?: string } = {}): Promise<StatisticsPageData> {
   try {
     const dataset = await loadPublishedDataset(dataRoot);
     if (!dataset) return { status: "empty" };
-    snapshot = buildStatisticsSnapshot(dataset);
-  } catch (error) {
-    return { status: "error", message: message(error) };
-  }
-
-  try {
-    return {
-      status: "ready",
-      snapshot,
-      history: await loadPriceHistory(historyFile),
-      historyError: null,
-    };
+    return { status: "ready", snapshot: buildStatisticsSnapshot(dataset) };
   } catch (error) {
     return {
-      status: "ready",
-      snapshot,
-      history: null,
-      historyError: message(error),
+      status: "error",
+      message: error instanceof Error ? error.message : "Error desconocido.",
     };
   }
 }

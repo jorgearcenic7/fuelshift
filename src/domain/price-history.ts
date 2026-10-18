@@ -1,24 +1,19 @@
-import type { FuelCode } from "./stations";
-
-export interface HistoryFuel {
-  national: { mean: number; min: number; max: number; count: number };
-  /** Solo provincias con datos ese día; una ausencia no equivale a cero. */
-  provinces: Record<string, { mean: number; count: number }>;
-}
-
-/** Una observación real por fecha comunicada por MITECO. */
-export interface HistoryEntry {
+/**
+ * Una observación real de un ámbito (España o una provincia) y combustible:
+ * la media del día comunicado por MITECO y las estaciones que la forman.
+ */
+export interface HistoryObservation {
   date: string;
-  retrieved_at: string;
-  reported_at: string;
-  station_count: number;
-  province_count: number;
-  fuels: Partial<Record<FuelCode, HistoryFuel>>;
+  mean: number;
+  count: number;
 }
 
-export interface PriceHistory {
-  source: { attribution: string; catalog: string; license_url: string };
-  entries: HistoryEntry[];
+/** Días que abarca el histórico registrado, comunes a todos los ámbitos. */
+export interface HistoryTimeline {
+  /** Primera observación registrada. */
+  first: string;
+  /** Última observación registrada. */
+  last: string;
 }
 
 export const HISTORY_PERIODS = [7, 30, 90] as const;
@@ -58,20 +53,15 @@ export function addDays(date: string, days: number): string {
 }
 
 /**
- * Serie diaria de un combustible, nacional o de una provincia, para los
- * `periodDays` días que terminan en la última observación registrada.
+ * Serie diaria de un ámbito para los `periodDays` días que terminan en la
+ * última observación registrada del histórico.
  */
 export function buildHistorySeries(
-  history: PriceHistory,
-  fuel: FuelCode,
-  {
-    periodDays,
-    provinceId = null,
-  }: { periodDays: number; provinceId?: string | null },
+  observations: readonly HistoryObservation[],
+  timeline: HistoryTimeline | null,
+  periodDays: number,
 ): HistorySeries {
-  const collectingSince = history.entries[0]?.date ?? null;
-  const endDate = history.entries.at(-1)?.date ?? null;
-  if (!endDate) {
+  if (!timeline) {
     return {
       periodDays,
       startDate: null,
@@ -81,15 +71,16 @@ export function buildHistorySeries(
       complete: false,
       startsAfterPeriod: false,
       chartable: false,
-      collectingSince,
+      collectingSince: null,
     };
   }
 
-  const byDate = new Map(history.entries.map((entry) => [entry.date, entry]));
+  const { first: collectingSince, last: endDate } = timeline;
+  const byDate = new Map(observations.map((item) => [item.date, item]));
   const startDate = addDays(endDate, -(periodDays - 1));
   // Sin datos anteriores a la primera observación, la serie empieza en ella.
-  const startsAfterPeriod = collectingSince! > startDate;
-  const firstDate = startsAfterPeriod ? collectingSince! : startDate;
+  const startsAfterPeriod = collectingSince > startDate;
+  const firstDate = startsAfterPeriod ? collectingSince : startDate;
   const visibleDays =
     (Date.parse(`${endDate}T00:00:00Z`) -
       Date.parse(`${firstDate}T00:00:00Z`)) /
@@ -99,8 +90,7 @@ export function buildHistorySeries(
     { length: visibleDays },
     (_, index): HistoryPoint => {
       const date = addDays(firstDate, index);
-      const data = byDate.get(date)?.fuels[fuel];
-      const value = provinceId ? data?.provinces[provinceId] : data?.national;
+      const value = byDate.get(date);
       return { date, mean: value?.mean ?? null, count: value?.count ?? null };
     },
   );
