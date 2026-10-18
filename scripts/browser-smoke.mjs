@@ -211,13 +211,34 @@ try {
 
   await statsDesktop.goto(statisticsUrl, { waitUntil: "domcontentloaded" });
   await rankingHeading(statsDesktop).waitFor({ state: "visible" });
-  // El HTML estático ya muestra la página antes de que React la hidrate: se
-  // espera a que termine la carga para que el clic llegue al componente.
-  await statsDesktop.waitForLoadState("networkidle");
   const statisticsActiveNav = await statsDesktop
     .locator('nav a[aria-current="page"]')
     .innerText();
   const meanGasoline = await nationalMean(statsDesktop);
+  // El HTML estático muestra el selector antes de que React lo hidrate, y un
+  // clic previo se pierde. React enlaza en cada nodo hidratado una propiedad
+  // "__reactProps$…" con sus manejadores: se espera a que el selector la tenga
+  // y se pulsa una sola vez. Si React cambiara ese detalle interno, la espera
+  // fallaría con un error explícito, nunca con un falso positivo.
+  await statsDesktop
+    .waitForFunction(
+      () => {
+        const input = document.querySelector(
+          'input[name="statistics-fuel"][value="diesel_a"]',
+        );
+        return (
+          input !== null &&
+          Object.keys(input).some((key) => key.startsWith("__reactProps$"))
+        );
+      },
+      undefined,
+      { timeout: 30_000 },
+    )
+    .catch(() => {
+      throw new Error(
+        "El selector de combustible de /estadisticas no llegó a hidratarse.",
+      );
+    });
   await statsDesktop
     .locator('label:has(input[name="statistics-fuel"][value="diesel_a"])')
     .click();
@@ -225,7 +246,7 @@ try {
     .waitForFunction(
       (previous) => document.querySelector("dl dd")?.textContent !== previous,
       meanGasoline,
-      { timeout: 15_000 },
+      { timeout: 5_000 },
     )
     .then(
       () => true,
@@ -254,8 +275,34 @@ try {
     throw new Error(`Errores de navegador:\n${browserErrors.join("\n")}`);
   }
 
+  // En desarrollo, compilar /estadisticas por primera vez puede recargar las
+  // pestañas del mapa. Antes de medirlo se espera a que MapLibre vuelva a
+  // montar un lienzo visible y su atribución; si no ocurre en el plazo, la
+  // prueba falla con `mapReady: false` además de las comprobaciones de abajo.
+  const mapReady = await desktop
+    .waitForFunction(
+      () => {
+        const canvas = document.querySelector(".maplibregl-canvas");
+        const box = canvas?.getBoundingClientRect();
+        return Boolean(
+          box &&
+            box.width > 0 &&
+            box.height > 0 &&
+            getComputedStyle(canvas).visibility !== "hidden" &&
+            document.querySelector(".maplibregl-ctrl-attrib"),
+        );
+      },
+      undefined,
+      { timeout: 30_000 },
+    )
+    .then(
+      () => true,
+      () => false,
+    );
+
   const report = {
     url: targetUrl,
+    mapReady,
     stations: await desktop
       .locator('[aria-label="Lista de estaciones"] button')
       .count(),
@@ -298,6 +345,7 @@ try {
     ],
   };
   if (
+    !report.mapReady ||
     report.mapCanvas !== 1 ||
     report.mapHeight < 200 ||
     report.attribution !== 1 ||
