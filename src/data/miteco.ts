@@ -236,11 +236,15 @@ export function parseProvince(value: unknown): ProvinceDataset {
         candidate.municipality,
         `stations[${index}].municipality`,
       ),
-      locality: requiredString(
-        candidate.locality,
-        `stations[${index}].locality`,
-        true,
-      ),
+      // El pipeline publica null si la localidad oficial está vacía.
+      locality:
+        candidate.locality === null
+          ? null
+          : requiredString(
+              candidate.locality,
+              `stations[${index}].locality`,
+              true,
+            ),
       postal_code: requiredString(
         candidate.postal_code,
         `stations[${index}].postal_code`,
