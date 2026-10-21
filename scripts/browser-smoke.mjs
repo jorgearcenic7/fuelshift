@@ -4,11 +4,17 @@ import process from "node:process";
 
 import { chromium } from "playwright-core";
 
+// Navegadores ya instalados: no se descarga ninguno. Las rutas de Linux son
+// las de los runners de GitHub Actions (Google Chrome viene preinstalado).
 const browserCandidates = [
   process.env.PLAYWRIGHT_BROWSER_PATH,
   "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
   "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
   "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+  "/usr/bin/google-chrome",
+  "/usr/bin/google-chrome-stable",
+  "/usr/bin/chromium",
+  "/usr/bin/chromium-browser",
 ].filter(Boolean);
 const executablePath = browserCandidates.find((candidate) =>
   existsSync(candidate),
@@ -274,6 +280,9 @@ try {
     .getByRole("heading", { name: /selecciona una estación/i })
     .waitFor({ state: "detached" });
   await phone.waitForTimeout(2_000);
+  const focusOnDetail = await phone.evaluate(
+    () => document.activeElement?.id === "station-detail-title",
+  );
   const selectedMapBox = await phoneMap.boundingBox();
   const detailBox = await phone
     .locator('aside[aria-labelledby="station-detail-title"]')
@@ -488,6 +497,7 @@ try {
       stationFromList: {
         mapTop: Math.round(selectedMapBox?.y ?? -1),
         detailTop: Math.round(detailBox?.y ?? -1),
+        focusOnDetail,
       },
       keyboard: { focusOnFilters, keyboardOpens, keyboardCloses, tabsToMap },
       horizontalScroll,
@@ -575,6 +585,7 @@ try {
     Math.abs(report.mobileMap.stationFromList.mapTop) > 16 ||
     report.mobileMap.stationFromList.detailTop < 0 ||
     report.mobileMap.stationFromList.detailTop > phoneHeight - 150 ||
+    !report.mobileMap.stationFromList.focusOnDetail ||
     !report.mobileMap.keyboard.focusOnFilters ||
     !report.mobileMap.keyboard.keyboardOpens ||
     !report.mobileMap.keyboard.keyboardCloses ||

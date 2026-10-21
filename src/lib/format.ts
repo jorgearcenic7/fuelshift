@@ -27,7 +27,7 @@ const longDate = new Intl.DateTimeFormat("es-ES", {
   timeZone: "UTC",
 });
 
-/** Tres decimales, como publica MITECO; la unidad no está acreditada. */
+/** Tres decimales, como publica MITECO; la unidad la aporta `priceUnit`. */
 export const formatPrice = (value: number) => price.format(value);
 export const formatSignedPrice = (value: number) => signedPrice.format(value);
 export const formatSignedPercent = (value: number) =>

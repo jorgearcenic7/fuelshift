@@ -29,7 +29,8 @@
   --canvas: #f4f7fa;
   --surface: #ffffff;
   /* Verde reservado a estados positivos. */
-  --positive: #0f8a5f;
+  /* 4,8:1 sobre --positive-soft y 5,4:1 sobre blanco (WCAG AA en texto). */
+  --positive: #0c7a54;
   --positive-soft: #e6f6ef;
   --font-sans: "Aptos", "Segoe UI", system-ui, sans-serif;
 }

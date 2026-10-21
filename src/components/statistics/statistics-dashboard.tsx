@@ -2,6 +2,7 @@
 
 import { useState, useSyncExternalStore } from "react";
 
+import { PriceUnitLabel } from "@/components/price-unit";
 import type { StatisticsPageData } from "@/data/statistics-page";
 import type { StatisticsFuel } from "@/data/statistics-snapshot";
 import {
@@ -9,6 +10,7 @@ import {
   type ProvinceStatistics,
 } from "@/domain/fuel-statistics";
 import { isStale } from "@/domain/freshness";
+import { priceUnit, type PriceUnit } from "@/domain/fuel-units";
 import { FUEL_LABELS, PRIMARY_FUELS } from "@/domain/stations";
 import {
   formatCount,
@@ -28,16 +30,25 @@ function Indicator({
   label,
   value,
   detail,
+  unit,
 }: {
   label: string;
   value: string;
   detail: string;
+  /** Solo en los indicadores que son precios. */
+  unit?: PriceUnit;
 }) {
   return (
     <div className="border-line bg-surface rounded-2xl border p-4 shadow-sm">
       <dt className="text-muted text-xs font-medium">{label}</dt>
       <dd className="text-ink mt-1 text-2xl font-semibold tracking-tight tabular-nums">
         {value}
+        {unit ? (
+          <PriceUnitLabel
+            unit={unit}
+            className="text-muted text-sm font-medium tracking-normal"
+          />
+        ) : null}
       </dd>
       <dd className="text-muted mt-0.5 text-xs leading-5">{detail}</dd>
     </div>
@@ -48,10 +59,12 @@ function Highlight({
   title,
   province,
   tone,
+  unit,
 }: {
   title: string;
   province: ProvinceStatistics;
   tone: "cheaper" | "pricier";
+  unit: PriceUnit;
 }) {
   const difference = province.differenceFromNational!;
   return (
@@ -62,9 +75,14 @@ function Highlight({
       <p className="text-ink mt-1 text-lg font-semibold">{province.name}</p>
       <p className="text-ink text-2xl font-bold tabular-nums">
         {formatPrice(province.summary!.mean)}
+        <PriceUnitLabel
+          unit={unit}
+          className="text-muted text-sm font-medium"
+        />
       </p>
       <p className="text-muted mt-1 text-xs leading-5 tabular-nums">
         {formatSignedPrice(difference.absolute)}
+        <PriceUnitLabel unit={unit} />
         {difference.percent !== null
           ? ` (${formatSignedPercent(difference.percent)})`
           : ""}{" "}
@@ -136,6 +154,7 @@ function ReadyDashboard({
   const { snapshot } = data;
   const statistics = snapshot.fuels[fuel];
   const { national } = statistics;
+  const unit = priceUnit(fuel);
   const provinces = snapshot.fuels.gasoline_95_e5.provinces.map(
     ({ id, name }) => ({ id, name }),
   );
@@ -187,7 +206,8 @@ function ReadyDashboard({
           <Indicator
             label="Precio medio nacional"
             value={formatPrice(national.mean)}
-            detail="Media de todas las estaciones · sin unidad acreditada"
+            unit={unit}
+            detail="Media de todas las estaciones"
           />
           <Indicator
             label="Estaciones incluidas"
@@ -197,11 +217,13 @@ function ReadyDashboard({
           <Indicator
             label="Precio mínimo"
             value={formatPrice(national.min)}
+            unit={unit}
             detail="Estación más barata de España"
           />
           <Indicator
             label="Precio máximo"
             value={formatPrice(national.max)}
+            unit={unit}
             detail="Estación más cara de España"
           />
         </dl>
@@ -220,6 +242,7 @@ function ReadyDashboard({
             La diferencia entre ambas es de{" "}
             <strong className="text-ink">
               {formatPrice(statistics.spread.absolute)}
+              <PriceUnitLabel unit={unit} />
             </strong>
             {statistics.spread.percent !== null
               ? ` (${formatSignedPercent(statistics.spread.percent)} sobre la más barata)`
@@ -231,11 +254,13 @@ function ReadyDashboard({
               title="Más barata"
               province={statistics.cheapest}
               tone="cheaper"
+              unit={unit}
             />
             <Highlight
               title="Más cara"
               province={statistics.priciest}
               tone="pricier"
+              unit={unit}
             />
           </div>
         </section>
@@ -265,8 +290,9 @@ function ReadyDashboard({
                 más barata o más cara. Si no hay ninguna, no se muestra valor.
               </li>
               <li>
-                Los precios se muestran con los tres decimales que publica
-                MITECO; la fuente no acredita la unidad.
+                Los precios están en euros por litro (€/L), con los tres
+                decimales que publica MITECO: son los precios en surtidor, sin
+                descuentos, que cada estación comunica al Ministerio.
               </li>
             </ul>
           </section>
