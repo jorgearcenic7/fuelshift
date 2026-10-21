@@ -13,7 +13,8 @@ const NAV_ITEMS = [
 export function SiteHeader({
   active = "mapa",
 }: {
-  active?: (typeof NAV_ITEMS)[number]["id"];
+  /** `null` en páginas que no son una sección, como la de error. */
+  active?: (typeof NAV_ITEMS)[number]["id"] | null;
 }) {
   return (
     <header className="bg-navy relative z-30 bg-[linear-gradient(100deg,#0e2f52_0%,#14406f_100%)] text-white shadow-[0_1px_0_rgb(255_255_255/6%),0_6px_20px_-12px_rgb(14_47_82/60%)]">
