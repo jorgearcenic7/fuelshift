@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 
+import { PriceUnitLabel } from "@/components/price-unit";
 import {
   MIN_PROVINCE_SAMPLE,
   sortProvinces,
   type FuelStatistics,
   type ProvinceSort,
 } from "@/domain/fuel-statistics";
+import { priceUnit } from "@/domain/fuel-units";
 import {
   formatCount,
   formatPrice,
@@ -26,6 +28,8 @@ const SORTS: readonly [ProvinceSort, string][] = [
 // el signo del valor también indican el sentido.
 const CHEAPER = "#0f8a5f";
 const PRICIER = "#d9442f";
+// El texto necesita 4,5:1 sobre blanco; las barras, que son gráficos, 3:1.
+const PRICIER_TEXT = "#c93d29";
 
 export function ProvinceRanking({
   statistics,
@@ -33,6 +37,7 @@ export function ProvinceRanking({
   statistics: FuelStatistics;
 }) {
   const [sort, setSort] = useState<ProvinceSort>("price-asc");
+  const unit = priceUnit(statistics.fuel);
   const [showAll, setShowAll] = useState(false);
   const sorted = sortProvinces(statistics.provinces, sort);
   const visible = showAll ? sorted : sorted.slice(0, VISIBLE_ROWS);
@@ -60,7 +65,7 @@ export function ProvinceRanking({
             Precio medio por provincia
           </h2>
           <p className="text-muted mt-1 text-sm">
-            Diferencia frente a la media nacional.
+            Precio medio en {unit} y diferencia frente a la media nacional.
           </p>
           <p className="text-muted mt-1 text-xs leading-5">
             Canarias, Ceuta y Melilla tienen una fiscalidad propia que puede
@@ -93,8 +98,8 @@ export function ProvinceRanking({
         aria-hidden="true"
         className="text-muted mt-4 flex justify-between text-xs font-medium"
       >
-        <span style={{ color: CHEAPER }}>◀ Más barata que la media</span>
-        <span style={{ color: PRICIER }}>Más cara que la media ▶</span>
+        <span className="text-positive">◀ Más barata que la media</span>
+        <span style={{ color: PRICIER_TEXT }}>Más cara que la media ▶</span>
       </div>
       <ol className="divide-line mt-1 divide-y" aria-label="Provincias">
         {visible.map((province) => {
@@ -122,6 +127,7 @@ export function ProvinceRanking({
                 {province.summary ? (
                   <span className="text-ink text-sm font-semibold tabular-nums">
                     {formatPrice(province.summary.mean)}
+                    <PriceUnitLabel unit={unit} visuallyHidden />
                   </span>
                 ) : (
                   <span className="text-muted text-xs">Sin datos</span>

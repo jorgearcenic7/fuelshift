@@ -11,6 +11,11 @@ import {
   type ProvinceHistory,
 } from "@/data/price-history";
 import {
+  PRICE_UNIT_NAMES,
+  priceUnit,
+  type PriceUnit,
+} from "@/domain/fuel-units";
+import {
   buildHistorySeries,
   HISTORY_PERIODS,
   MIN_CHART_OBSERVATIONS,
@@ -39,9 +44,11 @@ const CHART = {
 function HistoryChart({
   series,
   label,
+  unit,
 }: {
   series: HistorySeries;
   label: string;
+  unit: PriceUnit;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(CHART.defaultWidth);
@@ -96,6 +103,9 @@ function HistoryChart({
 
   return (
     <figure className="mt-4" ref={containerRef}>
+      <p aria-hidden="true" className="text-muted mb-1 text-xs">
+        {unit}
+      </p>
       <svg
         width={width}
         height={CHART.height}
@@ -145,7 +155,7 @@ function HistoryChart({
               strokeWidth={2}
             >
               <title>
-                {`${formatShortDate(point.date)}: ${formatPrice(point.mean)}`}
+                {`${formatShortDate(point.date)}: ${formatPrice(point.mean)} ${unit}`}
               </title>
             </circle>
           ),
@@ -170,7 +180,7 @@ function HistoryChart({
           <thead>
             <tr>
               <th scope="col">Fecha</th>
-              <th scope="col">Precio medio</th>
+              <th scope="col">Precio medio ({PRICE_UNIT_NAMES[unit]})</th>
               <th scope="col">Estaciones</th>
             </tr>
           </thead>
@@ -392,7 +402,7 @@ function HistoryContent({
         </p>
       ) : series.chartable ? (
         <>
-          <HistoryChart series={series} label={label} />
+          <HistoryChart series={series} label={label} unit={priceUnit(fuel)} />
           {!series.complete ? (
             <p className="text-muted mt-2 text-xs leading-5">
               Periodo incompleto: {series.observedDays} de {series.periodDays}{" "}

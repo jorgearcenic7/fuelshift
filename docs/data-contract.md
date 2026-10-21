@@ -63,10 +63,66 @@ doblemente codificada. Ese texto informativo no se propaga a los artefactos.
   `Remisión` se conserva únicamente como evidencia del contrato: los valores observados `dm` y
   `OM` no son fechas.
 
-La ayuda, el payload y el catálogo enumeran variables de precio, pero no declaran su unidad en
-el contrato REST. FuelShift conserva los valores decimales sin añadir una unidad supuesta. El
-frontend no debe presentar `€/l` o `€/kg` hasta disponer de una referencia oficial inequívoca
-para cada producto.
+## Unidades de los precios
+
+La ayuda y el payload del servicio REST enumeran variables de precio, pero no declaran su unidad.
+La unidad se acredita por la norma de la que proceden los datos. Fuentes oficiales consultadas el
+21 de octubre de 2026:
+
+1. La ficha del conjunto en el
+   [catálogo de datos abiertos de MITECO](https://catalogo.datosabiertos.miteco.gob.es/catalogo/es/dataset/902a266d-5ba2-4735-a378-45818ba5a4f4)
+   («Instalaciones de suministro de combustibles a vehículos y embarcaciones con venta pública»)
+   indica: «Datos obtenidos a partir de las informacion remitida por los sujetos titulares en
+   virtud de la Orden ITC/2308/2007».
+2. La [Resolución de 5 de diciembre de 2025](https://www.boe.es/diario_boe/txt.php?id=BOE-A-2025-25592)
+   (BOE-A-2025-25592, en vigor desde el 16 de diciembre de 2025) publica los anexos modificados
+   de esa orden, que sustituyen a los de la Resolución de 10 de marzo de 2020. Desde entonces
+   «solo será posible comunicar la información con los nuevos formatos».
+3. Los [anexos vigentes publicados por MITECO](https://www.miteco.gob.es/content/dam/miteco/es/energia/files-1/risp/normativa/Documents/Anexos%20Orden%20ITC23082007%20modificados%20por%20Resolucion%205%20diciembre%202025.pdf)
+   dicen en el anexo I, apartado I.1.1 (precios de las instalaciones de suministro):
+   «Todos los precios se darán en: euros por litro G95E5, G95E5+, G95E10, G95E25, G95E85, BIE,
+   G98E5, G98E10, GOA, GOA+, GOB, GOC, BIO, GLP, ADB, DREN y GREN» y en euros por kilogramo
+   «PVPGNC, PVPGNL, PVPH2, PVPMET, PVPAMO, PVPBGNC y PVPBGNL». También precisan: «Se entenderá
+   por precio de venta al público el precio aplicado en surtidor sin descuentos».
+
+Cada producto del servicio REST corresponde a un campo del apartado I.1.1
+([`src/domain/fuel-units.ts`](../src/domain/fuel-units.ts)):
+
+| Producto en FuelShift       | Campo REST                           | Campo del anexo | Unidad | Correspondencia                                                |
+| --------------------------- | ------------------------------------ | --------------- | ------ | -------------------------------------------------------------- |
+| Gasolina 95 E5              | `Precio Gasolina 95 E5`              | `PVPG95E5`      | €/L    | Mismo producto («gasolina 95E5»)                               |
+| Gasolina 95 E10             | `Precio Gasolina 95 E10`             | `PVPG95E10`     | €/L    | Mismo producto                                                 |
+| Gasolina 95 E25             | `Precio Gasolina 95 E25`             | `PVPG95E25`     | €/L    | Mismo producto                                                 |
+| Gasolina 95 E85             | `Precio Gasolina 95 E85`             | `PVPG95E85`     | €/L    | Mismo producto                                                 |
+| Gasolina 95 E5 premium      | `Precio Gasolina 95 E5 Premium`      | `PVPG95E5+`     | €/L    | Única variante de la 95E5: «de características mejoradas»      |
+| Gasolina 98 E5              | `Precio Gasolina 98 E5`              | `PVPG98E5`      | €/L    | Mismo producto                                                 |
+| Gasolina 98 E10             | `Precio Gasolina 98 E10`             | `PVPG98E10`     | €/L    | Mismo producto                                                 |
+| Gasolina renovable          | `Precio Gasolina Renovable`          | `PVPGREN`       | €/L    | Mismo producto                                                 |
+| Bioetanol                   | `Precio Bioetanol`                   | `PVPBIOE` (BIE) | €/L    | Mezclas de gasolina con bioetanol o bioetanol puro             |
+| Gasóleo A                   | `Precio Gasoleo A`                   | `PVPGOA`        | €/L    | El anexo habla de «gasóleo de automoción (gasóleo A)»          |
+| Gasóleo premium             | `Precio Gasoleo Premium`             | `PVPGOA+`       | €/L    | El gasóleo A «que cuente con una aditivación de mayor calidad» |
+| Gasóleo B                   | `Precio Gasoleo B`                   | `PVPGOB`        | €/L    | Mismo producto                                                 |
+| Diésel renovable            | `Precio Diésel Renovable`            | `PVPDREN`       | €/L    | Mismo producto                                                 |
+| Biodiésel                   | `Precio Biodiesel`                   | `PVPBIOD` (BIO) | €/L    | Mezclas de gasóleo con éster metílico o éster metílico puro    |
+| Gases licuados del petróleo | `Precio Gases licuados del petróleo` | `PVPGLP`        | €/L    | Mismo producto                                                 |
+| AdBlue                      | `Precio Adblue`                      | `PVPADB`        | €/L    | «AUS 32 (AdBlue)»                                              |
+| Gas natural comprimido      | `Precio Gas Natural Comprimido`      | `PVPGNC`        | €/kg   | Mismo producto                                                 |
+| Gas natural licuado         | `Precio Gas Natural Licuado`         | `PVPGNL`        | €/kg   | Mismo producto                                                 |
+| Biogás natural comprimido   | `Precio Biogas Natural Comprimido`   | `PVPBGNC`       | €/kg   | Mismo producto                                                 |
+| Biogás natural licuado      | `Precio Biogas Natural Licuado`      | `PVPBGNL`       | €/kg   | Mismo producto                                                 |
+| Hidrógeno                   | `Precio Hidrogeno`                   | `PVPH2`         | €/kg   | Mismo producto                                                 |
+| Metanol                     | `Precio Metanol`                     | `PVPMET`        | €/kg   | Mismo producto                                                 |
+| Amoniaco                    | `Precio Amoniaco`                    | `PVPAMO`        | €/kg   | Mismo producto                                                 |
+
+Las dos variantes premium no coinciden por nombre: el anexo las llama «de características
+mejoradas». Son los únicos campos de la gasolina 95 E5 y del gasóleo A distintos del producto
+habitual y, en cualquier caso, todas las gasolinas y gasóleos se dan en euros por litro. El anexo
+remite además al [Real Decreto 61/2006](https://www.boe.es/buscar/act.php?id=BOE-A-2006-2779)
+para definir gasolina, gasóleo de automoción, biodiésel, bioetanol, GLP y gasóleo B; su artículo
+3.1 denomina al primero «Gasóleos de automoción (clase A)».
+
+Los artefactos publicados no incluyen la unidad: el esquema `1.0.0` no cambia y la unidad se
+aplica al presentar los datos.
 
 ## Coordenadas y calidad observada
 

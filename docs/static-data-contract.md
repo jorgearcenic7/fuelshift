@@ -55,7 +55,8 @@ Cada archivo contiene:
 
 Los precios se serializan como cadenas decimales con punto (`"1.799"`) para preservar con
 exactitud el `Decimal` original. Una clave ausente significa “sin dato”; no equivale a cero. La
-unidad no forma parte del esquema mientras el contrato REST oficial no la declare por producto.
+unidad no forma parte del esquema: la web la aplica al mostrar cada producto según la tabla de
+[`data-contract.md`](data-contract.md#unidades-de-los-precios).
 
 ## Códigos de combustible
 

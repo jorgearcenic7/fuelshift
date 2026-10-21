@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { PriceUnitLabel } from "@/components/price-unit";
+import { priceUnit } from "@/domain/fuel-units";
 import { HEATMAP_SIGMA_KM, type PriceHeatmap } from "@/domain/price-heatmap";
 import { FUEL_LABELS, type FuelCode } from "@/domain/stations";
 import { formatPrice } from "@/lib/format";
@@ -57,6 +59,7 @@ export function PriceHeatmapLegend({
   );
   const scale = !loading ? (heatmap?.scale ?? null) : null;
   const flat = scale !== null && scale.high - scale.low < 1e-9;
+  const unit = priceUnit(fuel);
   const shownStations = heatmap?.stationCount ?? 0;
   const status = legendStatus({
     loading,
@@ -105,7 +108,8 @@ export function PriceHeatmapLegend({
           />
           {flat ? (
             <p className="mt-0.5 leading-4 tabular-nums">
-              {formatPrice(scale.low)} en todo el mapa
+              {formatPrice(scale.low)}
+              <PriceUnitLabel unit={unit} /> en todo el mapa
             </p>
           ) : (
             <p className="mt-0.5 flex justify-between gap-2 leading-4 tabular-nums">
@@ -118,6 +122,7 @@ export function PriceHeatmapLegend({
                   ≤{" "}
                 </span>
                 {formatPrice(scale.low)}
+                <PriceUnitLabel unit={unit} visuallyHidden />
                 <span className="text-ink font-medium"> barato</span>
               </span>
               <span>
@@ -127,6 +132,7 @@ export function PriceHeatmapLegend({
                 <span className="text-ink font-medium">caro </span>
                 <span aria-hidden="true">≥ </span>
                 {formatPrice(scale.high)}
+                <PriceUnitLabel unit={unit} visuallyHidden />
                 <span
                   aria-hidden="true"
                   className="text-[0.625rem] font-semibold"
@@ -147,10 +153,13 @@ export function PriceHeatmapLegend({
               <span className="text-ink font-medium">Escala nacional</span> de{" "}
               {FUEL_LABELS[fuel]} (percentiles 5 y 95 de toda España):{" "}
               <span className="text-ink">{formatPrice(scale.low)}</span> –{" "}
-              <span className="text-ink">{formatPrice(scale.high)}</span>. No
-              cambia al filtrar ni al mover el mapa: un mismo precio conserva su
-              color. Lo que queda fuera satura en verde o rojo, como Canarias,
-              Ceuta o Melilla.
+              <span className="text-ink">
+                {formatPrice(scale.high)}
+                <PriceUnitLabel unit={unit} />
+              </span>
+              . No cambia al filtrar ni al mover el mapa: un mismo precio
+              conserva su color. Lo que queda fuera satura en verde o rojo, como
+              Canarias, Ceuta o Melilla.
             </p>
             {heatmap.cheapest !== null && heatmap.priciest !== null ? (
               <p className="mt-1 leading-4 tabular-nums">
@@ -162,8 +171,9 @@ export function PriceHeatmapLegend({
                 {" · "}máximo{" "}
                 <span className="text-ink">
                   {formatPrice(heatmap.priciest)}
+                  <PriceUnitLabel unit={unit} />
                 </span>
-                . Sin unidad acreditada.
+                .
               </p>
             ) : null}
             <p className="mt-1 leading-4">

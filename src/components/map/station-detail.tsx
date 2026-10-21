@@ -1,5 +1,7 @@
+import { PriceUnitLabel } from "@/components/price-unit";
 import { getBrandIdentity } from "@/domain/brands";
 import { buildComparatorHref } from "@/domain/comparator-link";
+import { priceUnit } from "@/domain/fuel-units";
 import {
   FUEL_LABELS,
   getStationPrice,
@@ -63,7 +65,8 @@ export function StationDetail({
             </p>
             <h2
               id="station-detail-title"
-              className="text-ink mt-0.5 text-xl leading-tight font-semibold tracking-[-0.02em]"
+              tabIndex={-1}
+              className="text-ink mt-0.5 rounded-sm text-xl leading-tight font-semibold tracking-[-0.02em]"
             >
               {station.brand ?? "Sin rótulo"}
             </h2>
@@ -99,9 +102,13 @@ export function StationDetail({
             </div>
             <p className="text-ink mt-1.5 text-[2.75rem] leading-none font-bold tracking-[-0.035em] tabular-nums">
               {formatPrice(selectedPrice)}
+              <PriceUnitLabel
+                unit={priceUnit(fuel)}
+                className="text-muted text-base font-semibold tracking-normal"
+              />
             </p>
             <p className="text-muted mt-2.5 text-[0.6875rem] leading-4">
-              Precio comunicado · unidad no acreditada por el contrato REST
+              Precio en surtidor sin descuentos, comunicado a MITECO.
             </p>
           </div>
         ) : null}
@@ -181,6 +188,10 @@ export function StationDetail({
                     className={`font-semibold tabular-nums ${current ? "text-accent-strong" : "text-ink"}`}
                   >
                     {formatPrice(Number(price))}
+                    <PriceUnitLabel
+                      unit={priceUnit(code)}
+                      className="text-muted text-xs font-normal"
+                    />
                   </span>
                 </li>
               );

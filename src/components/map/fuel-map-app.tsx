@@ -2,6 +2,7 @@
 
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
+import { PriceUnitLabel } from "@/components/price-unit";
 import {
   loadMitecoManifest,
   loadMitecoStations,
@@ -9,6 +10,7 @@ import {
 } from "@/data/miteco";
 import { getBrandIdentity } from "@/domain/brands";
 import { isStale } from "@/domain/freshness";
+import { PRICE_UNIT_NAMES, priceUnit } from "@/domain/fuel-units";
 import {
   buildFilteredHeatmap,
   buildPriceHeatmap,
@@ -297,6 +299,7 @@ export function FuelMapApp() {
     filtersActive,
   });
   const stale = manifest !== null && isStale(manifest.retrieved_at);
+  const unit = priceUnit(fuel);
 
   function changeFuel(nextFuel: FuelCode) {
     setFuel(nextFuel);
@@ -316,6 +319,14 @@ export function FuelMapApp() {
       behavior: reduceMotion ? "auto" : "smooth",
       block: "start",
     });
+    // El foco acompaña a la vista: sin esto, el siguiente Tab devolvería a la
+    // lista y un lector de pantalla no anunciaría la ficha. Se espera a que
+    // React pinte la ficha de la estación elegida.
+    requestAnimationFrame(() =>
+      document
+        .getElementById("station-detail-title")
+        ?.focus({ preventScroll: true }),
+    );
   }
 
   function requestLocation() {
@@ -553,8 +564,15 @@ export function FuelMapApp() {
 
                 <fieldset className="col-span-2">
                   <legend className={fieldLabel}>
-                    Rango de precio{" "}
-                    <span className="font-normal">(unidad no acreditada)</span>
+                    Rango de precio
+                    <span aria-hidden="true" className="font-normal">
+                      {" "}
+                      ({unit})
+                    </span>
+                    <span className="sr-only">
+                      {" "}
+                      en {PRICE_UNIT_NAMES[unit]}
+                    </span>
                   </legend>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -745,7 +763,7 @@ export function FuelMapApp() {
               Ranking por precio
             </h2>
             <span className="text-muted text-xs">
-              Top {RANKING_SIZE} · {FUEL_LABELS[fuel]}
+              Top {RANKING_SIZE} · {FUEL_LABELS[fuel]} · {unit}
             </span>
           </div>
           <fieldset className="mt-3">
@@ -796,6 +814,7 @@ export function FuelMapApp() {
                       </span>
                       <span className="text-ink shrink-0 text-[0.9375rem] font-semibold tabular-nums">
                         {formatPrice(price)}
+                        <PriceUnitLabel unit={unit} visuallyHidden />
                       </span>
                     </button>
                   </li>
@@ -813,6 +832,9 @@ export function FuelMapApp() {
           <div className="border-line bg-surface/95 flex items-center justify-between gap-3 border-b px-4 py-3 backdrop-blur sm:px-[max(1.5rem,calc((100%-48rem)/2))] xl:sticky xl:top-0 xl:z-10 xl:px-5">
             <h2 id="results-title" className="text-ink text-sm font-semibold">
               Resultados
+              <small className="text-muted ml-1.5 text-xs font-normal">
+                · precios en {unit}
+              </small>
             </h2>
             <span className="bg-canvas text-muted ring-line rounded-full px-2 py-0.5 text-xs font-medium tabular-nums ring-1">
               {results.length.toLocaleString("es-ES")}
@@ -869,6 +891,7 @@ export function FuelMapApp() {
                     className={`shrink-0 text-[0.9375rem] font-semibold tabular-nums ${selected ? "text-accent-strong" : "text-ink"}`}
                   >
                     {formatPrice(Number(station.fuels[fuel]))}
+                    <PriceUnitLabel unit={unit} visuallyHidden />
                   </span>
                 </button>
               );
