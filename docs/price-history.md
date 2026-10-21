@@ -1,10 +1,11 @@
 # Histórico automático de precios
 
-Estado: **preparado y probado en local, desactivado**. El workflow contiene los pasos del histórico,
-pero todos dependen de la variable de repositorio `HISTORY_ENABLED`. Mientras no valga `true`, el
-despliegue se comporta exactamente igual que antes y nadie escribe en ninguna rama. La activación
-requiere los pasos remotos de [Activación](#activación-requiere-autorización), que no se han
-ejecutado.
+Estado: **activo**. La variable de repositorio `HISTORY_ENABLED` vale `true` desde el 18 de
+octubre de 2026, la rama `data/historico` está protegida por el ruleset `proteccion-historico` y
+conserva observaciones reales desde el 19 de octubre de 2026 (comprobado el 21 de octubre de 2026).
+Todos los pasos del histórico dependen de esa variable: si deja de valer `true`, el despliegue
+vuelve al comportamiento anterior y nadie escribe en ninguna rama (véase
+[Desactivar con seguridad](#desactivar-con-seguridad)).
 
 ## Arquitectura
 
@@ -58,9 +59,8 @@ Datos verificados que sostienen el diseño:
   `cloudflare-pages-production` ya existente serializa también los guardados.
 - Los rulesets admiten patrones de rama y las reglas «Restrict deletions» y «Block force pushes»
   sin bloquear los pushes normales.
-- Repositorio comprobado: público, ruleset `proteccion-main` solo sobre la rama por defecto, sin
-  actores con bypass; permisos por defecto de los workflows en lectura; `data/historico` no
-  existe todavía.
+- Repositorio comprobado antes de la activación: público, ruleset `proteccion-main` solo sobre la
+  rama por defecto, sin actores con bypass y permisos por defecto de los workflows en lectura.
 
 ## Formato del registro (versión 1.0.0)
 
@@ -211,9 +211,10 @@ producción en local: `node scripts/price-history.mjs restore <URL publicada> <c
 - Los workflows programados se desactivan tras 60 días sin actividad en el repositorio y su
   horario no es exacto: puede haber días sin observación, que se ven como huecos.
 
-## Activación (requiere autorización)
+## Activación (realizada)
 
-Nada de esto se ha hecho. En este orden, tras fusionar la PR:
+Se completó el 18 de octubre de 2026. Los pasos se conservan como referencia para reconstruir la
+activación en otro repositorio o tras desactivarla:
 
 1. Crear la rama huérfana `data/historico` con solo un `README.md`, sin código, desde un clon
    nuevo y dedicado (`git switch --orphan` deja el árbol sin archivos versionados):

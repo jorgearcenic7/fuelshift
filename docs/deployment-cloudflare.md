@@ -98,8 +98,7 @@ vez, así que el máximo mensual no cambia. Sin la variable, el comportamiento e
 
 ## Ejecución manual
 
-El botón **Run workflow** solo aparecerá cuando el archivo del workflow esté en la rama por
-defecto. Después de fusionar la PR con autorización expresa:
+El workflow está en `main`, así que el botón **Run workflow** está disponible:
 
 1. Abrir **Actions > Actualización MITECO en Cloudflare Pages > Run workflow**.
 2. Seleccionar `main`.
@@ -112,9 +111,8 @@ defecto. Después de fusionar la PR con autorización expresa:
    terminar correctamente los controles, la preparación de datos, el build y el control de límites
    antes de Wrangler. Si no hay cambios, el workflow finaliza correctamente sin esos pasos.
 
-GitHub exige que un workflow manual exista en la rama por defecto; por eso esta PR prepara el
-mecanismo pero no puede publicarlo por sí sola. El workflow no responde a `push` ni a
-`pull_request`.
+El workflow no responde a `push` ni a `pull_request`: fusionar cambios de código en `main` no los
+publica hasta la siguiente ejecución que despliegue (por cambio de datos o por `force_deploy`).
 
 ## Protección de los datos publicados
 

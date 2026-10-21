@@ -2,8 +2,8 @@
 
 **Web: <https://fuelshift.pages.dev>**
 
-FuelShift es una aplicación web pública en construcción para consultar precios oficiales de
-carburantes en España, comparar costes energéticos y explorar estadísticas. El repositorio
+FuelShift es una aplicación web pública para consultar precios oficiales de carburantes en
+España, comparar costes energéticos y explorar estadísticas. El repositorio
 incluye una ingesta reproducible del conjunto nacional de estaciones terrestres de MITECO, un
 mapa interactivo con esos datos reales, un comparador de costes energéticos y una página de
 estadísticas de precios.
@@ -56,9 +56,12 @@ vacía o fallo de validación tampoco reemplaza el último conjunto válido.
 
 Los precios se conservan como cadenas decimales exactas y los valores vacíos se omiten. La API
 solo comunica una fecha global sin zona horaria explícita y no aporta una fecha individual por
-precio. Tampoco declara unidades en el contrato REST verificado, por lo que el frontend no debe
-inventarlas. Estas limitaciones y la evidencia observada están documentadas en
-[`docs/data-contract.md`](docs/data-contract.md).
+precio. La API tampoco declara unidades, pero el conjunto procede de la Orden ITC/2308/2007, cuyos
+anexos vigentes (Resolución de 5 de diciembre de 2025) fijan euros por litro para gasolinas,
+gasóleos, biodiésel, bioetanol, combustibles renovables, GLP y AdBlue, y euros por kilogramo para
+gas natural, biogás, hidrógeno, metanol y amoniaco. La web muestra la unidad de cada producto
+según esa norma. Las fuentes, la correspondencia de los 23 productos y las demás limitaciones
+están en [`docs/data-contract.md`](docs/data-contract.md).
 
 El catálogo oficial publica el conjunto bajo
 [Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/). Toda
@@ -110,9 +113,9 @@ calculadas por FuelShift, no publicadas por MITECO.
 
 El build también publica la instantánea en `/data/estadisticas.json`, que
 `scripts/price-history.mjs` convierte en un registro diario del histórico. El guardado automático
-en la rama de datos `data/historico` está preparado pero desactivado hasta su activación
-autorizada; la página descarga el histórico publicado en `/data/historico/` y, mientras no exista,
-muestra «Todavía no hay histórico». Véase [docs/price-history.md](docs/price-history.md).
+en la rama de datos `data/historico` está activo y conserva observaciones reales desde el 19 de
+octubre de 2026. La página descarga el histórico publicado en `/data/historico/`; si no hubiera
+ninguno, muestra «Todavía no hay histórico». Véase [docs/price-history.md](docs/price-history.md).
 
 ## Desarrollo y comprobaciones
 
@@ -128,7 +131,8 @@ npm test
 npm run test:coverage
 npm run build
 
-# Prueba manual en navegador (requiere la web en ejecución y Edge/Chrome local)
+# Prueba manual en navegador (requiere la web en ejecución y Edge, Chrome o Chromium local;
+# FUELSHIFT_URL cambia la dirección, por defecto http://localhost:3000)
 npm run test:browser
 
 # Python (las pruebas usan fixtures y no acceden a la red)
@@ -170,8 +174,11 @@ pipeline/
     pipeline.py         Orquestación de la ingesta
     cli.py              Interfaz de línea de comandos
   tests/                Pruebas aisladas de la red
-docs/                   Contratos y decisiones técnicas
-.github/workflows/      Integración continua y verificación manual
+contracts/              JSON Schema de los datos publicados y ejemplos
+scripts/                Preparación de datos, histórico y pruebas de navegador
+public/_headers         Cabeceras de seguridad de Cloudflare Pages
+docs/                   Contratos, decisiones técnicas (decisions/) y publicación
+.github/workflows/      Integración continua, despliegue y verificación manual
 ```
 
 En `src/`, las dependencias solo avanzan en el sentido `app → components → data → domain`, y
@@ -184,3 +191,11 @@ ejecución manual puede forzar la publicación de cambios de código sin omitir 
 Una comprobación programada sin cambios no ejecuta el build ni Wrangler. La configuración, los
 secretos, la protección del manifiesto anterior, la recuperación y los límites están documentados en
 [`docs/deployment-cloudflare.md`](docs/deployment-cloudflare.md).
+
+## Seguridad y versiones
+
+La web no usa credenciales en el navegador ni servicios de pago. Las cabeceras de seguridad
+(CSP, `X-Frame-Options`, `Permissions-Policy` y otras) se publican desde `public/_headers`; su
+motivo y cómo se probaron están en [`docs/security-headers.md`](docs/security-headers.md). Los
+cambios de cada versión se recogen en [`CHANGELOG.md`](CHANGELOG.md) y el procedimiento de
+publicación, verificación y vuelta atrás en [`docs/release.md`](docs/release.md).
