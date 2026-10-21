@@ -30,7 +30,13 @@ import {
 import { formatPrice, formatRetrievedAt } from "@/lib/format";
 
 import { BrandMark } from "./brand-mark";
-import { AlertIcon, CursorIcon, LocateIcon, SearchIcon } from "./icons";
+import {
+  AlertIcon,
+  CursorIcon,
+  LocateIcon,
+  SearchIcon,
+  SlidersIcon,
+} from "./icons";
 import { MapAttribution } from "./map-attribution";
 import type { MapView } from "./price-heatmap-layer";
 import { PriceHeatmapLegend } from "./price-heatmap-legend";
@@ -173,6 +179,8 @@ export function FuelMapApp() {
   const [rankingScope, setRankingScope] = useState<RankingScope>("visible");
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
   const [mapView, setMapView] = useState<MapView>("stations");
+  // Solo afecta a pantallas estrechas: en escritorio el panel siempre se ve.
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const mapAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -253,8 +261,12 @@ export function FuelMapApp() {
       ),
     [ranking],
   );
-  const filtersActive =
-    search.trim() !== "" || brand !== "" || minPrice !== "" || maxPrice !== "";
+  // Filtros del panel plegable; el número se muestra en su botón para que no
+  // queden ocultos al cerrarlo.
+  const advancedFilterCount = [brand, minPrice, maxPrice].filter(
+    (value) => value !== "",
+  ).length;
+  const filtersActive = search.trim() !== "" || advancedFilterCount > 0;
 
   // Escala del mapa de calor: P5–P95 de la superficie nacional del combustible.
   // Solo depende de las estaciones cargadas y del combustible, así que no
@@ -341,28 +353,33 @@ export function FuelMapApp() {
   return (
     <main
       id="contenido"
-      className="flex flex-col xl:grid xl:h-[calc(100dvh-3.5rem)] xl:grid-cols-[25rem_minmax(0,1fr)] xl:grid-rows-[minmax(0,1fr)_auto] xl:overflow-hidden"
+      className="flex flex-col xl:relative xl:grid xl:h-[calc(100dvh-3.5rem)] xl:grid-cols-[25rem_minmax(0,1fr)] xl:grid-rows-[minmax(0,1fr)_auto] xl:overflow-hidden"
     >
-      {/* Columna lateral: en escritorio filtros y resultados se desplazan
-          juntos; en pantallas estrechas `contents` deja que el mapa se
-          intercale entre ambos. */}
-      <div className="xl:border-line contents xl:col-start-1 xl:row-start-1 xl:flex xl:min-h-0 xl:flex-col xl:overflow-y-auto xl:border-r xl:bg-white">
+      {/* El orden del documento es el de lectura en cualquier pantalla:
+          filtros, mapa, ranking y resultados, así que el teclado y los
+          lectores de pantalla siguen el mismo orden que la vista. En
+          escritorio, filtros y resultados se desplazan juntos en esta columna
+          y el mapa se coloca a su derecha (véase el área del mapa). */}
+      <div className="xl:border-line xl:col-start-1 xl:row-start-1 xl:flex xl:min-h-0 xl:flex-col xl:overflow-y-auto xl:border-r xl:bg-white">
         {/* Presentación, estado de los datos y filtros */}
         <section
           aria-labelledby="map-title"
-          className="border-line bg-surface order-1 border-b px-4 pt-5 pb-5 sm:px-[max(1.5rem,calc((100%-48rem)/2))] xl:px-5"
+          className="border-line bg-surface border-b px-4 pt-4 pb-4 sm:px-[max(1.5rem,calc((100%-48rem)/2))] xl:px-5 xl:pt-5 xl:pb-5"
         >
           <p className="text-accent text-[0.6875rem] font-semibold tracking-[0.14em] uppercase">
             Precios oficiales de carburantes
           </p>
           <h1
             id="map-title"
-            className="text-ink mt-1 text-[1.6rem] leading-tight font-semibold tracking-[-0.03em]"
+            className="text-ink mt-1 text-[1.375rem] leading-tight font-semibold tracking-[-0.03em] xl:text-[1.6rem]"
           >
             Gasolineras de España
           </h1>
 
-          <div className="mt-3 space-y-1.5" aria-live="polite">
+          <div
+            className="mt-2 space-y-1 xl:mt-3 xl:space-y-1.5"
+            aria-live="polite"
+          >
             <span
               className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${statusStyle.tone}`}
             >
@@ -401,7 +418,7 @@ export function FuelMapApp() {
             </div>
           ) : null}
 
-          <div className="border-line mt-5 border-t pt-4">
+          <div className="border-line mt-4 border-t pt-3 xl:mt-5 xl:pt-4">
             <div className="flex items-center justify-between">
               <h2 className="text-ink text-sm font-semibold">
                 Buscar y filtrar
@@ -420,27 +437,58 @@ export function FuelMapApp() {
               </button>
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-3.5">
-              <div className="col-span-2">
-                <label htmlFor="station-search" className="sr-only">
-                  Municipio, marca o dirección
-                </label>
-                <div className="relative">
-                  <SearchIcon className="text-muted pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-                  <input
-                    id="station-search"
-                    type="search"
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    className="control h-11 pl-9"
-                    placeholder="Municipio, marca o dirección"
-                    autoComplete="off"
-                  />
+            <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-3 xl:gap-y-3.5">
+              <div className="col-span-2 flex gap-2">
+                <div className="min-w-0 flex-1">
+                  <label htmlFor="station-search" className="sr-only">
+                    Municipio, marca o dirección
+                  </label>
+                  <div className="relative">
+                    <SearchIcon className="text-muted pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+                    <input
+                      id="station-search"
+                      type="search"
+                      value={search}
+                      onChange={(event) => setSearch(event.target.value)}
+                      className="control h-11 pl-9"
+                      placeholder="Municipio, marca o dirección"
+                      autoComplete="off"
+                    />
+                  </div>
                 </div>
+                {/* Pantallas estrechas: el resto de filtros se pliega para que
+                    el mapa quede a la vista. En escritorio no hace falta. */}
+                <button
+                  type="button"
+                  aria-expanded={filtersOpen}
+                  aria-controls="advanced-filters"
+                  onClick={() => setFiltersOpen((open) => !open)}
+                  className={`inline-flex h-11 shrink-0 items-center gap-1.5 rounded-[0.625rem] border px-3 text-sm font-semibold transition-colors xl:hidden ${filtersOpen ? "border-accent bg-accent-soft text-accent-strong" : "border-line text-ink hover:border-accent hover:text-accent bg-white"}`}
+                >
+                  <SlidersIcon className="size-4" />
+                  Filtros
+                  {advancedFilterCount > 0 ? (
+                    <>
+                      <span className="sr-only">
+                        , {advancedFilterCount} activos
+                      </span>
+                      <span
+                        aria-hidden="true"
+                        className="bg-accent inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[0.6875rem] font-bold text-white tabular-nums"
+                      >
+                        {advancedFilterCount}
+                      </span>
+                    </>
+                  ) : null}
+                </button>
               </div>
 
               <fieldset className="col-span-2">
-                <legend className={fieldLabel}>Combustible</legend>
+                {/* Las opciones se explican solas; la leyenda sigue disponible
+                    para lectores de pantalla y en escritorio. */}
+                <legend className={`${fieldLabel} max-xl:sr-only`}>
+                  Combustible
+                </legend>
                 <div className="bg-canvas ring-line grid grid-cols-3 gap-1 rounded-xl p-1 ring-1">
                   {PRIMARY_FUELS.map((code) => (
                     <label
@@ -461,111 +509,236 @@ export function FuelMapApp() {
                 </div>
               </fieldset>
 
-              <div>
-                <label htmlFor="brand" className={fieldLabel}>
-                  Marca
-                </label>
-                <select
-                  id="brand"
-                  value={brand}
-                  onChange={(event) => setBrand(event.target.value)}
-                  className="control"
-                >
-                  <option value="">Todas</option>
-                  {brands.map((item) => (
-                    <option value={item} key={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="sort" className={fieldLabel}>
-                  Ordenar por
-                </label>
-                <select
-                  id="sort"
-                  value={sort}
-                  onChange={(event) =>
-                    setSort(event.target.value as StationSort)
-                  }
-                  className="control"
-                >
-                  <option value="price">Precio más bajo</option>
-                  <option value="distance" disabled={!userLocation}>
-                    Distancia
-                  </option>
-                </select>
-              </div>
-
-              <fieldset className="col-span-2">
-                <legend className={fieldLabel}>
-                  Rango de precio{" "}
-                  <span className="font-normal">(unidad no acreditada)</span>
-                </legend>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label htmlFor="min-price" className="sr-only">
-                      Precio mínimo
-                    </label>
-                    <input
-                      id="min-price"
-                      type="number"
-                      min="0"
-                      step="0.001"
-                      inputMode="decimal"
-                      value={minPrice}
-                      onChange={(event) => setMinPrice(event.target.value)}
-                      className="control"
-                      placeholder="Mínimo"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="max-price" className="sr-only">
-                      Precio máximo
-                    </label>
-                    <input
-                      id="max-price"
-                      type="number"
-                      min="0"
-                      step="0.001"
-                      inputMode="decimal"
-                      value={maxPrice}
-                      onChange={(event) => setMaxPrice(event.target.value)}
-                      className="control"
-                      placeholder="Máximo"
-                    />
-                  </div>
+              {/* Cerrado solo se oculta: los valores se conservan. */}
+              <div
+                id="advanced-filters"
+                className={`col-span-2 grid grid-cols-2 gap-x-3 gap-y-3.5 ${filtersOpen ? "" : "max-xl:hidden"}`}
+              >
+                <div>
+                  <label htmlFor="brand" className={fieldLabel}>
+                    Marca
+                  </label>
+                  <select
+                    id="brand"
+                    value={brand}
+                    onChange={(event) => setBrand(event.target.value)}
+                    className="control"
+                  >
+                    <option value="">Todas</option>
+                    {brands.map((item) => (
+                      <option value={item} key={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </fieldset>
+                <div>
+                  <label htmlFor="sort" className={fieldLabel}>
+                    Ordenar por
+                  </label>
+                  <select
+                    id="sort"
+                    value={sort}
+                    onChange={(event) =>
+                      setSort(event.target.value as StationSort)
+                    }
+                    className="control"
+                  >
+                    <option value="price">Precio más bajo</option>
+                    <option value="distance" disabled={!userLocation}>
+                      Distancia
+                    </option>
+                  </select>
+                </div>
 
-              <div className="col-span-2">
-                <button
-                  type="button"
-                  onClick={requestLocation}
-                  aria-pressed={userLocation !== null}
-                  className={`inline-flex h-10 w-full items-center justify-center gap-2 rounded-[0.625rem] border text-sm font-semibold transition-colors ${userLocation ? "border-positive/30 bg-positive-soft text-positive" : "border-line text-ink hover:border-accent hover:text-accent bg-white"}`}
-                >
-                  <LocateIcon className="size-4" />
-                  {userLocation ? "Ubicación activada" : "Usar mi ubicación"}
-                </button>
-                <p
-                  className="text-muted mt-1.5 min-h-4 text-xs leading-4"
-                  role="status"
-                  aria-live="polite"
-                >
-                  {locationStatus ??
-                    "Solo se solicitará permiso al pulsar el botón."}
-                </p>
+                <fieldset className="col-span-2">
+                  <legend className={fieldLabel}>
+                    Rango de precio{" "}
+                    <span className="font-normal">(unidad no acreditada)</span>
+                  </legend>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="min-price" className="sr-only">
+                        Precio mínimo
+                      </label>
+                      <input
+                        id="min-price"
+                        type="number"
+                        min="0"
+                        step="0.001"
+                        inputMode="decimal"
+                        value={minPrice}
+                        onChange={(event) => setMinPrice(event.target.value)}
+                        className="control"
+                        placeholder="Mínimo"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="max-price" className="sr-only">
+                        Precio máximo
+                      </label>
+                      <input
+                        id="max-price"
+                        type="number"
+                        min="0"
+                        step="0.001"
+                        inputMode="decimal"
+                        value={maxPrice}
+                        onChange={(event) => setMaxPrice(event.target.value)}
+                        className="control"
+                        placeholder="Máximo"
+                      />
+                    </div>
+                  </div>
+                </fieldset>
+
+                <div className="col-span-2">
+                  <button
+                    type="button"
+                    onClick={requestLocation}
+                    aria-pressed={userLocation !== null}
+                    className={`inline-flex h-10 w-full items-center justify-center gap-2 rounded-[0.625rem] border text-sm font-semibold transition-colors ${userLocation ? "border-positive/30 bg-positive-soft text-positive" : "border-line text-ink hover:border-accent hover:text-accent bg-white"}`}
+                  >
+                    <LocateIcon className="size-4" />
+                    {userLocation ? "Ubicación activada" : "Usar mi ubicación"}
+                  </button>
+                  <p
+                    className="text-muted mt-1.5 min-h-4 text-xs leading-4"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    {locationStatus ??
+                      "Solo se solicitará permiso al pulsar el botón."}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
+        {/* Mapa y ficha de estación. En pantallas estrechas ocupa su sitio en
+            el flujo, justo tras los filtros. En escritorio se coloca sobre la
+            segunda columna de `main` (su bloque contenedor; `left` repite el
+            ancho de la primera columna), así que ni la recorta ni la desplaza
+            el scroll de esta columna. */}
+        <div
+          ref={mapAreaRef}
+          className="relative scroll-mt-2 xl:absolute xl:inset-y-0 xl:right-0 xl:left-[25rem]"
+        >
+          <div className="relative h-[62svh] min-h-[22rem] xl:absolute xl:inset-0 xl:h-auto xl:min-h-0">
+            <StationMap
+              stations={results}
+              fuel={fuel}
+              selectedId={selectedId}
+              userLocation={userLocation}
+              onSelect={setSelectedId}
+              onBoundsChange={setMapBounds}
+              view={mapView}
+              heatmap={heatmap}
+            />
+            <fieldset className="absolute top-3 left-3 z-10">
+              <legend className="sr-only">Vista del mapa</legend>
+              <div className="bg-canvas/95 ring-line grid grid-cols-2 gap-1 rounded-xl p-1 shadow-[0_6px_20px_-8px_rgb(15_29_46/40%)] ring-1 backdrop-blur">
+                {MAP_VIEWS.map(([value, label]) => (
+                  <label
+                    key={value}
+                    className="text-muted hover:text-ink has-checked:text-accent-strong flex min-h-8 items-center justify-center rounded-lg px-3 py-1 text-center text-xs font-medium whitespace-nowrap transition-colors has-checked:bg-white has-checked:font-semibold has-checked:shadow-[0_1px_3px_rgb(15_29_46/12%)] has-focus-visible:outline-3 has-focus-visible:outline-offset-1 has-focus-visible:outline-[#f4a261]"
+                  >
+                    <input
+                      type="radio"
+                      name="map-view"
+                      value={value}
+                      checked={mapView === value}
+                      onChange={() => setMapView(value)}
+                      className="sr-only"
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            {mapView === "heat" && !loadError ? (
+              <div className="absolute bottom-9 left-3 z-10 max-w-[calc(100%-4.5rem)]">
+                <PriceHeatmapLegend
+                  heatmap={heatmap}
+                  fuel={fuel}
+                  loading={loading}
+                  loadingStatus={dataStatus}
+                  failedProvinces={failedProvinces.length}
+                  stale={stale}
+                  filtersActive={filtersActive}
+                />
+              </div>
+            ) : null}
+            {loading && !loadError ? (
+              <div
+                className="text-ink pointer-events-none absolute top-[3.75rem] left-3 z-10 inline-flex items-center gap-2 rounded-full bg-white/95 px-3.5 py-2 text-xs font-medium shadow-[0_6px_20px_-8px_rgb(15_29_46/40%)] backdrop-blur"
+                aria-hidden="true"
+              >
+                <span className="border-accent size-3 animate-spin rounded-full border-2 border-t-transparent" />
+                {dataStatus}
+              </div>
+            ) : null}
+            {loadError ? (
+              <div className="absolute inset-0 z-20 grid place-items-center bg-white/40 p-4 backdrop-blur-[2px]">
+                <div
+                  className="border-line max-w-sm rounded-2xl border bg-white p-5 text-sm shadow-[0_20px_50px_-20px_rgb(15_29_46/45%)]"
+                  role="alert"
+                >
+                  <span className="grid size-9 place-items-center rounded-xl bg-rose-50 text-rose-600">
+                    <AlertIcon className="size-5" />
+                  </span>
+                  <strong className="text-ink mt-3 block text-base font-semibold">
+                    No hay datos oficiales disponibles
+                  </strong>
+                  <span className="text-muted mt-1 block leading-6">
+                    {loadError} Prepara una copia local validada para explorar
+                    el mapa.
+                  </span>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          <aside
+            aria-labelledby="station-detail-title"
+            className={`z-10 mx-3 my-3 sm:mx-auto sm:w-[calc(100%-3rem)] sm:max-w-3xl xl:absolute xl:top-4 xl:right-4 xl:m-0 xl:w-[23rem] ${selectedStation ? "overflow-hidden xl:max-h-[calc(100%-2rem)] xl:overflow-y-auto" : ""} border-line rounded-2xl border bg-white shadow-[0_24px_60px_-28px_rgb(15_29_46/50%)]`}
+          >
+            {selectedStation ? (
+              <StationDetail
+                station={selectedStation}
+                fuel={fuel}
+                userLocation={userLocation}
+                rankPosition={rankPositions.get(selectedStation.id) ?? null}
+                rankingContext={RANKING_SCOPE_CONTEXT[rankingScope]}
+                onClose={() => setSelectedId(null)}
+              />
+            ) : (
+              <div className="flex items-start gap-3 p-4">
+                <span className="bg-accent-soft text-accent grid size-9 shrink-0 place-items-center rounded-xl">
+                  <CursorIcon className="size-4" />
+                </span>
+                <div>
+                  <h2
+                    id="station-detail-title"
+                    className="text-ink text-sm font-semibold"
+                  >
+                    Selecciona una estación
+                  </h2>
+                  <p className="text-muted mt-0.5 text-xs leading-5">
+                    Pulsa un marcador o un resultado para consultar su
+                    dirección, horario y todos los precios comunicados.
+                  </p>
+                </div>
+              </div>
+            )}
+          </aside>
+        </div>
+
         {/* Ranking por precio */}
         <section
           aria-labelledby="ranking-title"
-          className="border-line bg-surface order-3 border-b px-4 py-4 sm:px-[max(1.5rem,calc((100%-48rem)/2))] xl:px-5"
+          className="border-line bg-surface border-b px-4 py-4 sm:px-[max(1.5rem,calc((100%-48rem)/2))] xl:px-5"
         >
           <div className="flex items-baseline justify-between gap-3">
             <h2 id="ranking-title" className="text-ink text-sm font-semibold">
@@ -635,7 +808,7 @@ export function FuelMapApp() {
         {/* Lista de resultados */}
         <section
           aria-labelledby="results-title"
-          className="border-line bg-surface order-4 flex flex-col border-b xl:flex-1 xl:border-b-0"
+          className="border-line bg-surface flex flex-col border-b xl:flex-1 xl:border-b-0"
         >
           <div className="border-line bg-surface/95 flex items-center justify-between gap-3 border-b px-4 py-3 backdrop-blur sm:px-[max(1.5rem,calc((100%-48rem)/2))] xl:sticky xl:top-0 xl:z-10 xl:px-5">
             <h2 id="results-title" className="text-ink text-sm font-semibold">
@@ -722,121 +895,6 @@ export function FuelMapApp() {
       </div>
 
       <MapAttribution manifest={manifest} />
-
-      {/* Mapa y ficha de estación */}
-      <div
-        ref={mapAreaRef}
-        className="relative order-2 scroll-mt-2 xl:col-start-2 xl:row-span-2 xl:row-start-1"
-      >
-        <div className="relative h-[62svh] min-h-[22rem] xl:absolute xl:inset-0 xl:h-auto xl:min-h-0">
-          <StationMap
-            stations={results}
-            fuel={fuel}
-            selectedId={selectedId}
-            userLocation={userLocation}
-            onSelect={setSelectedId}
-            onBoundsChange={setMapBounds}
-            view={mapView}
-            heatmap={heatmap}
-          />
-          <fieldset className="absolute top-3 left-3 z-10">
-            <legend className="sr-only">Vista del mapa</legend>
-            <div className="bg-canvas/95 ring-line grid grid-cols-2 gap-1 rounded-xl p-1 shadow-[0_6px_20px_-8px_rgb(15_29_46/40%)] ring-1 backdrop-blur">
-              {MAP_VIEWS.map(([value, label]) => (
-                <label
-                  key={value}
-                  className="text-muted hover:text-ink has-checked:text-accent-strong flex min-h-8 items-center justify-center rounded-lg px-3 py-1 text-center text-xs font-medium whitespace-nowrap transition-colors has-checked:bg-white has-checked:font-semibold has-checked:shadow-[0_1px_3px_rgb(15_29_46/12%)] has-focus-visible:outline-3 has-focus-visible:outline-offset-1 has-focus-visible:outline-[#f4a261]"
-                >
-                  <input
-                    type="radio"
-                    name="map-view"
-                    value={value}
-                    checked={mapView === value}
-                    onChange={() => setMapView(value)}
-                    className="sr-only"
-                  />
-                  {label}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-          {mapView === "heat" && !loadError ? (
-            <div className="absolute bottom-9 left-3 z-10 max-w-[calc(100%-4.5rem)]">
-              <PriceHeatmapLegend
-                heatmap={heatmap}
-                fuel={fuel}
-                loading={loading}
-                loadingStatus={dataStatus}
-                failedProvinces={failedProvinces.length}
-                stale={stale}
-                filtersActive={filtersActive}
-              />
-            </div>
-          ) : null}
-          {loading && !loadError ? (
-            <div
-              className="text-ink pointer-events-none absolute top-[3.75rem] left-3 z-10 inline-flex items-center gap-2 rounded-full bg-white/95 px-3.5 py-2 text-xs font-medium shadow-[0_6px_20px_-8px_rgb(15_29_46/40%)] backdrop-blur"
-              aria-hidden="true"
-            >
-              <span className="border-accent size-3 animate-spin rounded-full border-2 border-t-transparent" />
-              {dataStatus}
-            </div>
-          ) : null}
-          {loadError ? (
-            <div className="absolute inset-0 z-20 grid place-items-center bg-white/40 p-4 backdrop-blur-[2px]">
-              <div
-                className="border-line max-w-sm rounded-2xl border bg-white p-5 text-sm shadow-[0_20px_50px_-20px_rgb(15_29_46/45%)]"
-                role="alert"
-              >
-                <span className="grid size-9 place-items-center rounded-xl bg-rose-50 text-rose-600">
-                  <AlertIcon className="size-5" />
-                </span>
-                <strong className="text-ink mt-3 block text-base font-semibold">
-                  No hay datos oficiales disponibles
-                </strong>
-                <span className="text-muted mt-1 block leading-6">
-                  {loadError} Prepara una copia local validada para explorar el
-                  mapa.
-                </span>
-              </div>
-            </div>
-          ) : null}
-        </div>
-
-        <aside
-          aria-labelledby="station-detail-title"
-          className={`z-10 mx-3 my-3 sm:mx-auto sm:w-[calc(100%-3rem)] sm:max-w-3xl xl:absolute xl:top-4 xl:right-4 xl:m-0 xl:w-[23rem] ${selectedStation ? "overflow-hidden xl:max-h-[calc(100%-2rem)] xl:overflow-y-auto" : ""} border-line rounded-2xl border bg-white shadow-[0_24px_60px_-28px_rgb(15_29_46/50%)]`}
-        >
-          {selectedStation ? (
-            <StationDetail
-              station={selectedStation}
-              fuel={fuel}
-              userLocation={userLocation}
-              rankPosition={rankPositions.get(selectedStation.id) ?? null}
-              rankingContext={RANKING_SCOPE_CONTEXT[rankingScope]}
-              onClose={() => setSelectedId(null)}
-            />
-          ) : (
-            <div className="flex items-start gap-3 p-4">
-              <span className="bg-accent-soft text-accent grid size-9 shrink-0 place-items-center rounded-xl">
-                <CursorIcon className="size-4" />
-              </span>
-              <div>
-                <h2
-                  id="station-detail-title"
-                  className="text-ink text-sm font-semibold"
-                >
-                  Selecciona una estación
-                </h2>
-                <p className="text-muted mt-0.5 text-xs leading-5">
-                  Pulsa un marcador o un resultado para consultar su dirección,
-                  horario y todos los precios comunicados.
-                </p>
-              </div>
-            </div>
-          )}
-        </aside>
-      </div>
     </main>
   );
 }

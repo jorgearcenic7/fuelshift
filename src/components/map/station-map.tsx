@@ -35,6 +35,14 @@ const CLUSTER_MAX_ZOOM = 14;
 // Por encima del último nivel agrupado, para que la estación elegida se vea
 // como punto propio y no dentro de un clúster.
 const SELECTED_ZOOM = CLUSTER_MAX_ZOOM + 1;
+// Con el zoom fijo, un mapa estrecho (móvil) solo muestra el centro de la
+// península. Por debajo de este ancho se encuadra entera al cargar; por
+// encima se conserva la vista inicial de siempre.
+const NARROW_MAP_WIDTH = 640;
+const PENINSULA_BOUNDS: [[number, number], [number, number]] = [
+  [-9.6, 35.9],
+  [3.4, 43.9],
+];
 setWorkerUrl(
   new URL(
     "maplibre-gl/dist/maplibre-gl-worker.mjs",
@@ -182,11 +190,14 @@ export function StationMap({
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
+    const initialView =
+      containerRef.current.clientWidth < NARROW_MAP_WIDTH
+        ? { bounds: PENINSULA_BOUNDS, fitBoundsOptions: { padding: 12 } }
+        : { center: [-3.7, 40.2] as [number, number], zoom: 5.1 };
     const map = new MapLibreMap({
       container: containerRef.current,
       style: MAP_STYLE,
-      center: [-3.7, 40.2],
-      zoom: 5.1,
+      ...initialView,
       minZoom: 4,
       maxZoom: 18,
       maxBounds: [

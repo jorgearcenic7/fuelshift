@@ -7,7 +7,7 @@ export function MapAttribution({
   manifest: MitecoManifest | null;
 }) {
   return (
-    <footer className="border-line bg-surface text-muted order-5 space-y-1 px-4 py-4 text-[0.6875rem] leading-5 sm:px-[max(1.5rem,calc((100%-48rem)/2))] xl:col-start-1 xl:row-start-2 xl:border-t xl:border-r xl:px-5 xl:py-3">
+    <footer className="border-line bg-surface text-muted space-y-1 px-4 py-4 text-[0.6875rem] leading-5 sm:px-[max(1.5rem,calc((100%-48rem)/2))] xl:col-start-1 xl:row-start-2 xl:border-t xl:border-r xl:px-5 xl:py-3">
       <p>
         Datos:{" "}
         {manifest ? (

@@ -193,6 +193,133 @@ try {
     path: path.join(outputDirectory, "map-heat-mobile-expanded.png"),
   });
 
+  // Móvil: el mapa se ve al abrir, los filtros avanzados se pliegan sin
+  // perder valores, el mapa responde a ellos y una estación elegida en la lista
+  // muestra su ficha junto al mapa.
+  const phoneHeight = 844;
+  const phone = await browser.newPage({
+    viewport: { width: 390, height: phoneHeight },
+  });
+  phone.on("pageerror", (error) => browserErrors.push(error.message));
+  phone.on("console", (message) => {
+    if (message.type() === "error" && /hydrat/i.test(message.text())) {
+      browserErrors.push(message.text());
+    }
+  });
+  await phone.goto(targetUrl, { waitUntil: "domcontentloaded" });
+  await waitForDataset(phone);
+  const phoneMap = phone.locator(".maplibregl-map");
+  const openBox = await phoneMap.boundingBox();
+  const mapVisibleOnOpen = Math.round(
+    Math.max(0, Math.min(phoneHeight, openBox.y + openBox.height) - openBox.y),
+  );
+  await phone.waitForTimeout(3_000);
+  await phone.screenshot({
+    path: path.join(outputDirectory, "map-mobile-open.png"),
+  });
+
+  const filtersButton = phone.getByRole("button", { name: /^Filtros/ });
+  const advancedFilters = phone.locator("#advanced-filters");
+  const filtersState = async () => ({
+    expanded: await filtersButton.getAttribute("aria-expanded"),
+    visible: await advancedFilters.isVisible(),
+  });
+  const resultsCount = () =>
+    phone.locator('[aria-labelledby="results-title"] span').first().innerText();
+  const legendStations = () =>
+    legendOf(phone)
+      .getByText(/^Representa las/)
+      .innerText();
+  const closedOnOpen = await filtersState();
+  const unfilteredCount = await resultsCount();
+  await mapView(phone, "heat").click();
+  await legendToggle(phone).click();
+  const legendUnfiltered = await legendStations();
+  await legendToggle(phone).click();
+
+  await filtersButton.click();
+  const opened = await filtersState();
+  await phone.screenshot({
+    path: path.join(outputDirectory, "map-mobile-filters.png"),
+  });
+  const brandValue = await phone
+    .locator("#brand option")
+    .nth(1)
+    .getAttribute("value");
+  await phone.locator("#brand").selectOption(brandValue);
+  await phone.locator("#max-price").fill("9");
+  await filtersButton.click();
+  const closed = await filtersState();
+  const badgeAnnounced =
+    (await phone.getByRole("button", { name: /2 activos/ }).count()) === 1;
+  await phone.waitForTimeout(1_000);
+  const filteredCount = await resultsCount();
+  await legendToggle(phone).click();
+  const legendFiltered = await legendStations();
+  await legendToggle(phone).click();
+  await filtersButton.click();
+  const keepsValues =
+    (await phone.locator("#brand").inputValue()) === brandValue &&
+    (await phone.locator("#max-price").inputValue()) === "9";
+  await filtersButton.click();
+  await phone.getByRole("button", { name: "Limpiar filtros" }).click();
+  await mapView(phone, "stations").click();
+
+  const phoneResult = phone
+    .locator('[aria-label="Lista de estaciones"] button')
+    .first();
+  await phoneResult.scrollIntoViewIfNeeded();
+  await phoneResult.click();
+  await phone
+    .getByRole("heading", { name: /selecciona una estación/i })
+    .waitFor({ state: "detached" });
+  await phone.waitForTimeout(2_000);
+  const selectedMapBox = await phoneMap.boundingBox();
+  const detailBox = await phone
+    .locator('aside[aria-labelledby="station-detail-title"]')
+    .boundingBox();
+  await phone.screenshot({
+    path: path.join(outputDirectory, "map-mobile-station.png"),
+  });
+
+  // Teclado: desde la búsqueda se llega a «Filtros», se abre y se cierra con
+  // Intro, y dos tabulaciones después (combustible) el foco entra en el mapa,
+  // cuyo lienzo es lo primero que se enfoca.
+  await phone.evaluate(() => window.scrollTo(0, 0));
+  await phone.locator("#station-search").focus();
+  await phone.keyboard.press("Tab");
+  const focusOnFilters = await phone.evaluate(
+    () =>
+      document.activeElement?.getAttribute("aria-controls") ===
+        "advanced-filters" &&
+      getComputedStyle(document.activeElement).outlineStyle !== "none",
+  );
+  await phone.keyboard.press("Enter");
+  const keyboardOpens = (await filtersState()).expanded === "true";
+  await phone.keyboard.press("Enter");
+  const keyboardCloses = (await filtersState()).expanded === "false";
+  let tabsToMap = 0;
+  while (tabsToMap < 10) {
+    await phone.keyboard.press("Tab");
+    tabsToMap += 1;
+    const inMap = await phone.evaluate(() =>
+      Boolean(document.activeElement?.closest(".maplibregl-map")),
+    );
+    if (inMap) break;
+  }
+
+  const horizontalScroll = {};
+  for (const width of [320, 360, 390, 430, 768, 1024, 1440]) {
+    const page = await browser.newPage({ viewport: { width, height: 900 } });
+    page.on("pageerror", (error) => browserErrors.push(error.message));
+    await page.goto(targetUrl, { waitUntil: "domcontentloaded" });
+    await waitForDataset(page);
+    horizontalScroll[width] = await page.evaluate(
+      () => document.documentElement.scrollWidth > window.innerWidth,
+    );
+    await page.close();
+  }
+
   // Estadísticas: indicadores por combustible y estados del histórico. Usa
   // pestañas propias para que el informe final siga midiendo el mapa.
   const statisticsUrl = new URL("/estadisticas/", targetUrl).href;
@@ -317,9 +444,54 @@ try {
       () => false,
     );
 
+  // Escritorio sin cambios: panel lateral de 25rem con todos los filtros a la
+  // vista y el mapa fijo a su derecha aunque se desplace la columna.
+  const desktopLayout = await desktop.evaluate(() => {
+    const mapBox = () =>
+      document.querySelector(".maplibregl-map").getBoundingClientRect();
+    const column = document
+      .querySelector("#map-title")
+      .closest("section").parentElement;
+    const before = mapBox();
+    column.scrollTop = 600;
+    const scrolled = mapBox();
+    column.scrollTop = 0;
+    const filtersButton = document.querySelector(
+      '[aria-controls="advanced-filters"]',
+    );
+    return {
+      mapLeft: Math.round(before.left),
+      mapTop: Math.round(before.top),
+      mapWidth: Math.round(before.width),
+      columnScrolls: column.scrollHeight > column.clientHeight,
+      mapStaysOnScroll:
+        before.top === scrolled.top && before.left === scrolled.left,
+      filtersButtonHidden: getComputedStyle(filtersButton).display === "none",
+      advancedVisible:
+        document.querySelector("#advanced-filters").offsetParent !== null,
+    };
+  });
+
   const report = {
     url: targetUrl,
     mapReady,
+    desktopLayout,
+    mobileMap: {
+      mapVisibleOnOpen,
+      closedOnOpen,
+      opened,
+      closed,
+      badgeAnnounced,
+      keepsValues,
+      resultsFollowFilters: filteredCount !== unfilteredCount,
+      heatmapFollowsFilters: legendFiltered !== legendUnfiltered,
+      stationFromList: {
+        mapTop: Math.round(selectedMapBox?.y ?? -1),
+        detailTop: Math.round(detailBox?.y ?? -1),
+      },
+      keyboard: { focusOnFilters, keyboardOpens, keyboardCloses, tabsToMap },
+      horizontalScroll,
+    },
     stations: await desktop
       .locator('[aria-label="Lista de estaciones"] button')
       .count(),
@@ -357,6 +529,9 @@ try {
       ".screenshots/map-mobile.png",
       ".screenshots/map-heat-mobile.png",
       ".screenshots/map-heat-mobile-expanded.png",
+      ".screenshots/map-mobile-open.png",
+      ".screenshots/map-mobile-filters.png",
+      ".screenshots/map-mobile-station.png",
       ".screenshots/statistics-desktop.png",
       ".screenshots/statistics-mobile.png",
     ],
@@ -379,6 +554,32 @@ try {
     report.mobileLegend.height > 110 ||
     report.mobileLegend.horizontalScroll ||
     !report.mobileLegend.expandable ||
+    report.desktopLayout.mapLeft !== 400 ||
+    report.desktopLayout.mapTop !== 56 ||
+    report.desktopLayout.mapWidth !== 1040 ||
+    !report.desktopLayout.columnScrolls ||
+    !report.desktopLayout.mapStaysOnScroll ||
+    !report.desktopLayout.filtersButtonHidden ||
+    !report.desktopLayout.advancedVisible ||
+    report.mobileMap.mapVisibleOnOpen < 300 ||
+    report.mobileMap.closedOnOpen.expanded !== "false" ||
+    report.mobileMap.closedOnOpen.visible ||
+    report.mobileMap.opened.expanded !== "true" ||
+    !report.mobileMap.opened.visible ||
+    report.mobileMap.closed.expanded !== "false" ||
+    report.mobileMap.closed.visible ||
+    !report.mobileMap.badgeAnnounced ||
+    !report.mobileMap.keepsValues ||
+    !report.mobileMap.resultsFollowFilters ||
+    !report.mobileMap.heatmapFollowsFilters ||
+    Math.abs(report.mobileMap.stationFromList.mapTop) > 16 ||
+    report.mobileMap.stationFromList.detailTop < 0 ||
+    report.mobileMap.stationFromList.detailTop > phoneHeight - 150 ||
+    !report.mobileMap.keyboard.focusOnFilters ||
+    !report.mobileMap.keyboard.keyboardOpens ||
+    !report.mobileMap.keyboard.keyboardCloses ||
+    report.mobileMap.keyboard.tabsToMap > 2 ||
+    Object.values(report.mobileMap.horizontalScroll).some(Boolean) ||
     report.statistics.activeNav !== "Estadísticas" ||
     !report.statistics.fuelChangesMean ||
     !report.statistics.historyShown ||
