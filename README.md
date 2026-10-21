@@ -155,9 +155,9 @@ Linux y no tienen este problema.
 src/
   app/                 Rutas, layout y estilos globales de Next.js
   components/          Componentes visuales
-  data/                Acceso futuro a artefactos estáticos
-  domain/              Tipos y reglas de dominio del frontend
-  lib/                 Utilidades compartidas
+  data/                Carga y validación de los JSON publicados
+  domain/              Tipos y reglas de dominio del frontend, sin React ni E/S
+  lib/                 Utilidades genéricas, sin dependencias de las demás capas
 pipeline/
   src/fuelshift_data/
     download.py         Cliente HTTP limitado y con reintentos
@@ -171,6 +171,10 @@ pipeline/
 docs/                   Contratos y decisiones técnicas
 .github/workflows/      Integración continua y verificación manual
 ```
+
+En `src/`, las dependencias solo avanzan en el sentido `app → components → data → domain`, y
+cualquier capa puede usar `lib`. ESLint lo comprueba con `no-restricted-imports`
+([`eslint.config.mjs`](eslint.config.mjs)); las pruebas quedan exentas.
 
 El despliegue estático en Cloudflare Pages Free comprueba MITECO cada cuatro horas y también puede
 ejecutarse manualmente. Solo publica cuando cambia el contenido normalizado de las estaciones; una
