@@ -12,6 +12,7 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+import Ajv2020 from "ajv/dist/2020.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
@@ -412,6 +413,89 @@ describe("publishHistory", () => {
     const national = await readJson(path.join(output(), "nacional.json"));
     expect(national.entries).toEqual([]);
     expect(national.source).toBeNull();
+  });
+});
+
+describe("contrato compartido (contracts/)", () => {
+  const contracts = fileURLToPath(new URL("../contracts/", import.meta.url));
+  const ajv = new Ajv2020({ allErrors: true });
+  const validators = new Map();
+
+  async function contractErrors(name, document) {
+    if (!validators.has(name)) {
+      const schema = await readJson(
+        path.join(contracts, "schemas", `${name}.schema.json`),
+      );
+      validators.set(name, ajv.compile(schema));
+    }
+    const validate = validators.get(name);
+    return validate(document)
+      ? []
+      : validate.errors.map(
+          ({ instancePath, message }) => `${instancePath} ${message}`,
+        );
+  }
+
+  it("el registro diario creado desde la instantánea cumple el esquema", async () => {
+    expect(
+      await contractErrors("history-record", createRecord(snapshot())),
+    ).toEqual([]);
+  });
+
+  it("los JSON publicados cumplen sus esquemas", async () => {
+    await recordSnapshot(snapshot({ date: "2026-10-12" }), records);
+    await recordSnapshot(snapshot({ date: "2026-10-13", mean: 1.83 }), records);
+    const output = path.join(workspace, "out", "historico");
+    await publishHistory(records, output);
+
+    expect(
+      await contractErrors(
+        "history-national",
+        await readJson(path.join(output, "nacional.json")),
+      ),
+    ).toEqual([]);
+    for (const file of await readdir(path.join(output, "provincias"))) {
+      expect(
+        await contractErrors(
+          "history-province",
+          await readJson(path.join(output, "provincias", file)),
+        ),
+      ).toEqual([]);
+    }
+    for (const file of await readdir(path.join(output, "diario"))) {
+      expect(
+        await contractErrors(
+          "history-record",
+          await readJson(path.join(output, "diario", file)),
+        ),
+      ).toEqual([]);
+    }
+  });
+
+  it("el histórico vacío también cumple el esquema nacional", async () => {
+    const output = path.join(workspace, "out", "historico");
+    await publishHistory(records, output);
+
+    expect(
+      await contractErrors(
+        "history-national",
+        await readJson(path.join(output, "nacional.json")),
+      ),
+    ).toEqual([]);
+  });
+
+  it("acepta el registro de ejemplo del contrato", async () => {
+    const example = await readJson(
+      path.join(
+        contracts,
+        "examples",
+        "historico",
+        "diario",
+        "2026-10-11.json",
+      ),
+    );
+
+    expect(validateRecord(example)).toEqual(example);
   });
 });
 

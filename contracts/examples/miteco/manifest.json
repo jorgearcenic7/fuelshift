@@ -1,0 +1,40 @@
+{
+  "province_count": 1,
+  "provinces": [
+    {
+      "bytes": 949,
+      "file": "provinces/28.json",
+      "id": "28",
+      "name": "MADRID",
+      "sha256": "cdcfd175e0ea9ae9e7a0569ce4bc536a6bf90d8a71f9ac1e7f54c2d9d53f2b88",
+      "station_count": 2
+    }
+  ],
+  "quality": {
+    "accepted_station_count": 2,
+    "previous_station_count": 3,
+    "rejected_station_count": 1,
+    "rejection_ratio": "0.3333333333333333333333333333",
+    "rejection_reasons": { "coordenadas fuera de España": 1 },
+    "source_station_count": 3,
+    "station_drop_ratio": "0.3333333333333333333333333333"
+  },
+  "retrieved_at": "2026-10-11T15:07:33Z",
+  "schema_version": "1.0.0",
+  "source": {
+    "attribution": "Ejemplo ficticio del contrato FuelShift: no son datos de MITECO",
+    "catalog": "https://example.invalid/catalogo",
+    "documentation": "https://example.invalid/ayuda",
+    "license": {
+      "id": "CC-BY-4.0",
+      "url": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    "reported_at": {
+      "local": "2026-10-11T17:07:30",
+      "raw": "11/10/2026 17:07:30",
+      "timezone": null
+    },
+    "url": "https://example.invalid/estaciones"
+  },
+  "station_count": 2
+}

@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0.0",
+  "date": "2026-10-11",
+  "retrieved_at": "2026-10-11T15:07:33Z",
+  "reported_at": "11/10/2026 17:07:30",
+  "source": {
+    "attribution": "Ejemplo ficticio del contrato FuelShift: no son datos de MITECO",
+    "catalog": "https://example.invalid/catalogo",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/"
+  },
+  "station_count": 11000,
+  "province_count": 52,
+  "fuels": {
+    "gasoline_95_e5": {
+      "national": {
+        "mean": 1.5012,
+        "min": 1.299,
+        "max": 1.899,
+        "count": 10500,
+        "excluded": 3
+      },
+      "provinces": {
+        "28": { "mean": 1.5234, "count": 800 },
+        "35": { "mean": 1.2911, "count": 310 }
+      }
+    },
+    "gasoline_98_e5": {
+      "national": {
+        "mean": 1.6543,
+        "min": 1.449,
+        "max": 2.099,
+        "count": 7200,
+        "excluded": 0
+      },
+      "provinces": {
+        "28": { "mean": 1.6701, "count": 610 }
+      }
+    },
+    "diesel_a": {
+      "national": {
+        "mean": 1.4321,
+        "min": 1.199,
+        "max": 1.799,
+        "count": 10800,
+        "excluded": 1
+      },
+      "provinces": {
+        "28": { "mean": 1.4498, "count": 805 },
+        "35": { "mean": 1.1402, "count": 312 }
+      }
+    }
+  }
+}

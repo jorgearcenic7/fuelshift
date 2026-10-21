@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0.0",
+  "source": {
+    "attribution": "Ejemplo ficticio del contrato FuelShift: no son datos de MITECO",
+    "catalog": "https://example.invalid/catalogo",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/"
+  },
+  "discarded": 0,
+  "province_id": "28",
+  "entries": [
+    {
+      "date": "2026-10-11",
+      "fuels": {
+        "gasoline_95_e5": { "mean": 1.5234, "count": 800 },
+        "gasoline_98_e5": { "mean": 1.6701, "count": 610 },
+        "diesel_a": { "mean": 1.4498, "count": 805 }
+      }
+    }
+  ]
+}

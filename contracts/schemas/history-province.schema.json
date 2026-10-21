@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Serie provincial del histórico de precios",
+  "description": "historico/provincias/NN.json que publica scripts/price-history.mjs y lee «Estadísticas» al elegir provincia. Contrato 1.0.0.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "discarded",
+    "entries",
+    "province_id",
+    "schema_version",
+    "source"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "province_id": { "type": "string", "pattern": "^\\d{2}$" },
+    "source": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["attribution", "catalog", "license_url"],
+          "properties": {
+            "attribution": { "type": "string", "minLength": 1 },
+            "catalog": { "type": "string", "minLength": 1 },
+            "license_url": { "type": "string", "minLength": 1 }
+          }
+        },
+        { "type": "null" }
+      ]
+    },
+    "discarded": { "type": "integer", "minimum": 0 },
+    "entries": {
+      "description": "Solo los días en que la provincia tiene algún combustible con datos.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["date", "fuels"],
+        "properties": {
+          "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+          "fuels": {
+            "type": "object",
+            "additionalProperties": false,
+            "minProperties": 1,
+            "properties": {
+              "gasoline_95_e5": { "$ref": "#/$defs/mean" },
+              "gasoline_98_e5": { "$ref": "#/$defs/mean" },
+              "diesel_a": { "$ref": "#/$defs/mean" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "mean": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["count", "mean"],
+      "properties": {
+        "mean": { "type": "number", "exclusiveMinimum": 0 },
+        "count": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

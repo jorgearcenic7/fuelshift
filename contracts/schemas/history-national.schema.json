@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Serie nacional del histórico de precios",
+  "description": "historico/nacional.json que publica scripts/price-history.mjs y lee «Estadísticas». Contrato 1.0.0.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["discarded", "entries", "schema_version", "source"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "source": {
+      "description": "Fuente del registro más reciente; null si aún no hay registros.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["attribution", "catalog", "license_url"],
+          "properties": {
+            "attribution": { "type": "string", "minLength": 1 },
+            "catalog": { "type": "string", "minLength": 1 },
+            "license_url": { "type": "string", "minLength": 1 }
+          }
+        },
+        { "type": "null" }
+      ]
+    },
+    "discarded": {
+      "description": "Registros diarios apartados al publicar por no superar la validación.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "entries": {
+      "description": "Una entrada por día, en orden creciente de fecha.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["date", "fuels", "retrieved_at", "station_count"],
+        "properties": {
+          "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+          "retrieved_at": { "type": "string", "minLength": 1 },
+          "station_count": { "type": "integer", "minimum": 1 },
+          "fuels": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["diesel_a", "gasoline_95_e5", "gasoline_98_e5"],
+            "properties": {
+              "gasoline_95_e5": { "$ref": "#/$defs/national" },
+              "gasoline_98_e5": { "$ref": "#/$defs/national" },
+              "diesel_a": { "$ref": "#/$defs/national" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "price": { "type": "number", "exclusiveMinimum": 0 },
+    "national": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["count", "excluded", "max", "mean", "min"],
+      "properties": {
+        "mean": { "$ref": "#/$defs/price" },
+        "min": { "$ref": "#/$defs/price" },
+        "max": { "$ref": "#/$defs/price" },
+        "count": { "type": "integer", "minimum": 1 },
+        "excluded": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}
