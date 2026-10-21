@@ -1,0 +1,15 @@
+# Cabeceras de Cloudflare Pages (máx. 100 reglas y 2.000 caracteres por línea).
+# Documentación y motivo de cada valor: docs/security-headers.md.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tiles.openfreemap.org; connect-src 'self' data: https://tiles.openfreemap.org; worker-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(self), camera=(), microphone=(), payment=(), usb=(), browsing-topics=()
+  Cross-Origin-Opener-Policy: same-origin
+
+# Datos y archivos técnicos: accesibles para la web, pero no como resultados de búsqueda.
+/data/*
+  X-Robots-Tag: noindex
+/_next/*
+  X-Robots-Tag: noindex
