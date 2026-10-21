@@ -36,7 +36,7 @@ export interface Station {
   id: string;
   municipality_id: string;
   municipality: string;
-  locality: string;
+  locality: string | null;
   postal_code: string;
   address: string;
   brand: string | null;

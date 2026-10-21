@@ -2,7 +2,9 @@
 
 ## Alcance y ubicación
 
-La versión inicial del esquema es `1.0.0`. La CLI publica por defecto en
+La versión inicial del esquema es `1.0.0`. La forma exacta de cada archivo está en los JSON
+Schema de [`contracts/`](../contracts/README.md), que comprueban las pruebas del pipeline y de la
+web. La CLI publica por defecto en
 `data/processed/miteco/`, ruta ignorada por Git:
 
 ```text
@@ -46,8 +48,8 @@ Cada archivo contiene:
 - `stations`, una lista de objetos con:
   - `id`: `IDEESS`;
   - `municipality_id`: `IDMunicipio`;
-  - `municipality`, `locality`, `postal_code` y `address`;
-  - `brand` y `opening_hours`, anulables si la cadena oficial está vacía;
+  - `municipality`, `postal_code` y `address`;
+  - `locality`, `brand` y `opening_hours`, anulables si la cadena oficial está vacía;
   - `location.latitude` y `location.longitude`, números WGS84;
   - `fuels`, objeto `código: precio` solo para productos presentes.
 

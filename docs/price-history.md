@@ -64,6 +64,9 @@ Datos verificados que sostienen el diseño:
 
 ## Formato del registro (versión 1.0.0)
 
+El esquema de este registro y el de los JSON publicados (`nacional.json` y `provincias/NN.json`)
+están en [`contracts/`](../contracts/README.md).
+
 ```json
 {
   "schema_version": "1.0.0",

@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Registro diario del histórico de precios",
+  "description": "diario/AAAA-MM-DD.json guardado en la rama data/historico y publicado como respaldo. Contrato 1.0.0.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "date",
+    "fuels",
+    "province_count",
+    "reported_at",
+    "retrieved_at",
+    "schema_version",
+    "source",
+    "station_count"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "date": {
+      "description": "Día comunicado por MITECO (hora peninsular), no el de la descarga.",
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "retrieved_at": { "type": "string", "minLength": 1 },
+    "reported_at": {
+      "description": "Campo Fecha tal como lo comunica MITECO.",
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attribution", "catalog", "license_url"],
+      "properties": {
+        "attribution": { "type": "string", "minLength": 1 },
+        "catalog": { "type": "string", "minLength": 1 },
+        "license_url": { "type": "string", "minLength": 1 }
+      }
+    },
+    "station_count": { "type": "integer", "minimum": 1 },
+    "province_count": {
+      "description": "Un conjunto con menos de 50 provincias no se registra.",
+      "type": "integer",
+      "minimum": 50
+    },
+    "fuels": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["diesel_a", "gasoline_95_e5", "gasoline_98_e5"],
+      "properties": {
+        "gasoline_95_e5": { "$ref": "#/$defs/fuel" },
+        "gasoline_98_e5": { "$ref": "#/$defs/fuel" },
+        "diesel_a": { "$ref": "#/$defs/fuel" }
+      }
+    }
+  },
+  "$defs": {
+    "price": { "type": "number", "exclusiveMinimum": 0 },
+    "fuel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["national", "provinces"],
+      "properties": {
+        "national": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["count", "excluded", "max", "mean", "min"],
+          "properties": {
+            "mean": { "$ref": "#/$defs/price" },
+            "min": { "$ref": "#/$defs/price" },
+            "max": { "$ref": "#/$defs/price" },
+            "count": { "type": "integer", "minimum": 1 },
+            "excluded": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "provinces": {
+          "description": "Las provincias sin datos se omiten; no se inventa ningún valor.",
+          "type": "object",
+          "propertyNames": { "pattern": "^\\d{2}$" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["count", "mean"],
+            "properties": {
+              "mean": { "$ref": "#/$defs/price" },
+              "count": { "type": "integer", "minimum": 1 }
+            }
+          }
+        }
+      }
+    }
+  }
+}
