@@ -1,10 +1,12 @@
 # FuelShift
 
+**Web: <https://fuelshift.pages.dev>**
+
 FuelShift es una aplicación web pública en construcción para consultar precios oficiales de
 carburantes en España, comparar costes energéticos y explorar estadísticas. El repositorio
-incluye una ingesta reproducible del conjunto nacional de estaciones terrestres de MITECO y un
-mapa interactivo para consultar esos datos reales. El comparador y las estadísticas todavía no
-están implementados.
+incluye una ingesta reproducible del conjunto nacional de estaciones terrestres de MITECO, un
+mapa interactivo con esos datos reales, un comparador de costes energéticos y una página de
+estadísticas de precios.
 
 ## Stack
 
