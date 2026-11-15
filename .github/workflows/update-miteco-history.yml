@@ -1,0 +1,57 @@
+name: Histórico mensual MITECO
+
+on:
+  schedule:
+    - cron: "30 5 3 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: miteco-monthly-history
+  cancel-in-progress: false
+
+jobs:
+  update:
+    if: github.ref == 'refs/heads/main' && vars.MITECO_MONTHLY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: pipeline/src
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      CLOUDFLARE_PAGES_URL: ${{ vars.CLOUDFLARE_PAGES_URL || 'https://fuelshift.pages.dev' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Recuperar el último artefacto válido, si existe
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact_args=()
+          run_ids=$(gh run list --workflow update-miteco-history.yml --branch main --limit 20 --json databaseId --jq '.[].databaseId')
+          for run_id in $run_ids; do
+            if gh run download "$run_id" --name miteco-monthly --dir "$RUNNER_TEMP/monthly-$run_id"; then
+              artifact_args=(--artifact "$RUNNER_TEMP/monthly-$run_id")
+              break
+            fi
+          done
+          python -m fuelshift_data.monthly_delivery recover --site-url "$CLOUDFLARE_PAGES_URL" "${artifact_args[@]}"
+      - name: Descargar solo los meses pendientes y validar la nueva generación
+        run: |
+          python -m fuelshift_data.monthly_history --max-downloads 3
+          python -m fuelshift_data.monthly_delivery check
+      - name: Conservar la generación y su procedencia durante 90 días
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: miteco-monthly
+          path: public/data/historico-miteco/
+          overwrite: true
+          retention-days: 90
+          if-no-files-found: error

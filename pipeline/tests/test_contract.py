@@ -19,6 +19,7 @@ SCHEMA_NAMES = [
     "history-record",
     "history-national",
     "history-province",
+    "monthly-history",
 ]
 EXAMPLES = {
     "miteco/manifest.json": "miteco-manifest",
@@ -26,6 +27,7 @@ EXAMPLES = {
     "historico/diario/2026-10-11.json": "history-record",
     "historico/nacional.json": "history-national",
     "historico/provincias/28.json": "history-province",
+    "historico-miteco/serie.json": "monthly-history",
 }
 
 

@@ -26,6 +26,7 @@ import {
 
 import { PriceHistoryPanel } from "./price-history-panel";
 import { ProvinceRanking } from "./province-ranking";
+import { MonthlyHistoryPanel } from "./monthly-history-panel";
 
 const card = "border-line bg-surface rounded-2xl border p-5 shadow-sm sm:p-6";
 const subscribeToNothing = () => () => {};
@@ -141,6 +142,9 @@ export function StatisticsDashboard({ data }: { data: StatisticsPageData }) {
           stale={stale}
         />
       )}
+      <div className="mt-6">
+        <MonthlyHistoryPanel />
+      </div>
     </main>
   );
 }

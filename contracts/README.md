@@ -4,16 +4,19 @@ Fuente única del formato de los JSON que cruzan una frontera: los que genera el
 y lee la web, y los del histórico, que se guardan en la rama `data/historico` y lee
 «Estadísticas». Los esquemas usan JSON Schema 2020-12.
 
-| Esquema                                | Archivo publicado                     | Productor                     | Consumidor                  |
-| -------------------------------------- | ------------------------------------- | ----------------------------- | --------------------------- |
-| `schemas/miteco-manifest.schema.json`  | `data/miteco/manifest.json`           | `pipeline/` (`generation.py`) | `src/data/miteco.ts`        |
-| `schemas/miteco-province.schema.json`  | `data/miteco/provinces/NN.json`       | `pipeline/` (`generation.py`) | `src/data/miteco.ts`        |
-| `schemas/history-record.schema.json`   | `diario/AAAA-MM-DD.json` (rama datos) | `scripts/price-history.mjs`   | `scripts/price-history.mjs` |
-| `schemas/history-national.schema.json` | `data/historico/nacional.json`        | `scripts/price-history.mjs`   | `src/data/price-history.ts` |
-| `schemas/history-province.schema.json` | `data/historico/provincias/NN.json`   | `scripts/price-history.mjs`   | `src/data/price-history.ts` |
+| Esquema                                | Archivo publicado                                                     | Productor                          | Consumidor                    |
+| -------------------------------------- | --------------------------------------------------------------------- | ---------------------------------- | ----------------------------- |
+| `schemas/miteco-manifest.schema.json`  | `data/miteco/manifest.json`                                           | `pipeline/` (`generation.py`)      | `src/data/miteco.ts`          |
+| `schemas/miteco-province.schema.json`  | `data/miteco/provinces/NN.json`                                       | `pipeline/` (`generation.py`)      | `src/data/miteco.ts`          |
+| `schemas/history-record.schema.json`   | `diario/AAAA-MM-DD.json` (rama datos)                                 | `scripts/price-history.mjs`        | `scripts/price-history.mjs`   |
+| `schemas/history-national.schema.json` | `data/historico/nacional.json`                                        | `scripts/price-history.mjs`        | `src/data/price-history.ts`   |
+| `schemas/history-province.schema.json` | `data/historico/provincias/NN.json`                                   | `scripts/price-history.mjs`        | `src/data/price-history.ts`   |
+| `schemas/monthly-history.schema.json`  | `data/historico-miteco/sets/<generación>/<ámbito>/<combustible>.json` | `pipeline/` (`monthly_history.py`) | `src/data/monthly-history.ts` |
 
 `examples/` contiene un documento válido por esquema. Sus datos son ficticios y lo declaran en
-`source.attribution`; no proceden de MITECO.
+`source.attribution`; no proceden de MITECO. El ejemplo mensual `historico-miteco/serie.json`
+es una fixture de prueba con un hueco intencionado, no una serie publicable. La base real
+que sirve la web está exclusivamente en `public/data/historico-miteco/` e incluye su procedencia.
 
 ## Cómo se comprueba
 

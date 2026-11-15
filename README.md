@@ -225,6 +225,13 @@ umbrales, el diagnóstico y la recuperación están en [`docs/monitoring.md`](do
 
 ## Seguridad y versiones
 
+La v1.1.0 en preparación añade a `/estadisticas` el histórico mensual oficial de
+MITECO desde enero de 2007: España y los 52 ámbitos provinciales, gasolina 95 E5,
+98 E5 y gasóleo A. Son fotografías reales del día 1 de cada mes; no se mezclan con
+el histórico diario iniciado en octubre de 2026. La fuente, fecha, cobertura,
+metodología, reproducibilidad y límites de automatización están en
+[`docs/miteco-monthly-history.md`](docs/miteco-monthly-history.md).
+
 La web no usa credenciales en el navegador ni servicios de pago. Las cabeceras de seguridad
 (CSP, `X-Frame-Options`, `Permissions-Policy` y otras) se publican desde `public/_headers`; su
 motivo y cómo se probaron están en [`docs/security-headers.md`](docs/security-headers.md). Los

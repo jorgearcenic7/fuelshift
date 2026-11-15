@@ -1,0 +1,699 @@
+{
+  "verified_on": "2026-11-15",
+  "documentation": "https://energia.serviciosmin.gob.es/ServiciosRestCarburantes/PreciosCarburantes/help",
+  "requests": [
+    {
+      "path": "EstacionesTerrestresHist/FiltroProvincia/31-12-2006/28",
+      "error": "<HTTPError 400: 'Parametros de entrada incorrectos: La fecha de consulta al histórico no puede ser anterior a 01/01/2007'>"
+    },
+    {
+      "path": "EstacionesTerrestresHist/FiltroProvincia/01-01-2006/28",
+      "error": "<HTTPError 400: 'Parametros de entrada incorrectos: La fecha de consulta al histórico no puede ser anterior a 01/01/2007'>"
+    },
+    {
+      "path": "EstacionesTerrestresHist/01-01-2007",
+      "status": 200,
+      "type": "application/json; charset=utf-8",
+      "bytes": 7729132,
+      "seconds": 2.34,
+      "metadata": {
+        "Fecha": "01/01/2007 0:00:00",
+        "Nota": "Archivo de todos los productos en todas las estaciones de servicio. La actualizaciÃ³n de precios se realiza cada media hora, con los precios en vigor en ese momento.",
+        "ResultadoConsulta": "OK"
+      },
+      "count": 7202,
+      "fuels": {
+        "Precio Gasolina 95 E5": 6952,
+        "Precio Gasolina 98 E5": 5758,
+        "Precio Gasoleo A": 7068
+      },
+      "provinces": 52,
+      "sample_ids": [
+        {
+          "IDEESS": "9381",
+          "IDMunicipio": "1",
+          "IDProvincia": "01"
+        },
+        {
+          "IDEESS": "117",
+          "IDMunicipio": "2",
+          "IDProvincia": "01"
+        },
+        {
+          "IDEESS": "5",
+          "IDMunicipio": "8",
+          "IDProvincia": "01"
+        }
+      ]
+    },
+    {
+      "path": "EstacionesTerrestresHist/01-07-2020",
+      "status": 200,
+      "type": "application/json; charset=utf-8",
+      "bytes": 11190703,
+      "seconds": 3.14,
+      "metadata": {
+        "Fecha": "01/07/2020 0:00:00",
+        "Nota": "Archivo de todos los productos en todas las estaciones de servicio. La actualizaciÃ³n de precios se realiza cada media hora, con los precios en vigor en ese momento.",
+        "ResultadoConsulta": "OK"
+      },
+      "count": 10400,
+      "fuels": {
+        "Precio Gasolina 95 E5": 9919,
+        "Precio Gasolina 98 E5": 6187,
+        "Precio Gasoleo A": 10252
+      },
+      "provinces": 52,
+      "sample_ids": [
+        {
+          "IDEESS": "9381",
+          "IDMunicipio": "1",
+          "IDProvincia": "01"
+        },
+        {
+          "IDEESS": "14209",
+          "IDMunicipio": "1",
+          "IDProvincia": "01"
+        },
+        {
+          "IDEESS": "13543",
+          "IDMunicipio": "2",
+          "IDProvincia": "01"
+        }
+      ]
+    },
+    {
+      "path": "EstacionesTerrestresHist/01-11-2026",
+      "status": 200,
+      "type": "application/json; charset=utf-8",
+      "bytes": 12302351,
+      "seconds": 3.44,
+      "metadata": {
+        "Fecha": "01/11/2026 0:00:00",
+        "Nota": "Archivo de todos los productos en todas las estaciones de servicio. La actualizaciÃ³n de precios se realiza cada media hora, con los precios en vigor en ese momento.",
+        "ResultadoConsulta": "OK"
+      },
+      "count": 11427,
+      "fuels": {
+        "Precio Gasolina 95 E5": 10873,
+        "Precio Gasolina 98 E5": 5478,
+        "Precio Gasoleo A": 11212
+      },
+      "provinces": 52,
+      "sample_ids": [
+        {
+          "IDEESS": "14209",
+          "IDMunicipio": "1",
+          "IDProvincia": "01"
+        },
+        {
+          "IDEESS": "15918",
+          "IDMunicipio": "2",
+          "IDProvincia": "01"
+        },
+        {
+          "IDEESS": "13543",
+          "IDMunicipio": "2",
+          "IDProvincia": "01"
+        }
+      ]
+    },
+    {
+      "path": "EstacionesTerrestresHist/FiltroMunicipio/01-01-2007/4277",
+      "status": 200,
+      "type": "application/json; charset=utf-8",
+      "bytes": 2384,
+      "seconds": 0.12,
+      "metadata": {
+        "Fecha": "01/01/2007 0:00:00",
+        "Nota": "Archivo de todos los productos en todas las estaciones de servicio. La actualizaciÃ³n de precios se realiza cada media hora, con los precios en vigor en ese momento.",
+        "ResultadoConsulta": "OK"
+      },
+      "count": 2,
+      "fuels": {
+        "Precio Gasolina 95 E5": 2,
+        "Precio Gasolina 98 E5": 2,
+        "Precio Gasoleo A": 2
+      },
+      "provinces": 1,
+      "sample_ids": [
+        {
+          "IDEESS": "3118",
+          "IDMunicipio": "4277",
+          "IDProvincia": "28"
+        },
+        {
+          "IDEESS": "3119",
+          "IDMunicipio": "4277",
+          "IDProvincia": "28"
+        }
+      ]
+    },
+    {
+      "path": "EstacionesTerrestresHist/FiltroProvinciaProducto/01-01-2007/28/3",
+      "status": 200,
+      "type": "application/json; charset=utf-8",
+      "bytes": 152512,
+      "seconds": 0.38,
+      "metadata": {
+        "Fecha": "01/01/2007 0:00:00",
+        "Nota": "Archivo de todos los productos en todas las estaciones de servicio. La actualizaciÃ³n de precios se realiza cada media hora, con los precios en vigor en ese momento.",
+        "ResultadoConsulta": "OK"
+      },
+      "count": 393,
+      "fuels": {
+        "Precio Gasolina 95 E5": 0,
+        "Precio Gasolina 98 E5": 0,
+        "Precio Gasoleo A": 0
+      },
+      "provinces": 1,
+      "sample_ids": [
+        {
+          "IDEESS": "3118",
+          "IDMunicipio": "4277",
+          "IDProvincia": "28"
+        },
+        {
+          "IDEESS": "3119",
+          "IDMunicipio": "4277",
+          "IDProvincia": "28"
+        },
+        {
+          "IDEESS": "3072",
+          "IDMunicipio": "4279",
+          "IDProvincia": "28"
+        }
+      ]
+    },
+    {
+      "path": "Listados/Provincias/",
+      "status": 200,
+      "type": "application/json; charset=utf-8",
+      "bytes": 4099,
+      "seconds": 0.11,
+      "metadata": null,
+      "count": 52,
+      "fuels": [
+        {
+          "IDPovincia": "02",
+          "IDCCAA": "07",
+          "Provincia": "ALBACETE",
+          "CCAA": "Castilla la Mancha"
+        },
+        {
+          "IDPovincia": "03",
+          "IDCCAA": "10",
+          "Provincia": "ALICANTE",
+          "CCAA": "Comunidad Valenciana"
+        },
+        {
+          "IDPovincia": "04",
+          "IDCCAA": "01",
+          "Provincia": "ALMERÍA",
+          "CCAA": "Andalucia"
+        },
+        {
+          "IDPovincia": "01",
+          "IDCCAA": "16",
+          "Provincia": "ARABA/ÁLAVA",
+          "CCAA": "País Vasco"
+        },
+        {
+          "IDPovincia": "33",
+          "IDCCAA": "03",
+          "Provincia": "ASTURIAS",
+          "CCAA": "Asturias"
+        },
+        {
+          "IDPovincia": "05",
+          "IDCCAA": "08",
+          "Provincia": "ÁVILA",
+          "CCAA": "Castilla y León"
+        },
+        {
+          "IDPovincia": "06",
+          "IDCCAA": "11",
+          "Provincia": "BADAJOZ",
+          "CCAA": "Extremadura"
+        },
+        {
+          "IDPovincia": "07",
+          "IDCCAA": "04",
+          "Provincia": "BALEARS (ILLES)",
+          "CCAA": "Baleares"
+        },
+        {
+          "IDPovincia": "08",
+          "IDCCAA": "09",
+          "Provincia": "BARCELONA",
+          "CCAA": "Cataluña"
+        },
+        {
+          "IDPovincia": "48",
+          "IDCCAA": "16",
+          "Provincia": "BIZKAIA",
+          "CCAA": "País Vasco"
+        },
+        {
+          "IDPovincia": "09",
+          "IDCCAA": "08",
+          "Provincia": "BURGOS",
+          "CCAA": "Castilla y León"
+        },
+        {
+          "IDPovincia": "10",
+          "IDCCAA": "11",
+          "Provincia": "CÁCERES",
+          "CCAA": "Extremadura"
+        },
+        {
+          "IDPovincia": "11",
+          "IDCCAA": "01",
+          "Provincia": "CÁDIZ",
+          "CCAA": "Andalucia"
+        },
+        {
+          "IDPovincia": "39",
+          "IDCCAA": "06",
+          "Provincia": "CANTABRIA",
+          "CCAA": "Cantabria"
+        },
+        {
+          "IDPovincia": "12",
+          "IDCCAA": "10",
+          "Provincia": "CASTELLÓN / CASTELLÓ",
+          "CCAA": "Comunidad Valenciana"
+        },
+        {
+          "IDPovincia": "51",
+          "IDCCAA": "18",
+          "Provincia": "CEUTA",
+          "CCAA": "Ceuta"
+        },
+        {
+          "IDPovincia": "13",
+          "IDCCAA": "07",
+          "Provincia": "CIUDAD REAL",
+          "CCAA": "Castilla la Mancha"
+        },
+        {
+          "IDPovincia": "14",
+          "IDCCAA": "01",
+          "Provincia": "CÓRDOBA",
+          "CCAA": "Andalucia"
+        },
+        {
+          "IDPovincia": "15",
+          "IDCCAA": "12",
+          "Provincia": "CORUÑA (A)",
+          "CCAA": "Galicia"
+        },
+        {
+          "IDPovincia": "16",
+          "IDCCAA": "07",
+          "Provincia": "CUENCA",
+          "CCAA": "Castilla la Mancha"
+        },
+        {
+          "IDPovincia": "20",
+          "IDCCAA": "16",
+          "Provincia": "GIPUZKOA",
+          "CCAA": "País Vasco"
+        },
+        {
+          "IDPovincia": "17",
+          "IDCCAA": "09",
+          "Provincia": "GIRONA",
+          "CCAA": "Cataluña"
+        },
+        {
+          "IDPovincia": "18",
+          "IDCCAA": "01",
+          "Provincia": "GRANADA",
+          "CCAA": "Andalucia"
+        },
+        {
+          "IDPovincia": "19",
+          "IDCCAA": "07",
+          "Provincia": "GUADALAJARA",
+          "CCAA": "Castilla la Mancha"
+        },
+        {
+          "IDPovincia": "21",
+          "IDCCAA": "01",
+          "Provincia": "HUELVA",
+          "CCAA": "Andalucia"
+        },
+        {
+          "IDPovincia": "22",
+          "IDCCAA": "02",
+          "Provincia": "HUESCA",
+          "CCAA": "Aragón"
+        },
+        {
+          "IDPovincia": "23",
+          "IDCCAA": "01",
+          "Provincia": "JAÉN",
+          "CCAA": "Andalucia"
+        },
+        {
+          "IDPovincia": "24",
+          "IDCCAA": "08",
+          "Provincia": "LEÓN",
+          "CCAA": "Castilla y León"
+        },
+        {
+          "IDPovincia": "25",
+          "IDCCAA": "09",
+          "Provincia": "LLEIDA",
+          "CCAA": "Cataluña"
+        },
+        {
+          "IDPovincia": "27",
+          "IDCCAA": "12",
+          "Provincia": "LUGO",
+          "CCAA": "Galicia"
+        },
+        {
+          "IDPovincia": "28",
+          "IDCCAA": "13",
+          "Provincia": "MADRID",
+          "CCAA": "Madrid"
+        },
+        {
+          "IDPovincia": "29",
+          "IDCCAA": "01",
+          "Provincia": "MÁLAGA",
+          "CCAA": "Andalucia"
+        },
+        {
+          "IDPovincia": "52",
+          "IDCCAA": "19",
+          "Provincia": "MELILLA",
+          "CCAA": "Melilla"
+        },
+        {
+          "IDPovincia": "30",
+          "IDCCAA": "14",
+          "Provincia": "MURCIA",
+          "CCAA": "Murcia"
+        },
+        {
+          "IDPovincia": "31",
+          "IDCCAA": "15",
+          "Provincia": "NAVARRA",
+          "CCAA": "Navarra"
+        },
+        {
+          "IDPovincia": "32",
+          "IDCCAA": "12",
+          "Provincia": "OURENSE",
+          "CCAA": "Galicia"
+        },
+        {
+          "IDPovincia": "34",
+          "IDCCAA": "08",
+          "Provincia": "PALENCIA",
+          "CCAA": "Castilla y León"
+        },
+        {
+          "IDPovincia": "35",
+          "IDCCAA": "05",
+          "Provincia": "PALMAS (LAS)",
+          "CCAA": "Canarias"
+        },
+        {
+          "IDPovincia": "36",
+          "IDCCAA": "12",
+          "Provincia": "PONTEVEDRA",
+          "CCAA": "Galicia"
+        },
+        {
+          "IDPovincia": "26",
+          "IDCCAA": "17",
+          "Provincia": "RIOJA (LA)",
+          "CCAA": "Rioja (La)"
+        },
+        {
+          "IDPovincia": "37",
+          "IDCCAA": "08",
+          "Provincia": "SALAMANCA",
+          "CCAA": "Castilla y León"
+        },
+        {
+          "IDPovincia": "38",
+          "IDCCAA": "05",
+          "Provincia": "SANTA CRUZ DE TENERIFE",
+          "CCAA": "Canarias"
+        },
+        {
+          "IDPovincia": "40",
+          "IDCCAA": "08",
+          "Provincia": "SEGOVIA",
+          "CCAA": "Castilla y León"
+        },
+        {
+          "IDPovincia": "41",
+          "IDCCAA": "01",
+          "Provincia": "SEVILLA",
+          "CCAA": "Andalucia"
+        },
+        {
+          "IDPovincia": "42",
+          "IDCCAA": "08",
+          "Provincia": "SORIA",
+          "CCAA": "Castilla y León"
+        },
+        {
+          "IDPovincia": "43",
+          "IDCCAA": "09",
+          "Provincia": "TARRAGONA",
+          "CCAA": "Cataluña"
+        },
+        {
+          "IDPovincia": "44",
+          "IDCCAA": "02",
+          "Provincia": "TERUEL",
+          "CCAA": "Aragón"
+        },
+        {
+          "IDPovincia": "45",
+          "IDCCAA": "07",
+          "Provincia": "TOLEDO",
+          "CCAA": "Castilla la Mancha"
+        },
+        {
+          "IDPovincia": "46",
+          "IDCCAA": "10",
+          "Provincia": "VALENCIA / VALÈNCIA",
+          "CCAA": "Comunidad Valenciana"
+        },
+        {
+          "IDPovincia": "47",
+          "IDCCAA": "08",
+          "Provincia": "VALLADOLID",
+          "CCAA": "Castilla y León"
+        },
+        {
+          "IDPovincia": "49",
+          "IDCCAA": "08",
+          "Provincia": "ZAMORA",
+          "CCAA": "Castilla y León"
+        },
+        {
+          "IDPovincia": "50",
+          "IDCCAA": "02",
+          "Provincia": "ZARAGOZA",
+          "CCAA": "Aragón"
+        }
+      ],
+      "provinces": null,
+      "sample_ids": null
+    },
+    {
+      "path": "Listados/ProductosPetroliferos/",
+      "status": 200,
+      "type": "application/json; charset=utf-8",
+      "bytes": 2760,
+      "seconds": 0.09,
+      "metadata": null,
+      "count": 30,
+      "fuels": [
+        {
+          "IDProducto": "1",
+          "NombreProducto": "Gasolina 95 E5",
+          "NombreProductoAbreviatura": "G95E5"
+        },
+        {
+          "IDProducto": "23",
+          "NombreProducto": "Gasolina 95 E10",
+          "NombreProductoAbreviatura": "G95E10"
+        },
+        {
+          "IDProducto": "24",
+          "NombreProducto": "Gasolina 95 E25",
+          "NombreProductoAbreviatura": "G95E25"
+        },
+        {
+          "IDProducto": "25",
+          "NombreProducto": "Gasolina 95 E85",
+          "NombreProductoAbreviatura": "G95E85"
+        },
+        {
+          "IDProducto": "20",
+          "NombreProducto": "Gasolina 95 E5 Premium",
+          "NombreProductoAbreviatura": "G95E5+"
+        },
+        {
+          "IDProducto": "3",
+          "NombreProducto": "Gasolina 98 E5",
+          "NombreProductoAbreviatura": "G98E5"
+        },
+        {
+          "IDProducto": "21",
+          "NombreProducto": "Gasolina 98 E10",
+          "NombreProductoAbreviatura": "G98E10"
+        },
+        {
+          "IDProducto": "4",
+          "NombreProducto": "Gasóleo A habitual",
+          "NombreProductoAbreviatura": "GOA"
+        },
+        {
+          "IDProducto": "5",
+          "NombreProducto": "Gasóleo Premium",
+          "NombreProductoAbreviatura": "GOA+"
+        },
+        {
+          "IDProducto": "6",
+          "NombreProducto": "Gasóleo B",
+          "NombreProductoAbreviatura": "GOB"
+        },
+        {
+          "IDProducto": "7",
+          "NombreProducto": "Gasóleo C",
+          "NombreProductoAbreviatura": "GOC"
+        },
+        {
+          "IDProducto": "16",
+          "NombreProducto": "Bioetanol",
+          "NombreProductoAbreviatura": "BIE"
+        },
+        {
+          "IDProducto": "8",
+          "NombreProducto": "Biodiésel",
+          "NombreProductoAbreviatura": "BIO"
+        },
+        {
+          "IDProducto": "17",
+          "NombreProducto": "Gases licuados del petróleo",
+          "NombreProductoAbreviatura": "GLP"
+        },
+        {
+          "IDProducto": "18",
+          "NombreProducto": "Gas natural comprimido",
+          "NombreProductoAbreviatura": "GNC"
+        },
+        {
+          "IDProducto": "19",
+          "NombreProducto": "Gas natural licuado",
+          "NombreProductoAbreviatura": "GNL"
+        },
+        {
+          "IDProducto": "22",
+          "NombreProducto": "Hidrógeno",
+          "NombreProductoAbreviatura": "H2"
+        },
+        {
+          "IDProducto": "9",
+          "NombreProducto": "Fuelóleo bajo índice azufre",
+          "NombreProductoAbreviatura": "FOB"
+        },
+        {
+          "IDProducto": "10",
+          "NombreProducto": "Fuelóleo especial",
+          "NombreProductoAbreviatura": "FOE"
+        },
+        {
+          "IDProducto": "11",
+          "NombreProducto": "Gasóleo para uso marítimo",
+          "NombreProductoAbreviatura": "MGO"
+        },
+        {
+          "IDProducto": "12",
+          "NombreProducto": "Gasolina de aviación",
+          "NombreProductoAbreviatura": "GNAV"
+        },
+        {
+          "IDProducto": "13",
+          "NombreProducto": "Queroseno de aviación JET_A1",
+          "NombreProductoAbreviatura": "JETA1"
+        },
+        {
+          "IDProducto": "14",
+          "NombreProducto": "Queroseno de aviación JET_A2",
+          "NombreProductoAbreviatura": "JETA2"
+        },
+        {
+          "IDProducto": "26",
+          "NombreProducto": "Adblue",
+          "NombreProductoAbreviatura": "ADB"
+        },
+        {
+          "IDProducto": "27",
+          "NombreProducto": "Diésel renovable",
+          "NombreProductoAbreviatura": "DREN"
+        },
+        {
+          "IDProducto": "28",
+          "NombreProducto": "Gasolina renovable",
+          "NombreProductoAbreviatura": "GREN"
+        },
+        {
+          "IDProducto": "29",
+          "NombreProducto": "Metanol",
+          "NombreProductoAbreviatura": "MET"
+        },
+        {
+          "IDProducto": "30",
+          "NombreProducto": "Amoniaco",
+          "NombreProductoAbreviatura": "AMO"
+        },
+        {
+          "IDProducto": "31",
+          "NombreProducto": "Biogas natural comprimido",
+          "NombreProductoAbreviatura": "BGNC"
+        },
+        {
+          "IDProducto": "32",
+          "NombreProducto": "Biogas natural licuado",
+          "NombreProductoAbreviatura": "BGNL"
+        }
+      ],
+      "provinces": null,
+      "sample_ids": null
+    },
+    {
+      "product_filter_row_fields": [
+        "C.P.",
+        "Dirección",
+        "Horario",
+        "Latitud",
+        "Localidad",
+        "Longitud (WGS84)",
+        "Margen",
+        "Municipio",
+        "PrecioProducto",
+        "Provincia",
+        "Remisión",
+        "Rótulo",
+        "Tipo Venta",
+        "IDEESS",
+        "IDMunicipio",
+        "IDProvincia",
+        "IDCCAA"
+      ],
+      "product_filter_price": "1,093"
+    }
+  ]
+}

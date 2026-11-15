@@ -1,0 +1,19 @@
+{
+  "first_date": "2007-01-01",
+  "last_date": "2026-11-01",
+  "samples": 239,
+  "scopes": 53,
+  "series": 159,
+  "total_bytes": 3279846,
+  "maximum_series_bytes": 6881,
+  "duplicates_removed": 2,
+  "excluded_prices": {
+    "gasoline_95_e5": 1,
+    "gasoline_98_e5": 0,
+    "diesel_a": 0
+  },
+  "missing_observations_by_scope_fuel": {
+    "52/diesel_a": 1,
+    "52/gasoline_98_e5": 225
+  }
+}

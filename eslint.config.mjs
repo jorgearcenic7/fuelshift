@@ -86,6 +86,11 @@ export default defineConfig([
   ...layerBoundaries,
   libBoundary,
   globalIgnores([
+    "data/**",
+    ".pytest_cache/**",
+    ".ruff_cache/**",
+    ".venv/**",
+    "public/data/**",
     ".next/**",
     "out/**",
     "coverage/**",

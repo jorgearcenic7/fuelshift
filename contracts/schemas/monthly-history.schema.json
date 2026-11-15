@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuelshift.es/contracts/monthly-history.schema.json",
+  "title": "Muestras mensuales de precios MITECO",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "scope",
+    "fuel",
+    "frequency",
+    "unit",
+    "observations"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "scope": { "type": "string", "pattern": "^(ES|0[1-9]|[1-4][0-9]|5[0-2])$" },
+    "fuel": { "enum": ["gasoline_95_e5", "gasoline_98_e5", "diesel_a"] },
+    "frequency": { "const": "monthly-snapshot" },
+    "unit": { "const": "EUR/L" },
+    "observations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "array",
+        "minItems": 3,
+        "maxItems": 3,
+        "prefixItems": [
+          { "type": "string", "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-01$" },
+          { "type": ["number", "null"], "minimum": 0.1, "maximum": 10 },
+          { "type": "integer", "minimum": 0 }
+        ],
+        "oneOf": [
+          { "prefixItems": [{}, { "type": "null" }, { "const": 0 }] },
+          { "prefixItems": [{}, { "type": "number" }, { "minimum": 1 }] }
+        ]
+      }
+    }
+  }
+}
