@@ -5,7 +5,11 @@ Todos los cambios relevantes de FuelShift. El formato sigue
 [Versionado Semántico](https://semver.org/lang/es/). El procedimiento de publicación está en
 [`docs/release.md`](docs/release.md).
 
-## [Sin publicar] — candidata a 1.0.0
+## [Sin publicar]
+
+Nada todavía.
+
+## [1.0.0] — 2026-11-15
 
 Primera versión pública estable. Reúne todo lo fusionado en `main` desde el 11 de octubre de
 2026 y las correcciones de preparación de la versión.
@@ -68,4 +72,5 @@ Primera versión pública estable. Reúne todo lo fusionado en `main` desde el 1
 - Contraste insuficiente de los textos verdes y rojos, y el foco del teclado acompaña a la ficha
   al elegir una estación de la lista en pantallas estrechas (#25).
 
-[Sin publicar]: https://github.com/jorgearcenic7/fuelshift/commits/main
+[Sin publicar]: https://github.com/jorgearcenic7/fuelshift/compare/v1.0.0...main
+[1.0.0]: https://github.com/jorgearcenic7/fuelshift/releases/tag/v1.0.0
