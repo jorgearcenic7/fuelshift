@@ -5,7 +5,7 @@ FuelShift usa [Versionado Semántico](https://semver.org/lang/es/) y registra lo
 un GitHub Release. Publicar una versión no despliega nada por sí solo: el despliegue sigue siendo
 el workflow de Cloudflare Pages ([`deployment-cloudflare.md`](deployment-cloudflare.md)).
 
-Ningún paso de este documento se ejecuta sin autorización expresa del propietario.
+Ningún paso de publicación se ejecuta sin autorización expresa del propietario.
 
 ## Qué cambia cada número
 
@@ -18,29 +18,33 @@ Ningún paso de este documento se ejecuta sin autorización expresa del propieta
 El número del contrato de datos (`schema_version`, [`contracts/`](../contracts/README.md)) es
 independiente del de la aplicación.
 
-## Cuándo pasar de 0.1.0 a 1.0.0
+## Cómo subir la versión
 
-`package.json` y `pyproject.toml` están en `0.1.0` desde la base del proyecto y no se han
-actualizado. Conviene subirlos a `1.0.0` en una PR propia (`chore(release): publicar la versión
-1.0.0`) **después** de fusionar todas las PR de preparación, para que el commit etiquetado
-contenga exactamente lo publicado. Esa PR solo cambia las dos versiones y el `CHANGELOG.md`
-(sustituye «Sin publicar» por la versión y la fecha y quita las marcas «Pendiente de fusión»).
+Las versiones de `package.json` y `pyproject.toml` se suben en una PR propia
+(`chore(release): …`) **después** de fusionar todo lo que entra en la versión, para que el commit
+etiquetado contenga exactamente lo publicado. Esa PR solo cambia las versiones y el
+`CHANGELOG.md` (pasa «Sin publicar» a la versión con su fecha).
 
-## Checklist de v1.0.0
+## Estado de v1.0.0: publicada
 
-Antes de la PR de versión:
+FuelShift 1.0.0 se publicó el 15 de noviembre de 2026. Etiqueta anotada `v1.0.0` sobre
+`58a5b02` (PR #32), [GitHub Release](https://github.com/jorgearcenic7/fuelshift/releases/tag/v1.0.0)
+y despliegue de ese mismo commit en Cloudflare Pages. Evidencias del 15 de noviembre de 2026:
 
-- [x] Fusionadas las PR de preparación (unidades y accesibilidad, SEO, cabeceras, documentación).
-- [ ] Fusionada la PR de cierre (vigilancia, limpieza y documentación operativa).
-- [ ] Vigilancia de producción probada: simulacro con `simular_fallo` abre la incidencia, llega
-      la notificación y la siguiente ejecución normal la cierra ([monitoring.md](monitoring.md)).
-- [ ] CI en verde en `main`: `repo-hygiene`, `frontend` y `python`.
-- [ ] `npm run test:browser` ejecutado en local contra un build con datos reales: correcto.
-- [ ] Último despliegue programado correcto y datos de menos de 48 horas.
-- [ ] Histórico: `/data/historico/nacional.json` responde y tiene la observación de ayer.
-- [ ] Revisado `CHANGELOG.md`: cada entrada corresponde a una PR fusionada.
+- [x] Fusionadas las PR de preparación (#25–#28), la de cierre (#31) y la de versión (#32).
+- [x] CI en verde en `main` para `58a5b02`: `repo-hygiene`, `frontend` y `python`.
+- [x] Despliegue manual con `force_deploy` de `58a5b02`: correcto. La última ejecución programada
+      anterior también fue correcta y los datos publicados tienen menos de 48 horas.
+- [x] Histórico: `/data/historico/nacional.json` responde, con 28 días seguidos hasta el 15 de
+      noviembre.
+- [x] `npm run test:browser` contra producción (`58a5b02`): correcto en escritorio y móvil.
+- [x] Vigilancia: el simulacro con `simular_fallo` abrió la incidencia #34 y la ejecución normal
+      siguiente la cerró sola ([monitoring.md](monitoring.md)).
+- [ ] Notificación de la incidencia de alerta recibida por el propietario (correo o campana de
+      GitHub): solo puede confirmarla el propietario.
+- [x] `CHANGELOG.md` revisado: cada entrada corresponde a una PR fusionada.
 
-Publicación:
+## Publicar una versión
 
 1. Fusionar la PR de versión con **Squash and merge**.
 2. Publicar el código: **Actions > Actualización MITECO en Cloudflare Pages > Run workflow**,
@@ -62,20 +66,23 @@ Publicación:
 
 Sobre `https://fuelshift.pages.dev` (o el dominio vigente):
 
-- [ ] El mapa carga las estaciones, el mapa de calor se dibuja y la ficha de una estación muestra
-      «€/L». Sin errores en la consola del navegador ni violaciones de CSP.
-- [ ] `/comparador/` y `/estadisticas/` cargan; el histórico se dibuja.
-- [ ] Una ruta inexistente (por ejemplo `/no-existe/`) responde 404 con la página en español.
-- [ ] Cabeceras: `curl.exe -sI https://fuelshift.pages.dev/` muestra `content-security-policy`,
-      `x-frame-options`, `x-content-type-options`, `referrer-policy` y `permissions-policy`.
-- [ ] `curl.exe -sI https://fuelshift.pages.dev/data/miteco/manifest.json` incluye
-      `x-robots-tag: noindex`.
-- [ ] `/og-image.png` responde `image/png`; `/sitemap.xml` lista las tres páginas.
-- [ ] `/robots.txt` es el de FuelShift (con la línea `Sitemap:`). Si Cloudflare sirve su
-      `robots.txt` gestionado en su lugar, revisar la opción de robots.txt gestionado en el
-      panel de Cloudflare antes de dar el release por terminado.
-- [ ] Compartir el enlace en una vista previa (por ejemplo, un validador de Open Graph) muestra
-      la imagen y el título.
+- El mapa carga las estaciones, el mapa de calor se dibuja y la ficha de una estación muestra
+  «€/L». Sin errores en la consola del navegador ni violaciones de CSP.
+- `/comparador/` y `/estadisticas/` cargan; el histórico se dibuja.
+- Una ruta inexistente (por ejemplo `/no-existe/`) responde 404 con la página en español.
+- Cabeceras: `curl.exe -sI https://fuelshift.pages.dev/` muestra `content-security-policy`,
+  `x-frame-options`, `x-content-type-options`, `referrer-policy` y `permissions-policy`.
+- `curl.exe -sI https://fuelshift.pages.dev/data/miteco/manifest.json` incluye
+  `x-robots-tag: noindex`.
+- `/og-image.png` responde `image/png`; `/sitemap.xml` lista las tres páginas.
+- `/robots.txt` es el de FuelShift (con la línea `Sitemap:`). Si Cloudflare sirve su
+  `robots.txt` gestionado en su lugar, revisar la opción de robots.txt gestionado en el panel de
+  Cloudflare antes de dar el release por terminado.
+- Las etiquetas `og:image` y `twitter:image` apuntan a la URL absoluta de `/og-image.png`.
+
+Para v1.0.0 se comprobaron todos estos puntos sobre `58a5b02` el 15 de noviembre de 2026, con
+`npm run test:browser` y `curl`. La vista previa en un validador externo de Open Graph no se
+probó.
 
 ## Vuelta atrás
 
