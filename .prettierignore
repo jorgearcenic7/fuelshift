@@ -8,3 +8,7 @@ docs/codex-ecc.md
 node_modules
 out
 package-lock.json
+data
+.pytest_cache
+.ruff_cache
+public/data/historico-miteco

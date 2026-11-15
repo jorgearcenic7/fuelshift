@@ -24,6 +24,11 @@ const shortDate = new Intl.DateTimeFormat("es-ES", {
   month: "short",
   timeZone: "UTC",
 });
+const monthYear = new Intl.DateTimeFormat("es-ES", {
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+});
 const longDate = new Intl.DateTimeFormat("es-ES", {
   dateStyle: "long",
   timeZone: "UTC",
@@ -40,5 +45,8 @@ export const formatRetrievedAt = (value: string) =>
 /** Fechas AAAA-MM-DD del histórico, que no llevan hora. */
 export const formatShortDate = (value: string) =>
   shortDate.format(new Date(`${value}T00:00:00Z`));
+/** «ene 2005»: etiquetas de ejes que abarcan varios años. */
+export const formatMonthYear = (value: string) =>
+  monthYear.format(new Date(`${value}T00:00:00Z`));
 export const formatLongDate = (value: string) =>
   longDate.format(new Date(`${value}T00:00:00Z`));

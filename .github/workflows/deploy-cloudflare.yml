@@ -3,6 +3,10 @@ name: Actualización MITECO en Cloudflare Pages
 on:
   schedule:
     - cron: "0 */4 * * *"
+  workflow_run:
+    workflows: ["Histórico mensual MITECO"]
+    branches: [main]
+    types: [completed]
   workflow_dispatch:
     inputs:
       allow_missing_published_manifest:
@@ -18,6 +22,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 # Una ejecución cada vez: también serializa los guardados del histórico.
 concurrency:
@@ -27,7 +32,12 @@ concurrency:
 jobs:
   deploy:
     name: validar-construir-desplegar
-    if: github.ref == 'refs/heads/main'
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: production
@@ -71,6 +81,26 @@ jobs:
             echo "::error::Configura CLOUDFLARE_PAGES_PROJECT_NAME con un nombre válido."
             exit 1
           fi
+
+      # Nunca volver a la base inicial en los despliegues posteriores. Este
+      # paso también protege el histórico si su actualización está desactivada.
+      - name: Recuperar y validar el último histórico mensual
+        id: monthly_delivery
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact_args=()
+          run_ids=$(gh run list --workflow update-miteco-history.yml --branch main --limit 20 --json databaseId --jq '.[].databaseId')
+          for run_id in $run_ids; do
+            if gh run download "$run_id" --name miteco-monthly --dir "$RUNNER_TEMP/monthly-$run_id"; then
+              artifact_args=(--artifact "$RUNNER_TEMP/monthly-$run_id")
+              break
+            fi
+          done
+          python -m fuelshift_data.monthly_delivery recover --site-url "$CLOUDFLARE_PAGES_URL" "${artifact_args[@]}"
 
       - name: Recuperar el último manifiesto publicado
         env:
@@ -156,11 +186,11 @@ jobs:
           fi
 
       - name: Instalar dependencias Node.js
-        if: steps.data_change.outputs.should_deploy == 'true' || vars.HISTORY_ENABLED == 'true'
+        if: steps.data_change.outputs.should_deploy == 'true' || vars.HISTORY_ENABLED == 'true' || steps.monthly_delivery.outputs.changed == 'true'
         run: npm ci
 
       - name: Ejecutar controles Python
-        if: steps.data_change.outputs.should_deploy == 'true' || vars.HISTORY_ENABLED == 'true'
+        if: steps.data_change.outputs.should_deploy == 'true' || vars.HISTORY_ENABLED == 'true' || steps.monthly_delivery.outputs.changed == 'true'
         run: |
           python -m pip check
           python -m ruff format --check pipeline
@@ -168,7 +198,7 @@ jobs:
           python -m pytest
 
       - name: Ejecutar controles frontend
-        if: steps.data_change.outputs.should_deploy == 'true' || vars.HISTORY_ENABLED == 'true'
+        if: steps.data_change.outputs.should_deploy == 'true' || vars.HISTORY_ENABLED == 'true' || steps.monthly_delivery.outputs.changed == 'true'
         run: |
           npm run format:check
           npm run lint
@@ -176,12 +206,14 @@ jobs:
           npm run test:coverage
 
       - name: Validar y preparar los datos estáticos
-        if: steps.data_change.outputs.should_deploy == 'true' || vars.HISTORY_ENABLED == 'true'
+        if: steps.data_change.outputs.should_deploy == 'true' || vars.HISTORY_ENABLED == 'true' || steps.monthly_delivery.outputs.changed == 'true'
         run: npm run data:prepare
 
       - name: Generar la exportación estática
-        if: steps.data_change.outputs.should_deploy == 'true' || vars.HISTORY_ENABLED == 'true'
-        run: npm run build
+        if: steps.data_change.outputs.should_deploy == 'true' || vars.HISTORY_ENABLED == 'true' || steps.monthly_delivery.outputs.changed == 'true'
+        run: |
+          npm run build
+          python -m fuelshift_data.monthly_delivery check --root out/data/historico-miteco --against public/data/historico-miteco
 
       # Orden explícito: el histórico se recupera antes del build (rama y días
       # publicados que falten), después se registra el día y se publica todo en
@@ -241,7 +273,7 @@ jobs:
         run: echo "delivered=true" >> "$GITHUB_OUTPUT"
 
       - name: Comprobar límites y ausencia de código servidor
-        if: steps.data_change.outputs.should_deploy == 'true' || steps.history_plan.outputs.deploy == 'true'
+        if: steps.data_change.outputs.should_deploy == 'true' || steps.history_plan.outputs.deploy == 'true' || steps.monthly_delivery.outputs.changed == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -269,9 +301,9 @@ jobs:
           fi
           echo "Exportación verificada: $file_count archivos estáticos."
 
-      # Con precios idénticos solo se despliega si el histórico ganó un día.
+      # Con precios idénticos también se despliega si cambió uno de los históricos.
       - name: Desplegar en Cloudflare Pages
-        if: steps.data_change.outputs.should_deploy == 'true' || steps.history_plan.outputs.deploy == 'true'
+        if: steps.data_change.outputs.should_deploy == 'true' || steps.history_plan.outputs.deploy == 'true' || steps.monthly_delivery.outputs.changed == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

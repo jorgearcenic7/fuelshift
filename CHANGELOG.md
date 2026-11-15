@@ -7,7 +7,20 @@ Todos los cambios relevantes de FuelShift. El formato sigue
 
 ## [Sin publicar]
 
-Nada todavía.
+### Añadido — v1.1.0 en preparación
+
+- Histórico oficial de MITECO en `/estadisticas`, independiente del diario: muestras
+  mensuales desde enero de 2007 de gasolina 95 E5, 98 E5 y gasóleo A, para España
+  y los 52 ámbitos provinciales. Gráfico responsive con tooltip, teclado y recuentos;
+  periodos según cobertura, precios inicial/final y variación, con huecos explícitos.
+- Pipeline Python reproducible con caché, consultas secuenciales acotadas, reintentos,
+  deduplicación, procedencia por muestra y publicación atómica de JSON por ámbito y combustible.
+- Actualización mensual incremental con persistencia en artefactos y recuperación de la
+  última copia publicada. Integrada con el despliegue gratuito existente, con validación
+  de los archivos del build y bloqueo ante pérdidas, conflictos o datos corruptos.
+  Activación tras el merge mediante `MITECO_MONTHLY_ENABLED=true`, sin secretos nuevos.
+- Contrato y pruebas locales del histórico mensual; documentación de la API realmente
+  verificada, metodología y limitación del histórico individual de estaciones.
 
 ## [1.0.0] — 2026-11-15
 
