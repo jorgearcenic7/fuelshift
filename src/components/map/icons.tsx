@@ -1,3 +1,4 @@
+// Iconos SVG propios (trazo de 24 px) para no cargar una librería entera.
 import type { ReactNode, SVGProps } from "react";
 
 function Icon({

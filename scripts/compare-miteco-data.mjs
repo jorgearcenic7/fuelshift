@@ -1,3 +1,9 @@
+// Decide si una ejecución programada debe desplegar.
+//
+// Compara el manifiesto publicado con el recién generado. Solo cuentan los
+// hashes de los archivos provinciales (estaciones y precios): un cambio solo de
+// fecha de descarga o de métricas no justifica gastar un despliegue de Pages.
+
 import { appendFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
@@ -5,6 +11,7 @@ import { pathToFileURL } from "node:url";
 
 import { validatePublishedManifest } from "./fetch-published-manifest.mjs";
 
+// Huella estable del contenido: pares [provincia, sha256] ordenados por id.
 function stationContentFingerprint(manifest) {
   return JSON.stringify(
     manifest.provinces
@@ -22,6 +29,7 @@ export function stationDataChanged(publishedBytes, candidateBytes) {
   );
 }
 
+// El forzado solo vale en ejecuciones manuales; el cron nunca puede forzar.
 export function deploymentDecision({
   dataChanged,
   eventName,

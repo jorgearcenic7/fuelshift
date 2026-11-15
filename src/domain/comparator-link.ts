@@ -1,3 +1,5 @@
+// Enlace entre la ficha de una estación y el comparador: el precio viaja en la
+// URL (?fuel=…&price=…&station=…) y se valida al leerlo con los mismos límites.
 import { INPUT_LIMITS } from "./energy-comparison";
 import type { FuelCode } from "./stations";
 

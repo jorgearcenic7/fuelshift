@@ -1,3 +1,9 @@
+// Acceso a los JSON de MITECO publicados junto a la web.
+//
+// Todo lo que llega del servidor se valida aquí antes de pasar a la interfaz:
+// si un archivo no cumple el contrato se lanza DataContractError y la provincia
+// se marca como fallida en lugar de pintar datos dudosos.
+
 import { FUEL_LABELS, type FuelCode, type Station } from "@/domain/stations";
 
 const SCHEMA_VERSION = "1.0.0";
@@ -45,6 +51,7 @@ export class DataContractError extends Error {
   }
 }
 
+// Caché en memoria por URL: cambiar de página no vuelve a descargar provincias.
 const responseCache = new Map<string, unknown>();
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -74,6 +81,7 @@ function parseNullableString(value: unknown, field: string): string | null {
   return requiredString(value, field);
 }
 
+/** Valida el manifiesto (contrato 1.0.0) y devuelve una copia tipada. */
 export function parseManifest(value: unknown): MitecoManifest {
   if (!isRecord(value)) {
     throw new DataContractError("El manifiesto no es un objeto JSON.");
@@ -163,6 +171,7 @@ export function parseManifest(value: unknown): MitecoManifest {
   };
 }
 
+/** Valida un archivo provincial y convierte cada estación al modelo del dominio. */
 export function parseProvince(value: unknown): ProvinceDataset {
   if (!isRecord(value) || value.schema_version !== SCHEMA_VERSION) {
     throw new DataContractError(
@@ -290,6 +299,11 @@ export async function loadMitecoManifest(
   return parseManifest(await fetchJson(`${dataRoot}manifest.json`, signal));
 }
 
+/**
+ * Descarga las provincias del manifiesto con unos pocos trabajadores en
+ * paralelo y avisa de cada una en cuanto llega, para que el mapa se vaya
+ * llenando. Las que fallan se devuelven en `failed` sin frenar al resto.
+ */
 export async function loadMitecoStations({
   manifest,
   signal,
@@ -316,6 +330,7 @@ export async function loadMitecoStations({
         const dataset = parseProvince(
           await fetchJson(`${dataRoot}${entry.file}`, signal),
         );
+        // El archivo debe ser el que anuncia el manifiesto, no otro cualquiera.
         if (
           dataset.province.id !== entry.id ||
           dataset.stations.length !== entry.station_count

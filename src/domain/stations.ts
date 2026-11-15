@@ -69,6 +69,7 @@ export interface StationResult extends Station {
   distanceKm: number | null;
 }
 
+/** Minúsculas y sin tildes, para que «Cáceres» y «caceres» coincidan. */
 export function normalizeSearch(value: string): string {
   return value
     .normalize("NFD")
@@ -77,6 +78,7 @@ export function normalizeSearch(value: string): string {
     .trim();
 }
 
+/** Precio de un combustible como número, o null si la estación no lo vende. */
 export function getStationPrice(
   station: Station,
   fuel: FuelCode,
@@ -88,6 +90,7 @@ export function getStationPrice(
   return Number.isFinite(price) ? price : null;
 }
 
+/** Distancia en línea recta (fórmula del haversine), suficiente para ordenar. */
 export function distanceInKm(a: Coordinates, b: Coordinates): number {
   const earthRadiusKm = 6371;
   const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
@@ -109,6 +112,10 @@ export function distanceInKm(a: Coordinates, b: Coordinates): number {
   );
 }
 
+/**
+ * Aplica búsqueda, marca y rango de precio, y ordena por precio o por distancia.
+ * Las estaciones sin precio para el combustible elegido no aparecen.
+ */
 export function filterAndSortStations(
   stations: readonly Station[],
   filters: StationFilters,
@@ -143,6 +150,7 @@ export function filterAndSortStations(
     ];
   });
 
+  // Sin ubicación no hay distancia: se cae siempre al orden por precio.
   return filtered.sort((left, right) => {
     if (sort === "distance" && userLocation) {
       return (left.distanceKm ?? Infinity) - (right.distanceKm ?? Infinity);
@@ -223,6 +231,7 @@ export function rankByPrice<T extends Station>(
   return { entries, total: priced.length };
 }
 
+/** Marcas que venden el combustible elegido, ordenadas para el desplegable. */
 export function getBrands(
   stations: readonly Station[],
   fuel: FuelCode,

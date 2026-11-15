@@ -1,5 +1,9 @@
 "use client";
 
+// Pantalla principal del mapa. Carga el manifiesto y las provincias de MITECO,
+// y coordina buscador, filtros, lista de resultados, ranking, mapa de calor y
+// ficha de la estación seleccionada.
+
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
 import { PriceUnitLabel } from "@/components/price-unit";
@@ -81,6 +85,7 @@ const STATUS_STYLES = {
 } as const;
 
 /** Municipio y, si es distinta, la localidad comunicada por MITECO. */
+// «Municipio · Localidad» solo cuando la localidad aporta algo distinto.
 function placeLabel(station: Station): string {
   return station.locality &&
     normalizeSearch(station.locality) !== normalizeSearch(station.municipality)
@@ -88,6 +93,7 @@ function placeLabel(station: Station): string {
     : station.municipality;
 }
 
+// Texto de estado de la carga que se anuncia también a lectores de pantalla.
 function describeDataStatus({
   loading,
   loadError,
@@ -185,6 +191,8 @@ export function FuelMapApp() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const mapAreaRef = useRef<HTMLDivElement>(null);
 
+  // Carga única al montar: primero el manifiesto y después las provincias, que
+  // se van añadiendo al mapa según llegan. Al desmontar se cancela todo.
   useEffect(() => {
     const controller = new AbortController();
 

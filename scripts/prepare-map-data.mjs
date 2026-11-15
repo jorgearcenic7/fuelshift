@@ -1,3 +1,11 @@
+// Copia los JSON generados por el pipeline a public/ para que los sirva Next.
+//
+// Antes de copiar vuelve a validar todo (rutas, recuentos, tamaños, hashes y
+// estaciones duplicadas) y después sustituye la carpeta de destino de golpe, de
+// modo que nunca queda a medias un conjunto mezclado de dos descargas.
+//
+// Uso: node scripts/prepare-map-data.mjs [origen] [destino]
+
 import { createHash } from "node:crypto";
 import {
   access,
@@ -21,6 +29,7 @@ const destination = path.resolve(
   process.argv[3] ?? "public/data/miteco",
 );
 
+// Evita que un argumento mal puesto lea o borre fuera del repositorio.
 function isInsideWorkspace(candidate) {
   const relative = path.relative(workspace, candidate);
   return (
@@ -68,6 +77,7 @@ async function exists(candidate) {
   }
 }
 
+// Lee el manifiesto y cada provincia, y comprueba que todo cuadra entre sí.
 async function validate() {
   const manifestBytes = await readFile(path.join(source, "manifest.json"));
   const manifest = requireRecord(
@@ -104,6 +114,7 @@ async function validate() {
       throw new Error(`Ruta provincial no permitida: ${relativeFile}`);
     }
 
+    // Tamaño y hash deben coincidir con lo anunciado en el manifiesto.
     const sourceFile = path.join(source, ...relativeFile.split("/"));
     const bytes = await readFile(sourceFile);
     const expectedBytes = requireInteger(entry.bytes, `${relativeFile}.bytes`);
@@ -144,6 +155,7 @@ async function validate() {
         `El recuento de estaciones de ${relativeFile} no coincide.`,
       );
     }
+    // Un mismo id en dos provincias indicaría una ingesta corrupta.
     for (const [stationIndex, rawStation] of dataset.stations.entries()) {
       const station = requireRecord(
         rawStation,
@@ -177,6 +189,8 @@ async function validate() {
   };
 }
 
+// Escribe en una carpeta temporal y la intercambia con el destino. Si el
+// cambio falla, se restaura la copia anterior.
 async function publish(validated) {
   const parent = path.dirname(destination);
   await mkdir(parent, { recursive: true });

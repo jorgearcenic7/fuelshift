@@ -30,7 +30,10 @@ contenga exactamente lo publicado. Esa PR solo cambia las dos versiones y el `CH
 
 Antes de la PR de versión:
 
-- [ ] Fusionadas las PR de preparación (unidades y accesibilidad, SEO, cabeceras, documentación).
+- [x] Fusionadas las PR de preparación (unidades y accesibilidad, SEO, cabeceras, documentación).
+- [ ] Fusionada la PR de cierre (vigilancia, limpieza y documentación operativa).
+- [ ] Vigilancia de producción probada: simulacro con `simular_fallo` abre la incidencia, llega
+      la notificación y la siguiente ejecución normal la cierra ([monitoring.md](monitoring.md)).
 - [ ] CI en verde en `main`: `repo-hygiene`, `frontend` y `python`.
 - [ ] `npm run test:browser` ejecutado en local contra un build con datos reales: correcto.
 - [ ] Último despliegue programado correcto y datos de menos de 48 horas.
@@ -53,7 +56,7 @@ Publicación:
    gh release create v1.0.0 --title "FuelShift 1.0.0" --notes-file docs/release-notes-v1.0.0.md
    ```
 
-   El archivo de notas se crea a partir de la propuesta de este documento.
+   El archivo de notas está en [`release-notes-v1.0.0.md`](release-notes-v1.0.0.md).
 
 ## Verificación posterior al despliegue
 
@@ -87,26 +90,6 @@ Sobre `https://fuelshift.pages.dev` (o el dominio vigente):
   `git push origin :refs/tags/v1.0.0`. Las etiquetas publicadas no se reutilizan: corregir y
   publicar `v1.0.1`.
 
-## Propuesta de descripción del GitHub Release
+## Notas del GitHub Release
 
-```markdown
-FuelShift 1.0.0 es la primera versión pública estable: una web gratuita para consultar los
-precios oficiales de los carburantes en España.
-
-**Qué incluye**
-
-- Mapa de gasolineras con los precios que las estaciones comunican al Ministerio (MITECO),
-  actualizado automáticamente varias veces al día, con búsqueda, filtros, ranking y mapa de calor.
-- Comparador del gasto energético de un coche de gasolina, diésel o eléctrico.
-- Estadísticas de precios nacionales y provinciales, con histórico diario desde el 19 de octubre
-  de 2026.
-- Diseño adaptado a móvil, navegable con teclado y revisado con axe-core.
-
-**Datos**
-
-Precios en euros por litro o por kilogramo según cada producto, conforme a los anexos vigentes de
-la Orden ITC/2308/2007 (Resolución de 5 de diciembre de 2025).
-Datos de MITECO con licencia CC BY 4.0. Las estadísticas las calcula FuelShift y no son oficiales.
-
-Web: https://fuelshift.pages.dev · Cambios: CHANGELOG.md
-```
+El texto del release está en [`release-notes-v1.0.0.md`](release-notes-v1.0.0.md).

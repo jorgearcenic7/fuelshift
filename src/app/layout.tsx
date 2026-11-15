@@ -1,3 +1,4 @@
+// Plantilla común de todas las páginas: idioma, metadatos y estilos globales.
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 

@@ -1,3 +1,4 @@
+// sitemap.xml con las tres páginas públicas; se genera estático en el build.
 import type { MetadataRoute } from "next";
 
 import { SITE_URL } from "@/app/site-metadata";

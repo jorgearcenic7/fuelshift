@@ -1,3 +1,4 @@
+// Página del comparador de gasto energético.
 import type { Metadata } from "next";
 
 import { pageMetadata } from "@/app/site-metadata";

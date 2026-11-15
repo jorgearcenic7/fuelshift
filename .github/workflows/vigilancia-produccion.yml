@@ -1,0 +1,112 @@
+name: Vigilancia de producción
+
+# Comprueba cada hora la web publicada y avisa con una incidencia de GitHub.
+# Solo hay una incidencia abierta a la vez: si el fallo sigue, se actualiza su
+# texto (sin notificar de nuevo) y se cierra sola cuando todo vuelve a estar bien.
+# Guía de diagnóstico y recuperación: docs/monitoring.md.
+
+on:
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:
+    inputs:
+      simular_fallo:
+        description: Simular un fallo para comprobar que la alerta llega
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vigilancia-produccion
+  cancel-in-progress: false
+
+jobs:
+  vigilar:
+    name: vigilar-produccion
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      ALERT_LABEL: alerta-produccion
+      SITE_URL: https://fuelshift.pages.dev
+
+    steps:
+      - name: Obtener los scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      # Las últimas ejecuciones de la ingesta, para detectar fallos seguidos.
+      - name: Leer las últimas ejecuciones de la ingesta
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run list --workflow deploy-cloudflare.yml --branch main --limit 5 \
+            --json status,conclusion,createdAt,url > "$RUNNER_TEMP/runs.json" ||
+            echo null > "$RUNNER_TEMP/runs.json"
+
+      # Si el propio script fallara, el paso siguiente lo trata como alerta.
+      - name: Comprobar la web publicada
+        id: check
+        continue-on-error: true
+        env:
+          SIMULATE: ${{ github.event_name == 'workflow_dispatch' && inputs.simular_fallo == true }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=("$SITE_URL" --runs "$RUNNER_TEMP/runs.json" --report "$RUNNER_TEMP/informe.md")
+          if [[ "$SIMULATE" == "true" ]]; then args+=(--simulate); fi
+          node scripts/monitor-production.mjs "${args[@]}"
+
+      - name: Abrir, actualizar o cerrar la incidencia de alerta
+        if: ${{ !cancelled() }}
+        shell: bash
+        env:
+          STATUS: ${{ steps.check.outputs.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/informe.md"
+          if [[ -z "$STATUS" || ! -s "$report" ]]; then
+            STATUS=alert
+            echo "**La vigilancia no pudo completarse.** Revisa el registro de la ejecución." > "$report"
+          fi
+          printf '\n[Ejecución de la vigilancia](%s)\n' "$RUN_URL" >> "$report"
+
+          gh label create "$ALERT_LABEL" --color B60205 \
+            --description "Alerta automática de la vigilancia de producción" 2> /dev/null || true
+          open_issue="$(gh issue list --label "$ALERT_LABEL" --state open --limit 1 \
+            --json number --jq '.[0].number // empty')"
+
+          if [[ "$STATUS" == "alert" ]]; then
+            if [[ -z "$open_issue" ]]; then
+              gh issue create --title "Alerta: fallo en producción de FuelShift" \
+                --label "$ALERT_LABEL" --body-file "$report"
+              echo "::warning::Fallo detectado; incidencia de alerta abierta."
+            else
+              # Editar el cuerpo no envía otra notificación: evita avisos repetidos.
+              gh issue edit "$open_issue" --body-file "$report"
+              echo "::warning::El fallo continúa; incidencia #$open_issue actualizada."
+            fi
+          elif [[ -n "$open_issue" ]]; then
+            gh issue close "$open_issue" --reason completed \
+              --comment "Producción vuelve a estar correcta. $(head -n 1 "$report")"
+            echo "Recuperado; incidencia #$open_issue cerrada."
+          else
+            echo "Producción correcta."
+          fi
