@@ -1,5 +1,10 @@
 "use client";
 
+// Comparador de gasto energético (gasolina, diésel y eléctrico).
+// Solo calcula lo que cuesta la energía; no entra en precio de compra, seguros
+// ni mantenimiento. Si se llega desde la ficha de una estación, su precio
+// sustituye al de ejemplo hasta que la persona lo edite o restablezca.
+
 import { useState, useSyncExternalStore } from "react";
 
 import { parseComparatorParams } from "@/domain/comparator-link";
@@ -113,6 +118,7 @@ export function EnergyCalculator() {
   const [stationDismissed, setStationDismissed] = useState(false);
   const [advanced, setAdvanced] = useState(false);
 
+  // Prioridad de valores: ejemplo < precio de la estación < lo que escribe la persona.
   const station = stationDismissed ? null : parseComparatorParams(search);
   const values: Values = {
     ...EXAMPLE_VALUES,
@@ -121,6 +127,7 @@ export function EnergyCalculator() {
   };
   const stationPriceInUse = station !== null && !(station.field in edits);
 
+  // En modo sencillo los campos avanzados ocultos usan los valores de ejemplo.
   const inputs = Object.fromEntries(
     (Object.keys(EXAMPLE_INPUTS) as EnergyField[]).map((field) => [
       field,

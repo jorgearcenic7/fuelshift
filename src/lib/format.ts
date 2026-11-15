@@ -1,3 +1,5 @@
+// Formateadores en español reutilizados por toda la interfaz. Se crean una vez
+// porque Intl.NumberFormat es caro de construir.
 const price = new Intl.NumberFormat("es-ES", {
   minimumFractionDigits: 3,
   maximumFractionDigits: 3,

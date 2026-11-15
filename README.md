@@ -8,6 +8,28 @@ incluye una ingesta reproducible del conjunto nacional de estaciones terrestres 
 mapa interactivo con esos datos reales, un comparador de costes energéticos y una página de
 estadísticas de precios.
 
+Las versiones del código se registran en [CHANGELOG.md](CHANGELOG.md). La fecha de los datos es
+otra cosa: cada página indica cuándo se descargaron de MITECO.
+
+| Mapa (escritorio)                                    | Mapa (móvil)                              |
+| ---------------------------------------------------- | ----------------------------------------- |
+| ![Mapa de gasolineras](docs/img/mapa-escritorio.png) | ![Mapa en móvil](docs/img/mapa-movil.png) |
+
+![Página de estadísticas](docs/img/estadisticas-escritorio.png)
+
+Capturas reales de la web con datos de MITECO del 15 de noviembre de 2026.
+
+## Qué hace
+
+- **Mapa de gasolineras** con las ~11 500 estaciones terrestres de MITECO: búsqueda, filtros por
+  combustible, marca y precio, orden por precio o distancia, geolocalización opcional, ranking de
+  las más baratas, mapa de calor de precios y ficha de cada estación con horario, todos sus precios
+  y cómo llegar.
+- **Comparador** del gasto energético de un coche de gasolina, diésel o eléctrico (solo energía,
+  no coste total de propiedad), con el precio de una estación concreta si se llega desde el mapa.
+- **Estadísticas**: medias nacional y por provincia, mínimos, máximos e histórico diario real desde
+  el 19 de octubre de 2026.
+
 ## Stack
 
 - Next.js 16 con App Router y exportación estática, React 19 y TypeScript estricto.
@@ -175,10 +197,10 @@ pipeline/
     cli.py              Interfaz de línea de comandos
   tests/                Pruebas aisladas de la red
 contracts/              JSON Schema de los datos publicados y ejemplos
-scripts/                Preparación de datos, histórico y pruebas de navegador
+scripts/                Preparación de datos, histórico, vigilancia y pruebas de navegador
 public/_headers         Cabeceras de seguridad de Cloudflare Pages
-docs/                   Contratos, decisiones técnicas (decisions/) y publicación
-.github/workflows/      Integración continua, despliegue y verificación manual
+docs/                   Contratos, decisiones (decisions/), operación, publicación y capturas
+.github/workflows/      Integración continua, despliegue, vigilancia y verificación manual
 ```
 
 En `src/`, las dependencias solo avanzan en el sentido `app → components → data → domain`, y
@@ -186,11 +208,20 @@ cualquier capa puede usar `lib`. ESLint lo comprueba con `no-restricted-imports`
 ([`eslint.config.mjs`](eslint.config.mjs)); las pruebas quedan exentas.
 
 El despliegue estático en Cloudflare Pages Free comprueba MITECO cada cuatro horas y también puede
-ejecutarse manualmente. Solo publica cuando cambia el contenido normalizado de las estaciones; una
+ejecutarse manualmente. GitHub retrasa a menudo las ejecuciones programadas: en la práctica los
+datos se renuevan cada 6 h de mediana y nunca han pasado más de 12 h sin actualizarse. Solo publica cuando cambia el contenido normalizado de las estaciones; una
 ejecución manual puede forzar la publicación de cambios de código sin omitir ninguna validación.
 Una comprobación programada sin cambios no ejecuta el build ni Wrangler. La configuración, los
 secretos, la protección del manifiesto anterior, la recuperación y los límites están documentados en
 [`docs/deployment-cloudflare.md`](docs/deployment-cloudflare.md).
+
+## Vigilancia y alertas
+
+Cada hora, el workflow [`vigilancia-produccion.yml`](.github/workflows/vigilancia-produccion.yml)
+comprueba la web publicada (páginas, recursos, manifiesto, hashes provinciales, antigüedad de los
+datos, estadísticas, histórico y fallos seguidos de la ingesta). Si algo falla abre una incidencia
+`alerta-produccion` en GitHub, que notifica al propietario, y la cierra sola al recuperarse. Los
+umbrales, el diagnóstico y la recuperación están en [`docs/monitoring.md`](docs/monitoring.md).
 
 ## Seguridad y versiones
 
@@ -199,3 +230,9 @@ La web no usa credenciales en el navegador ni servicios de pago. Las cabeceras d
 motivo y cómo se probaron están en [`docs/security-headers.md`](docs/security-headers.md). Los
 cambios de cada versión se recogen en [`CHANGELOG.md`](CHANGELOG.md) y el procedimiento de
 publicación, verificación y vuelta atrás en [`docs/release.md`](docs/release.md).
+
+## Licencia
+
+El código se publica con licencia [MIT](LICENSE). Los datos de precios son de MITECO y se
+redistribuyen con licencia [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), con
+atribución y las transformaciones indicadas arriba.

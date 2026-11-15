@@ -1,3 +1,5 @@
+// Página de estadísticas. Los datos se leen y calculan en el build, así que el
+// HTML ya llega con las cifras y no depende de JavaScript para mostrarlas.
 import type { Metadata } from "next";
 
 import { pageMetadata } from "@/app/site-metadata";

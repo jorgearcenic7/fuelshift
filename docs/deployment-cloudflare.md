@@ -66,6 +66,11 @@ precios reales, así que publicaron; no hubo fallos de MITECO en ese periodo. Si
 datos llega a ser un problema, la opción más sencilla y sin coste es mover el cron a un minuto
 distinto de cero (por ejemplo, `17 */4 * * *`), lo que requiere aprobar el cambio de frecuencia.
 
+Con más datos (134 ejecuciones del 12 de octubre al 15 de noviembre de 2026), la separación entre
+ejecuciones correctas fue de 6,3 h de mediana y 11,6 h como máximo, con un único fallo: el primer
+intento manual del 12 de octubre. La vigilancia ([monitoring.md](monitoring.md)) avisa si los datos
+publicados superan 14 h.
+
 Cada ejecución recupera y valida primero el manifiesto publicado. La ingesta genera el candidato
 con el pipeline habitual y compara los hashes SHA-256 de los archivos provinciales, ordenados por
 identificador. Esos archivos contienen el contenido normalizado de las estaciones, incluidos los
@@ -162,7 +167,7 @@ Cloudflare documenta el procedimiento de
 
 ## Coste y límites del plan gratuito
 
-Comprobado el 12 de octubre de 2026 contra la documentación oficial:
+Comprobado el 15 de noviembre de 2026 contra la documentación oficial:
 
 - Pages Free admite 500 despliegues al mes, 20 000 archivos por sitio, 25 MiB por archivo, un
   despliegue concurrente, 100 dominios personalizados por proyecto y 100 proyectos por cuenta.
@@ -180,5 +185,5 @@ Referencias: [límites de Pages](https://developers.cloudflare.com/pages/platfor
 [precios de activos estáticos](https://developers.cloudflare.com/pages/functions/pricing/) y
 [facturación de GitHub Actions](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
 
-Los límites y precios pueden cambiar. Se comprobaron por última vez el 12 de octubre de 2026 y
+Los límites y precios pueden cambiar. Se comprobaron por última vez el 15 de noviembre de 2026 y
 deben revisarse si cambia la visibilidad del repositorio, el plan o la frecuencia.

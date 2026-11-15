@@ -1,0 +1,8 @@
+# Finales de línea LF en todo el repositorio, también al clonar en Windows:
+# así Prettier, Ruff y git diff --check dan el mismo resultado en local y en CI.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.webp binary

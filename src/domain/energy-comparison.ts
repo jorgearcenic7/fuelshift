@@ -73,17 +73,24 @@ function isValid(value: number, { min, max, integer }: InputLimit): boolean {
   );
 }
 
+/** Campos fuera de rango; la interfaz los marca uno a uno. */
 export function findInvalidFields(inputs: EnergyInputs): EnergyField[] {
   return (Object.keys(INPUT_LIMITS) as EnergyField[]).filter(
     (field) => !isValid(inputs[field], INPUT_LIMITS[field]),
   );
 }
 
+/**
+ * Gasto energético anual y del periodo para los tres vehículos, y lo que se
+ * ahorra (o se gasta de más) con el eléctrico. Devuelve null si algún dato no
+ * es válido, para no enseñar cifras calculadas con entradas imposibles.
+ */
 export function calculateEnergyComparison(
   inputs: EnergyInputs,
 ): EnergyComparison | null {
   if (findInvalidFields(inputs).length > 0) return null;
 
+  // Consumo en L/100 km o kWh/100 km → unidades al año → euros.
   const cost = (consumption: number, price: number): EnergyCost => {
     const annualUnits = (inputs.annualKm * consumption) / 100;
     const annualEuros = annualUnits * price;
@@ -93,6 +100,8 @@ export function calculateEnergyComparison(
       periodEuros: annualEuros * inputs.years,
     };
   };
+  // Positivo: el eléctrico sale más barato. El porcentaje es sobre el coste del
+  // coche de combustión, que nunca es cero gracias a los mínimos de INPUT_LIMITS.
   const difference = (combustion: EnergyCost): ElectricDifference => {
     const annualEuros = combustion.annualEuros - electric.annualEuros;
     return {

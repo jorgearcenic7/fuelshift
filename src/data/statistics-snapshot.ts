@@ -21,6 +21,11 @@ export interface StatisticsSnapshot {
   fuels: Record<StatisticsFuel, FuelStatistics>;
 }
 
+/**
+ * Calcula, en el build, las estadísticas nacionales y provinciales de los
+ * combustibles principales. El resultado se publica como /data/estadisticas.json
+ * y es también la entrada del histórico diario.
+ */
 export function buildStatisticsSnapshot({
   manifest,
   provinces,

@@ -1,3 +1,10 @@
+// Descarga el manifiesto que está publicado ahora mismo en producción.
+//
+// El despliegue lo usa como referencia: la ingesta nueva se compara con él para
+// detectar caídas bruscas de estaciones y para saber si hay cambios reales. Si
+// no se puede leer o no es válido, el despliegue se detiene y la web sigue
+// sirviendo el último conjunto correcto.
+
 import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
@@ -40,6 +47,8 @@ function requirePublishedSiteUrl(value) {
   return new URL(MANIFEST_PATH, url);
 }
 
+// Comprobaciones mínimas del contrato 1.0.0; también las reutiliza la
+// vigilancia de producción (monitor-production.mjs).
 export function validatePublishedManifest(bytes) {
   if (bytes.byteLength > MAX_MANIFEST_BYTES) {
     throw new Error("El manifiesto publicado supera el límite de 1 MiB.");
@@ -107,6 +116,7 @@ export function validatePublishedManifest(bytes) {
   return manifest;
 }
 
+// Lee la respuesta por trozos para cortar en cuanto supere 1 MiB.
 async function readResponseWithLimit(response) {
   const declaredLength = Number(response.headers.get("content-length"));
   if (Number.isFinite(declaredLength) && declaredLength > MAX_MANIFEST_BYTES) {
@@ -182,6 +192,7 @@ export async function seedPublishedManifest({
 
   const bytes = await readResponseWithLimit(response);
   const manifest = validatePublishedManifest(bytes);
+  // Escritura atómica: primero a un temporal y luego se renombra.
   const resolvedDestination = path.resolve(destination);
   const temporary = `${resolvedDestination}.tmp-${process.pid}`;
   await mkdir(path.dirname(resolvedDestination), { recursive: true });

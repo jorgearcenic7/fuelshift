@@ -14,6 +14,10 @@ import { formatPrice } from "@/lib/format";
 import { BrandMark } from "./brand-mark";
 import { ClockIcon, CloseIcon, PinIcon, RouteIcon } from "./icons";
 
+// Ficha de una estación: todos sus precios, horario, dirección, cómo llegar y
+// enlace al comparador con el precio de esta estación ya rellenado.
+
+/** Ruta en OpenStreetMap; si hay ubicación de la persona, sale desde ahí. */
 function directionsUrl(
   station: Station,
   userLocation: Coordinates | null,

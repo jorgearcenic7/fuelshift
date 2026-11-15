@@ -31,18 +31,33 @@ Primera versión pública estable. Reúne todo lo fusionado en `main` desde el 1
 - Contrato de datos en JSON Schema compartido por el pipeline y la web (#20).
 - Comprobación con ESLint de las fronteras entre capas de `src/` (#21).
 - Registro de decisiones de arquitectura en `docs/decisions/` (#22).
-- Pendiente de fusión: página 404 en español, metadatos Open Graph y X, URL canónicas, imagen
-  para compartir, `sitemap.xml` y `robots.txt`.
-- Pendiente de fusión: cabeceras de seguridad en `public/_headers` (CSP, `X-Frame-Options`,
-  `Permissions-Policy` y otras).
+- Página 404 en español, metadatos Open Graph y X, URL canónicas, imagen para compartir,
+  `sitemap.xml` y `robots.txt` (#26).
+- Cabeceras de seguridad en `public/_headers` (CSP, `X-Frame-Options`, `Permissions-Policy` y
+  otras) (#27).
+- Vigilancia horaria de producción con alertas por incidencia de GitHub: páginas, recursos,
+  integridad y antigüedad de los datos, histórico y fallos seguidos de la ingesta
+  (`docs/monitoring.md`).
+- Capturas reales en el README y guía de operación, recuperación y rollback.
 
 ### Cambiado
 
 - Experiencia móvil: el mapa aparece tras la búsqueda y el combustible, los filtros avanzados se
   pliegan y el orden del teclado coincide con el visual (#24).
-- Pendiente de fusión: los precios muestran su unidad (€/L o €/kg) según los anexos vigentes de
-  la Orden ITC/2308/2007 (Resolución de 5 de diciembre de 2025), en el mapa, las fichas y las
-  estadísticas.
+- Los precios muestran su unidad (€/L o €/kg) según los anexos vigentes de la Orden
+  ITC/2308/2007 (Resolución de 5 de diciembre de 2025), en el mapa, las fichas y las
+  estadísticas (#25).
+- Documentación de publicación y de la versión 1.0.0 (#28).
+- Next.js 16.4.0 → 16.4.3, que corrige avisos de seguridad del servidor de Next (optimización de
+  imágenes, Server Actions y `use cache`). La web es una exportación estática y no usaba esas
+  funciones en producción.
+- Finales de línea LF fijados con `.gitattributes` para que formato y diff den lo mismo en Windows
+  y en CI.
+
+### Eliminado
+
+- Configuración de shadcn/ui sin uso (`components.json` y `src/components/ui/`) y un registro de
+  pruebas de la fase inicial que ya no aportaba.
 
 ### Corregido
 
@@ -50,7 +65,7 @@ Primera versión pública estable. Reúne todo lo fusionado en `main` desde el 1
 - Estabilidad de las pruebas de hidratación y renderizado del mapa (#15).
 - Una localidad vacía en los datos de MITECO ya no impide cargar su provincia (#20).
 - En escritorio, la página ya no muestra una barra de desplazamiento fantasma (#24).
-- Pendiente de fusión: contraste insuficiente de los textos verdes y rojos, y el foco del
-  teclado acompaña a la ficha al elegir una estación de la lista en pantallas estrechas.
+- Contraste insuficiente de los textos verdes y rojos, y el foco del teclado acompaña a la ficha
+  al elegir una estación de la lista en pantallas estrechas (#25).
 
 [Sin publicar]: https://github.com/jorgearcenic7/fuelshift/commits/main

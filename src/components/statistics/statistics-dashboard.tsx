@@ -1,5 +1,9 @@
 "use client";
 
+// Panel de estadísticas: medias, mínimos y máximos por combustible, ranking de
+// provincias e histórico diario. Los datos llegan ya calculados desde el build;
+// aquí solo se elige combustible y se avisa si los datos se han quedado viejos.
+
 import { useState, useSyncExternalStore } from "react";
 
 import { PriceUnitLabel } from "@/components/price-unit";
@@ -93,6 +97,7 @@ function Highlight({
   );
 }
 
+// Tres estados posibles: sin datos, datos inválidos o listo para mostrar.
 export function StatisticsDashboard({ data }: { data: StatisticsPageData }) {
   const [fuel, setFuel] = useState<StatisticsFuel>("gasoline_95_e5");
   // En el HTML estático se asume vigente; el navegador compara con la hora
