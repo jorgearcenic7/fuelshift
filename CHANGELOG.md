@@ -41,8 +41,8 @@ Primera versión pública estable. Reúne todo lo fusionado en `main` desde el 1
   otras) (#27).
 - Vigilancia horaria de producción con alertas por incidencia de GitHub: páginas, recursos,
   integridad y antigüedad de los datos, histórico y fallos seguidos de la ingesta
-  (`docs/monitoring.md`).
-- Capturas reales en el README y guía de operación, recuperación y rollback.
+  (`docs/monitoring.md`) (#31).
+- Capturas reales en el README y guía de operación, recuperación y rollback (#31).
 
 ### Cambiado
 
@@ -51,17 +51,17 @@ Primera versión pública estable. Reúne todo lo fusionado en `main` desde el 1
 - Los precios muestran su unidad (€/L o €/kg) según los anexos vigentes de la Orden
   ITC/2308/2007 (Resolución de 5 de diciembre de 2025), en el mapa, las fichas y las
   estadísticas (#25).
-- Documentación de publicación y de la versión 1.0.0 (#28).
+- Documentación de publicación y de la versión 1.0.0 (#28, #32).
 - Next.js 16.4.0 → 16.4.3, que corrige avisos de seguridad del servidor de Next (optimización de
   imágenes, Server Actions y `use cache`). La web es una exportación estática y no usaba esas
-  funciones en producción.
+  funciones en producción (#31).
 - Finales de línea LF fijados con `.gitattributes` para que formato y diff den lo mismo en Windows
-  y en CI.
+  y en CI (#31).
 
 ### Eliminado
 
 - Configuración de shadcn/ui sin uso (`components.json` y `src/components/ui/`) y un registro de
-  pruebas de la fase inicial que ya no aportaba.
+  pruebas de la fase inicial que ya no aportaba (#31).
 
 ### Corregido
 
