@@ -3,21 +3,31 @@
 **Web: <https://fuelshift.pages.dev>**
 
 FuelShift es una aplicación web pública para consultar precios oficiales de carburantes en
-España, comparar costes energéticos y explorar estadísticas. El repositorio
-incluye una ingesta reproducible del conjunto nacional de estaciones terrestres de MITECO, un
-mapa interactivo con esos datos reales, un comparador de costes energéticos y una página de
-estadísticas de precios.
+España, comparar costes energéticos y explorar su evolución. El mapa es el centro de una
+interfaz azul y verde adaptada a escritorio y móvil, con filtros, ranking y fichas de estaciones.
+El comparador permite editar los supuestos de consumo y precio, y las estadísticas reúnen un
+mapa provincial, indicadores e históricos independientes: observaciones diarias de FuelShift
+desde octubre de 2026 y fotografías oficiales de MITECO con muestreo mensual desde 2007.
 
 Las versiones del código se registran en [CHANGELOG.md](CHANGELOG.md). La fecha de los datos es
-otra cosa: cada página indica cuándo se descargaron de MITECO.
+otra cosa: la aplicación indica las fechas de los datos y de su recuperación.
 
-| Mapa (escritorio)                                    | Mapa (móvil)                              |
-| ---------------------------------------------------- | ----------------------------------------- |
-| ![Mapa de gasolineras](docs/img/mapa-escritorio.png) | ![Mapa en móvil](docs/img/mapa-movil.png) |
+![Mapa actual en escritorio con búsqueda, filtros, ranking y agrupaciones de estaciones](docs/img/mapa-escritorio.webp)
 
-![Página de estadísticas](docs/img/estadisticas-escritorio.png)
+<p align="center">
+  <a href="docs/img/mapa-movil.webp">
+    <img src="docs/img/mapa-movil.webp" alt="Mapa actual en móvil con panel de búsqueda y navegación inferior" width="320">
+  </a>
+</p>
 
-Capturas reales de la web con datos de MITECO del 15 de noviembre de 2026.
+![Comparador con cifras editables, barras de gasto energético y diferencias entre gasolina, diésel y eléctrico](docs/img/comparador-escritorio.webp)
+
+![Estadísticas con mapa provincial, histórico diario desde octubre de 2026 e histórico mensual oficial desde enero de 2007](docs/img/estadisticas-escritorio.webp)
+
+Capturas reales de [la web publicada](https://fuelshift.pages.dev), tomadas con Playwright el
+**16 de noviembre de 2026**, sin modificar la interfaz ni los datos. Los precios actuales se
+descargaron ese día; el diario mostrado abarca del 19/10/2026 al 16/11/2026 y el mensual, de
+enero de 2007 a noviembre de 2026. Las imágenes están optimizadas en WebP.
 
 ## Qué hace
 
@@ -26,14 +36,26 @@ Capturas reales de la web con datos de MITECO del 15 de noviembre de 2026.
   las más baratas, mapa de calor de precios y ficha de cada estación con horario, todos sus precios
   y cómo llegar.
 - **Comparador** del gasto energético de un coche de gasolina, diésel o eléctrico (solo energía,
-  no coste total de propiedad), con el precio de una estación concreta si se llega desde el mapa.
-- **Estadísticas**: medias nacional y por provincia, mínimos, máximos e histórico diario real desde
-  el 19 de octubre de 2026.
+  no coste total de propiedad): modos sencillo y personalizado, cifras editables, sliders,
+  gasto anual y proyección a varios años. Puede usar el precio de una estación si se llega desde
+  el mapa; los valores iniciales del simulador son ejemplos editables, no tarifas oficiales.
+- **Estadísticas**: mapa de diferencias provinciales, medias nacional y por provincia, mínimos,
+  máximos, coste de un depósito de referencia y ranking provincial.
+- **Histórico diario** desde el **19 de octubre de 2026**: observaciones conservadas por
+  FuelShift a partir de sus ingestas de precios actuales de MITECO.
+- **Histórico oficial con muestreo mensual** desde **enero de 2007**: fotografías de MITECO del
+  día 1 de cada mes, para España y los 52 ámbitos provinciales, con selección de combustible,
+  ámbito y periodo según la cobertura real.
+
+Ambos históricos muestran gasolina 95 E5, gasolina 98 E5 y gasóleo A. Las medias las calcula
+FuelShift a partir de los precios oficiales de estaciones; no son estadísticas publicadas por
+MITECO. Las dos series se presentan por separado y no se rellenan los huecos con datos inventados.
 
 ## Stack
 
 - Next.js 16 con App Router y exportación estática, React 19 y TypeScript estricto.
-- Tailwind CSS 4, MapLibre GL JS, Vitest, ESLint y Prettier para el frontend.
+- Tailwind CSS 4, MapLibre GL JS, fuentes locales y gráficos SVG propios, sin librería de gráficos.
+- Vitest, Playwright con Edge/Chrome/Chromium instalado, ESLint y Prettier para verificar el frontend.
 - Python 3.12, Pydantic, Pytest y Ruff para el pipeline de datos.
 - GitHub Actions con controles reproducibles y servicios gratuitos.
 
@@ -125,19 +147,53 @@ usa los colores ya validados para daltonismo y la leyenda rotula los extremos co
 
 ## Estadísticas
 
-La página `/estadisticas` se calcula durante `npm run build`: el servidor lee la copia validada
-de `public/data/miteco/` y el navegador recibe solo los agregados (unos 65 KB de HTML en lugar de
-los 4 MB de estaciones). Muestra, para Gasolina 95 E5, Gasolina 98 E5 y Gasóleo A, la media
+La página `/estadisticas` se calcula durante `npm run build`: el proceso de build lee la copia
+validada de `public/data/miteco/` y el navegador recibe los agregados, sin descargar el conjunto
+completo de estaciones. Muestra, para Gasolina 95 E5, Gasolina 98 E5 y Gasóleo A, la media
 nacional calculada con todas las estaciones válidas, el mínimo y el máximo reales, la media por
 provincia y su diferencia con la media nacional. Las provincias con menos de 10 estaciones se
 marcan como muestra reducida y las que no tienen datos se muestran sin valor. Son estadísticas
-calculadas por FuelShift, no publicadas por MITECO.
+calculadas por FuelShift, no publicadas por MITECO. El mapa provincial y el coste de un depósito
+de referencia de 50 litros ayudan a comparar esos mismos datos.
+
+### Dos históricos, dos fuentes temporales
+
+|              | Diario de FuelShift                                                                                  | Histórico oficial de MITECO con muestreo mensual                                                                        |
+| ------------ | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Fuente       | Ingestas de precios actuales y estadísticas calculadas en cada build.                                | Respuestas históricas oficiales de `EstacionesTerrestresHist/{FECHA}`; FuelShift calcula las medias.                    |
+| Inicio       | 19 de octubre de 2026; no reconstruye días anteriores.                                               | 1 de enero de 2007, primera fecha admitida por la API.                                                                  |
+| Frecuencia   | Como máximo una observación por día con dato conservado; no es una media de todas las horas del día. | Una fotografía del día 1 de cada mes a las 00:00 según la API; no es la media de todos los días del mes.                |
+| Cobertura    | España y provincias con datos; periodos de 7, 30 y 90 días, con aviso si están incompletos.          | España y los 52 ámbitos provinciales, incluidas Ceuta y Melilla; periodos disponibles según la serie elegida.           |
+| Persistencia | Registros diarios en la rama `data/historico` y copia publicada.                                     | Base estática, artefactos validados y recuperación de la última copia publicada.                                        |
+| Limitaciones | Puede haber días sin observación.                                                                    | Puede haber meses sin precio para un combustible o ámbito; los cambios de estaciones afectan a la comparación temporal. |
+
+Las medias nacionales se calculan sobre estaciones con precio válido, no sobre medias
+provinciales. Los gráficos muestran las fechas y los recuentos de cada serie y mantienen sus
+huecos explícitos; no mezclan el diario reciente con el mensual desde 2007.
+
+### Histórico diario
 
 El build también publica la instantánea en `/data/estadisticas.json`, que
 `scripts/price-history.mjs` convierte en un registro diario del histórico. El guardado automático
 en la rama de datos `data/historico` está activo y conserva observaciones reales desde el 19 de
 octubre de 2026. La página descarga el histórico publicado en `/data/historico/`; si no hubiera
 ninguno, muestra «Todavía no hay histórico». Véase [docs/price-history.md](docs/price-history.md).
+
+### Histórico oficial con muestreo mensual desde 2007
+
+La base implementada contiene **239 fotografías mensuales, de enero de 2007 a noviembre de
+2026**, y 159 series: España y 52 ámbitos provinciales para los tres combustibles. Ese intervalo
+no cubre todavía 20 años completos. La cobertura concreta se muestra por serie: por ejemplo,
+hay meses sin gasolina 98 E5 en Melilla y no se representan como precio cero.
+
+La web carga `/data/historico-miteco/manifest.json` y solo el JSON del ámbito y combustible
+seleccionados. Conserva la fuente, las fechas solicitada y devuelta, la recuperación, las
+exclusiones y la procedencia de cada muestra. La actualización incremental está programada para
+el día 3 de cada mes y requiere `MITECO_MONTHLY_ENABLED=true`; recupera los meses pendientes con
+un máximo de tres descargas por ejecución. Si falla, conserva el último conjunto válido.
+
+La metodología, los contratos, los huecos de cobertura y los comandos de reproducción están en
+[`docs/miteco-monthly-history.md`](docs/miteco-monthly-history.md).
 
 ## Desarrollo y comprobaciones
 
@@ -153,7 +209,7 @@ npm test
 npm run test:coverage
 npm run build
 
-# Prueba manual en navegador (requiere la web en ejecución y Edge, Chrome o Chromium local;
+# Prueba E2E automatizada con Playwright (requiere la web en ejecución y Edge, Chrome o Chromium local;
 # FUELSHIFT_URL cambia la dirección, por defecto http://localhost:3000)
 npm run test:browser
 
@@ -163,7 +219,7 @@ npm run test:browser
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-`npm run build` genera la exportación estática en `out/`. Ambos directorios generados están
+`npm run build` genera la exportación estática en `out/`; tanto `out/` como `.next/` están
 ignorados por Git. El workflow manual `Verificación manual MITECO` permite comprobar la descarga
 real y conservar el resultado durante un día como artefacto; no programa ingestas ni publica
 datos persistentes.
@@ -171,11 +227,10 @@ datos persistentes.
 `npm run test:coverage` mide `src/lib`, `src/domain` y `src/data`; los scripts de `scripts/` se
 prueban ejecutándolos como procesos y quedan fuera de esa medición.
 
-En Windows, Next.js 16.4 escribe las precargas de rutas anidadas como
-`out/comparador/__next.comparador/__PAGE__.txt` en lugar de `__next.comparador.__PAGE__.txt`,
-porque solo sustituye `/` y no `\`. Al servir ese `out/` local, el navegador registra un 404 de
-precarga y la navegación sigue funcionando. Los builds de CI y de Cloudflare Pages se generan en
-Linux y no tienen este problema.
+En Windows, Next.js 16.4 escribe ciertos fragmentos de rutas anidadas como
+`out/comparador/__next.comparador/__PAGE__.txt` en lugar de `__next.comparador.__PAGE__.txt`.
+La navegación actual usa enlaces HTML entre las tres páginas y no depende de precargar esos
+fragmentos RSC. Los builds de CI y de Cloudflare Pages se generan en Linux.
 
 ## Estructura
 
@@ -195,6 +250,8 @@ pipeline/
     generation.py       JSON determinista y publicación transaccional
     pipeline.py         Orquestación de la ingesta
     cli.py              Interfaz de línea de comandos
+    monthly_history.py  Recuperación y agregación del histórico oficial mensual
+    monthly_delivery.py Validación, recuperación y entrega de las series mensuales
   tests/                Pruebas aisladas de la red
 contracts/              JSON Schema de los datos publicados y ejemplos
 scripts/                Preparación de datos, histórico, vigilancia y pruebas de navegador
@@ -208,9 +265,10 @@ cualquier capa puede usar `lib`. ESLint lo comprueba con `no-restricted-imports`
 ([`eslint.config.mjs`](eslint.config.mjs)); las pruebas quedan exentas.
 
 El despliegue estático en Cloudflare Pages Free comprueba MITECO cada cuatro horas y también puede
-ejecutarse manualmente. GitHub retrasa a menudo las ejecuciones programadas: en la práctica los
-datos se renuevan cada 6 h de mediana y nunca han pasado más de 12 h sin actualizarse. Solo publica cuando cambia el contenido normalizado de las estaciones; una
-ejecución manual puede forzar la publicación de cambios de código sin omitir ninguna validación.
+ejecutarse manualmente. Las ejecuciones programadas pueden retrasarse; la web muestra la fecha
+de descarga y avisa si los datos son antiguos. Publica cuando cambia el contenido normalizado
+de las estaciones o hay cambios que entregar en los históricos; una ejecución manual puede
+forzar la publicación de cambios de código sin omitir ninguna validación.
 Una comprobación programada sin cambios no ejecuta el build ni Wrangler. La configuración, los
 secretos, la protección del manifiesto anterior, la recuperación y los límites están documentados en
 [`docs/deployment-cloudflare.md`](docs/deployment-cloudflare.md).
@@ -225,12 +283,11 @@ umbrales, el diagnóstico y la recuperación están en [`docs/monitoring.md`](do
 
 ## Seguridad y versiones
 
-La v1.1.0 en preparación añade a `/estadisticas` el histórico mensual oficial de
-MITECO desde enero de 2007: España y los 52 ámbitos provinciales, gasolina 95 E5,
-98 E5 y gasóleo A. Son fotografías reales del día 1 de cada mes; no se mezclan con
-el histórico diario iniciado en octubre de 2026. La fuente, fecha, cobertura,
-metodología, reproducibilidad y límites de automatización están en
-[`docs/miteco-monthly-history.md`](docs/miteco-monthly-history.md).
+El rediseño y el histórico mensual desde 2007 ya están implementados en `main` y visibles en la
+web comprobada el 16 de noviembre de 2026. Esto no cambia por sí solo el número de una versión:
+`package.json` sigue en `1.0.0` y el `CHANGELOG.md` recoge el histórico mensual en «Sin publicar»,
+como parte de la v1.1.0 en preparación. Las versiones etiquetadas y las fechas de los datos son
+independientes.
 
 La web no usa credenciales en el navegador ni servicios de pago. Las cabeceras de seguridad
 (CSP, `X-Frame-Options`, `Permissions-Policy` y otras) se publican desde `public/_headers`; su
