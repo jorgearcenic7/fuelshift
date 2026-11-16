@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { PriceUnitLabel } from "@/components/price-unit";
+import { ChipRadios, Segmented } from "@/components/segmented";
 import {
   fetchMonthlyManifest,
   fetchMonthlyHistory,
@@ -48,12 +49,8 @@ const PERIOD_NAMES: Record<string, string> = {
   20: "20 años",
   all: "Todo",
 };
-const BOX = { height: 240, left: 46, right: 12, top: 14, bottom: 28 };
+const BOX = { height: 320, left: 52, right: 12, top: 14, bottom: 28 };
 const LINE = "#1f62b0";
-// Mismo estilo de botones segmentados que el histórico diario.
-const segment =
-  "text-muted hover:text-ink has-checked:text-accent-strong flex min-h-8 items-center justify-center rounded-lg px-3 text-xs font-medium has-checked:bg-white has-checked:font-semibold has-checked:shadow-[0_1px_3px_rgb(15_29_46/12%)] has-focus-visible:outline-3 has-focus-visible:outline-offset-1 has-focus-visible:outline-[#f4a261]";
-
 type Load =
   | { status: "loading" }
   | { status: "ready"; value: MonthlyManifest }
@@ -78,14 +75,14 @@ export function MonthlyHistoryPanel() {
     };
   }, []);
   return (
-    <section
-      aria-labelledby="monthly-history-title"
-      className="border-line bg-surface min-w-0 rounded-2xl border p-5 shadow-sm sm:p-6"
-    >
-      <h2 id="monthly-history-title" className="text-ink text-lg font-semibold">
+    <section aria-labelledby="monthly-history-title" className="min-w-0">
+      <h2
+        id="monthly-history-title"
+        className="text-ink text-[1.5rem] leading-tight font-extrabold tracking-[-0.025em] md:text-[1.875rem]"
+      >
         Evolución histórica de los carburantes
       </h2>
-      <p className="text-muted mt-1 text-sm leading-6">
+      <p className="text-muted mt-2 max-w-[70ch] text-[0.9375rem] leading-6">
         Datos oficiales de MITECO desde 2007; medias calculadas por FuelShift.
         Una observación del día 1 de cada mes, independiente del histórico
         diario.
@@ -95,7 +92,7 @@ export function MonthlyHistoryPanel() {
       ) : (
         <p
           role={state.status === "error" ? "alert" : "status"}
-          className="bg-canvas text-muted mt-3 rounded-xl p-4 text-sm leading-6"
+          className="text-muted mt-3 text-[0.9375rem] leading-6"
         >
           {state.status === "loading"
             ? "Cargando el histórico mensual…"
@@ -144,6 +141,9 @@ function MonthlyHistoryContent({ manifest }: { manifest: MonthlyManifest }) {
     ? availablePeriods(history.points[0].date, history.points.at(-1)!.date)
     : ["all"];
   const selected = available.includes(period) ? period : "all";
+  const unavailable = MONTHLY_PERIODS.filter(
+    (value) => !available.includes(value),
+  );
   const summary = history
     ? selectMonthlyPeriod(history.points, selected, history.lastDate)
     : null;
@@ -154,15 +154,17 @@ function MonthlyHistoryContent({ manifest }: { manifest: MonthlyManifest }) {
   const name = manifest.scopes.find((item) => item.id === scope)!.name;
   return (
     <>
-      <div className="mt-4 flex flex-wrap items-end gap-3">
-        <label
-          className="text-muted grid gap-1.5 text-xs font-medium"
-          htmlFor="monthly-scope"
-        >
-          Ámbito
+      <div className="mt-5 flex flex-wrap items-end gap-x-5 gap-y-3">
+        <div className="w-full sm:w-60">
+          <label
+            className="text-muted mb-1.5 block text-[0.75rem] font-bold"
+            htmlFor="monthly-scope"
+          >
+            Ámbito
+          </label>
           <select
             id="monthly-scope"
-            className="border-line text-ink bg-canvas min-h-10 max-w-full rounded-lg border px-3 text-sm"
+            className="control"
             value={scope}
             onChange={(event) => setScope(event.target.value)}
           >
@@ -172,69 +174,56 @@ function MonthlyHistoryContent({ manifest }: { manifest: MonthlyManifest }) {
               </option>
             ))}
           </select>
-        </label>
-        <fieldset>
-          <legend className="text-muted mb-1.5 text-xs font-medium">
-            Combustible
-          </legend>
-          <div className="bg-canvas ring-line inline-grid grid-cols-3 gap-1 rounded-xl p-1 ring-1">
-            {MONTHLY_FUELS.map((code) => (
-              <label key={code} className={segment}>
-                <input
-                  type="radio"
-                  className="sr-only"
-                  name="monthly-fuel"
-                  checked={fuel === code}
-                  onChange={() => setFuel(code)}
-                  value={code}
-                />
-                {FUEL_NAMES[code]}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-        <fieldset>
-          <legend className="text-muted mb-1.5 text-xs font-medium">
-            Periodo
-          </legend>
-          <div className="bg-canvas ring-line inline-grid grid-cols-3 gap-1 rounded-xl p-1 ring-1 sm:grid-cols-6">
-            {MONTHLY_PERIODS.map((value) => (
-              <label
-                key={value}
-                className={`${segment} ${available.includes(value) ? "" : "opacity-40"}`}
-                title={
-                  available.includes(value)
-                    ? undefined
-                    : "Sin cobertura suficiente para este periodo"
-                }
-              >
-                <input
-                  type="radio"
-                  name="monthly-period"
-                  className="sr-only"
-                  value={value}
-                  checked={selected === value}
-                  disabled={!available.includes(value)}
-                  onChange={() => setPeriod(value)}
-                />
-                {PERIOD_NAMES[value]}
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        </div>
+        <div className="w-full sm:w-[19rem]">
+          <Segmented
+            name="monthly-fuel"
+            legend="Combustible"
+            legendClassName="text-muted mb-1.5 block text-[0.75rem] font-bold"
+            options={MONTHLY_FUELS.map(
+              (code) => [code, FUEL_NAMES[code]] as const,
+            )}
+            value={fuel}
+            onChange={setFuel}
+            className="seg-sm"
+          />
+        </div>
+        <ChipRadios
+          name="monthly-period"
+          legend="Periodo"
+          options={MONTHLY_PERIODS.map(
+            (value) => [String(value), PERIOD_NAMES[value]] as const,
+          )}
+          value={String(selected)}
+          onChange={(value) =>
+            setPeriod(
+              (value === "all" ? "all" : Number(value)) as MonthlyPeriod,
+            )
+          }
+          disabled={MONTHLY_PERIODS.filter(
+            (value) => !available.includes(value),
+          ).map(String)}
+          disabledTitle="Sin cobertura suficiente para este periodo"
+        />
       </div>
+      {unavailable.length > 0 ? (
+        <p className="text-muted mt-2 text-[0.8125rem]">
+          Sin cobertura suficiente para este periodo:{" "}
+          {unavailable.map((value) => PERIOD_NAMES[value]).join(", ")}.
+        </p>
+      ) : null}
       {history === undefined ? (
-        <p role="status" className="text-muted mt-4 text-sm">
+        <p role="status" className="text-muted mt-4 text-[0.9375rem]">
           Cargando la serie seleccionada…
         </p>
       ) : history === null ? (
-        <p role="alert" className="mt-4 text-sm">
+        <p role="alert" className="mt-4 text-[0.9375rem]">
           No se ha podido validar esta serie. Selecciona otro ámbito o
           combustible.
         </p>
       ) : summary ? (
         <>
-          <dl className="mt-4 grid grid-cols-1 gap-2 min-[380px]:grid-cols-3 sm:gap-3">
+          <dl className="mt-6 grid max-w-[40rem] grid-cols-1 gap-y-4 min-[375px]:grid-cols-3">
             <Figure
               label="Precio inicial"
               value={formatPrice(summary.first.price)}
@@ -258,29 +247,29 @@ function MonthlyHistoryContent({ manifest }: { manifest: MonthlyManifest }) {
             points={summary.points}
             label={`Precio medio de ${FUEL_NAMES[fuel]} en ${name}: instantáneas del día 1 de cada mes`}
           />
-          <p className="text-muted mt-2 text-xs leading-5" role="status">
+          <p
+            className="num text-muted mt-3 text-[0.8125rem] leading-5"
+            role="status"
+          >
             {summary.points.length} observaciones · {missing.length} meses sin
             precio. Muestra inicial:{" "}
             {summary.first.count.toLocaleString("es-ES")} estaciones; final:{" "}
             {summary.last.count.toLocaleString("es-ES")}.
           </p>
           {missing.length ? (
-            <details className="text-muted mt-2 text-xs">
-              <summary className="cursor-pointer">Meses sin datos</summary>
+            <details className="text-muted mt-2 text-[0.8125rem]">
+              <summary className="link-action">Meses sin datos</summary>
               <p className="mt-1">{missing.map(formatMonthYear).join(", ")}</p>
             </details>
           ) : null}
         </>
       ) : (
-        <p
-          role="status"
-          className="bg-canvas text-muted mt-4 rounded-xl p-4 text-sm"
-        >
+        <p role="status" className="text-muted mt-4 text-[0.9375rem]">
           No hay al menos dos observaciones para mostrar una evolución en este
           periodo.
         </p>
       )}
-      <p className="text-muted mt-4 text-xs leading-5">
+      <p className="text-muted mt-6 max-w-[80ch] text-[0.8125rem] leading-5">
         Fuente:{" "}
         <a
           href={MITECO_HISTORY_SOURCE}
@@ -294,10 +283,8 @@ function MonthlyHistoryContent({ manifest }: { manifest: MonthlyManifest }) {
         {formatRetrievedAt(manifest.retrievedAt)}. Frecuencia mensual, día 1 a
         las 00:00 según la fuente.
       </p>
-      <details className="text-muted mt-2 text-xs leading-5">
-        <summary className="cursor-pointer font-medium">
-          Metodología y cobertura
-        </summary>
+      <details className="text-muted mt-2 max-w-[80ch] text-[0.8125rem] leading-5">
+        <summary className="link-action">Metodología y cobertura</summary>
         <p className="mt-2">
           Media aritmética de los precios comunicados por estaciones con venta
           al público (Tipo Venta P), en €/L, con impuestos según el territorio.
@@ -319,7 +306,7 @@ function MonthlyHistoryContent({ manifest }: { manifest: MonthlyManifest }) {
         </p>
         <a
           href={`/data/historico-miteco/sets/${manifest.generation}/provenance.json`}
-          className="text-accent-strong underline underline-offset-2"
+          className="text-accent-strong inline-flex min-h-11 items-center underline underline-offset-2"
         >
           Procedencia y cobertura por muestra (JSON)
         </a>
@@ -340,9 +327,9 @@ function Figure({
   unit?: boolean;
 }) {
   return (
-    <div className="bg-canvas rounded-xl p-3">
-      <dt className="text-muted text-xs font-medium">{label}</dt>
-      <dd className="text-ink mt-1 text-lg font-semibold tabular-nums sm:text-xl">
+    <div className="min-w-0 first:pl-0 min-[375px]:px-3 sm:px-5 min-[375px]:[&+&]:shadow-[inset_1px_0_0_var(--line-soft)]">
+      <dt className="text-muted text-[0.8125rem] font-bold">{label}</dt>
+      <dd className="text-ink mt-1 text-[1.1875rem] font-extrabold tracking-[-0.02em] tabular-nums sm:text-[1.625rem]">
         {value}
         {unit ? (
           <PriceUnitLabel
@@ -351,7 +338,7 @@ function Figure({
           />
         ) : null}
       </dd>
-      <dd className="text-muted mt-0.5 text-xs leading-4">{detail}</dd>
+      <dd className="text-muted mt-0.5 text-[0.75rem] leading-4">{detail}</dd>
     </div>
   );
 }
@@ -416,7 +403,7 @@ function MonthlyChart({
       </p>
       <div
         ref={containerRef}
-        className="relative rounded-lg focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#f4a261]"
+        className="relative rounded-lg"
         tabIndex={0}
         role="group"
         aria-label={`${label}. Usa las flechas para recorrer las muestras; Mayúsculas + flecha avanza doce observaciones.`}
@@ -436,20 +423,26 @@ function MonthlyChart({
             if (event.pointerType !== "touch") setActive(null);
           }}
         >
-          {[...new Set([chart.maxPrice, chart.minPrice])].map((value) => (
+          {[
+            ...new Set([
+              chart.maxPrice,
+              (chart.maxPrice + chart.minPrice) / 2,
+              chart.minPrice,
+            ]),
+          ].map((value) => (
             <g key={value}>
               <line
                 x1={BOX.left}
                 x2={width - BOX.right}
                 y1={chart.y(value)}
                 y2={chart.y(value)}
-                stroke="#e3e9f0"
+                stroke="#e4e9ef"
               />
               <text
                 x={BOX.left - 8}
                 y={chart.y(value) + 4}
                 textAnchor="end"
-                className="fill-[#5a6b7e] text-xs tabular-nums"
+                className="fill-[#55687d] text-xs tabular-nums"
               >
                 {formatPrice(value)}
               </text>
@@ -500,7 +493,7 @@ function MonthlyChart({
               x={chart.x(item.date)}
               y={BOX.height - 8}
               textAnchor={index === 0 ? "start" : "end"}
-              className="fill-[#5a6b7e] text-xs"
+              className="fill-[#55687d] text-xs"
             >
               {formatMonthYear(item.date)}
             </text>
@@ -509,16 +502,16 @@ function MonthlyChart({
         {point ? (
           <div
             aria-hidden="true"
-            className="border-line bg-surface pointer-events-none absolute top-1 -translate-x-1/2 rounded-lg border px-2.5 py-1.5 text-xs whitespace-nowrap shadow-md"
+            className="bg-ink pointer-events-none absolute top-1 -translate-x-1/2 rounded-[0.625rem] px-3 pt-2 pb-1.5 text-[0.8125rem] whitespace-nowrap text-white shadow-[0_10px_24px_-10px_rgb(15_29_46/60%)]"
             style={{ left: tooltipLeft }}
           >
-            <span className="text-muted block">
+            <span className="block text-[#b7c3d0]">
               Muestra del {formatLongDate(point.date)}
             </span>
-            <span className="text-ink font-semibold tabular-nums">
+            <span className="text-[1.0625rem] font-extrabold tabular-nums">
               {formatPrice(point.price)} €/L
             </span>
-            <span className="text-muted block">
+            <span className="block text-[#b7c3d0]">
               {point.count.toLocaleString("es-ES")} estaciones
             </span>
           </div>
@@ -530,7 +523,7 @@ function MonthlyChart({
           ? `Muestra del ${formatLongDate(point.date)}: ${formatPrice(point.price)} euros por litro.`
           : ""}
       </p>
-      <figcaption className="text-muted mt-2 text-xs leading-5">
+      <figcaption className="text-muted mt-2 text-[0.8125rem] leading-5">
         {label}
       </figcaption>
     </figure>

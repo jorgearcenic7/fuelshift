@@ -11,5 +11,7 @@
 # Datos y archivos técnicos: accesibles para la web, pero no como resultados de búsqueda.
 /data/*
   X-Robots-Tag: noindex
+/geo/*
+  X-Robots-Tag: noindex
 /_next/*
   X-Robots-Tag: noindex

@@ -5,7 +5,7 @@ import { SkipLink } from "@/components/layout/skip-link";
 
 export default function Home() {
   return (
-    <div className="min-h-screen">
+    <div>
       <SkipLink />
 
       <SiteHeader />

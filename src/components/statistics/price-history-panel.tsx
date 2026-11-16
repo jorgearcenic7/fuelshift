@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
+import { ChipRadios } from "@/components/segmented";
 import {
   fetchNationalHistory,
   fetchProvinceHistory,
@@ -33,9 +34,9 @@ import {
 // El ancho se mide en el navegador: el SVG se dibuja a escala 1:1 para que
 // el texto mantenga su tamaño real en móvil y escritorio.
 const CHART = {
-  defaultWidth: 440,
-  height: 200,
-  left: 46,
+  defaultWidth: 640,
+  height: 320,
+  left: 52,
   right: 10,
   top: 12,
   bottom: 26,
@@ -52,6 +53,9 @@ function HistoryChart({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(CHART.defaultWidth);
+  // Día leído con el ratón, el dedo o las flechas. Sin selección se lee el
+  // último día con dato.
+  const [active, setActive] = useState<number | null>(null);
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -63,6 +67,9 @@ function HistoryChart({
   }, []);
 
   const observed = series.points.filter((point) => point.mean !== null);
+  const observedIndexes = series.points.flatMap((point, index) =>
+    point.mean === null ? [] : [index],
+  );
   const values = observed.map((point) => point.mean!);
   let low = Math.min(...values);
   let high = Math.max(...values);
@@ -84,7 +91,7 @@ function HistoryChart({
   const ticks =
     y(low + padding) - y(high - padding) < 18
       ? [high - padding]
-      : [high - padding, low + padding];
+      : [high - padding, (high + low) / 2, low + padding];
 
   // Tramos de días consecutivos con observación: los huecos no se unen.
   const segments: string[] = [];
@@ -101,77 +108,165 @@ function HistoryChart({
   });
   if (current.length > 1) segments.push(current.join(" "));
 
+  const shownIndex = active ?? observedIndexes.at(-1)!;
+  const shown = series.points[shownIndex];
+
+  function nearestObserved(clientX: number, rect: DOMRect): number {
+    const target = clientX - rect.left;
+    return observedIndexes.reduce((best, index) =>
+      Math.abs(x(index) - target) < Math.abs(x(best) - target) ? index : best,
+    );
+  }
+
+  // Flechas, Inicio y Fin recorren los días con dato sin ratón.
+  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    const position = observedIndexes.indexOf(shownIndex);
+    const next = {
+      ArrowLeft: Math.max(0, position - 1),
+      ArrowRight: Math.min(observedIndexes.length - 1, position + 1),
+      Home: 0,
+      End: observedIndexes.length - 1,
+    }[event.key];
+    if (next === undefined) return;
+    event.preventDefault();
+    setActive(observedIndexes[next]);
+  }
+
   return (
-    <figure className="mt-4" ref={containerRef}>
+    <figure className="mt-5">
+      <p
+        aria-hidden="true"
+        className="num mb-3 flex flex-wrap items-baseline gap-x-3"
+      >
+        <span className="text-ink text-[2rem] leading-none font-extrabold tracking-[-0.035em]">
+          {formatPrice(shown.mean!)} {unit}
+        </span>
+        <span className="text-muted text-[0.875rem]">
+          {formatLongDate(shown.date)} · {formatCount(shown.count!)} estaciones
+        </span>
+      </p>
       <p aria-hidden="true" className="text-muted mb-1 text-xs">
         {unit}
       </p>
-      <svg
-        width={width}
-        height={CHART.height}
-        viewBox={`0 0 ${width} ${CHART.height}`}
-        className="block max-w-full"
-        role="img"
-        aria-label={`${label}: ${observed.length} observaciones entre ${formatLongDate(series.startDate!)} y ${formatLongDate(series.endDate!)}. Los datos están en la tabla siguiente.`}
+      <div
+        ref={containerRef}
+        className="relative rounded-lg"
+        tabIndex={0}
+        role="group"
+        aria-label={`${label}. Usa las flechas para recorrer los días con dato.`}
+        onKeyDown={onKeyDown}
+        onBlur={() => setActive(null)}
       >
-        {ticks.map((value) => (
-          <g key={value}>
-            <line
-              x1={CHART.left}
-              x2={width - CHART.right}
-              y1={y(value)}
-              y2={y(value)}
-              stroke="#e3e9f0"
+        <svg
+          width={width}
+          height={CHART.height}
+          viewBox={`0 0 ${width} ${CHART.height}`}
+          className="block max-w-full touch-pan-y"
+          role="img"
+          aria-label={`${label}: ${observed.length} observaciones entre ${formatLongDate(series.startDate!)} y ${formatLongDate(series.endDate!)}. Los datos están en la tabla siguiente.`}
+          onPointerMove={(event) =>
+            setActive(
+              nearestObserved(
+                event.clientX,
+                event.currentTarget.getBoundingClientRect(),
+              ),
+            )
+          }
+          onPointerDown={(event) =>
+            setActive(
+              nearestObserved(
+                event.clientX,
+                event.currentTarget.getBoundingClientRect(),
+              ),
+            )
+          }
+          onPointerLeave={(event) => {
+            if (event.pointerType !== "touch") setActive(null);
+          }}
+        >
+          {ticks.map((value) => (
+            <g key={value}>
+              <line
+                x1={CHART.left}
+                x2={width - CHART.right}
+                y1={y(value)}
+                y2={y(value)}
+                stroke="#e4e9ef"
+              />
+              <text
+                x={CHART.left - 8}
+                y={y(value) + 4}
+                textAnchor="end"
+                className="fill-[#55687d] text-xs tabular-nums"
+              >
+                {formatPrice(value)}
+              </text>
+            </g>
+          ))}
+          {segments.map((path) => (
+            <path
+              key={path}
+              d={path}
+              fill="none"
+              stroke="#1f62b0"
+              strokeWidth={2.25}
+              strokeLinejoin="round"
             />
+          ))}
+          {series.points.map((point, index) =>
+            point.mean === null ? null : (
+              <circle
+                key={point.date}
+                cx={x(index)}
+                cy={y(point.mean)}
+                r={2.5}
+                fill="#1f62b0"
+              >
+                <title>
+                  {`${formatShortDate(point.date)}: ${formatPrice(point.mean)} ${unit}`}
+                </title>
+              </circle>
+            ),
+          )}
+          {active !== null && shown.mean !== null ? (
+            <g aria-hidden="true">
+              <line
+                x1={x(shownIndex)}
+                x2={x(shownIndex)}
+                y1={CHART.top}
+                y2={CHART.height - CHART.bottom}
+                stroke="#0f1d2e"
+                strokeOpacity={0.25}
+              />
+              <circle
+                cx={x(shownIndex)}
+                cy={y(shown.mean)}
+                r={5.5}
+                fill="#1f62b0"
+                stroke="#ffffff"
+                strokeWidth={2.5}
+              />
+            </g>
+          ) : null}
+          {[0, series.points.length - 1].map((index) => (
             <text
-              x={CHART.left - 8}
-              y={y(value) + 4}
-              textAnchor="end"
-              className="fill-[#5a6b7e] text-xs tabular-nums"
+              key={index}
+              x={x(index)}
+              y={CHART.height - 8}
+              textAnchor={index === 0 ? "start" : "end"}
+              className="fill-[#55687d] text-xs"
             >
-              {formatPrice(value)}
+              {formatShortDate(series.points[index].date)}
             </text>
-          </g>
-        ))}
-        {segments.map((path) => (
-          <path
-            key={path}
-            d={path}
-            fill="none"
-            stroke="#1f62b0"
-            strokeWidth={2}
-            strokeLinejoin="round"
-          />
-        ))}
-        {series.points.map((point, index) =>
-          point.mean === null ? null : (
-            <circle
-              key={point.date}
-              cx={x(index)}
-              cy={y(point.mean)}
-              r={4}
-              fill="#1f62b0"
-              stroke="#ffffff"
-              strokeWidth={2}
-            >
-              <title>
-                {`${formatShortDate(point.date)}: ${formatPrice(point.mean)} ${unit}`}
-              </title>
-            </circle>
-          ),
-        )}
-        {[0, series.points.length - 1].map((index) => (
-          <text
-            key={index}
-            x={x(index)}
-            y={CHART.height - 8}
-            textAnchor={index === 0 ? "start" : "end"}
-            className="fill-[#5a6b7e] text-xs"
-          >
-            {formatShortDate(series.points[index].date)}
-          </text>
-        ))}
-      </svg>
+          ))}
+        </svg>
+      </div>
+      {/* Anuncia el día elegido con el teclado a los lectores de pantalla. */}
+      <p className="sr-only" aria-live="polite">
+        {active !== null
+          ? `${formatLongDate(shown.date)}: ${formatPrice(shown.mean!)} ${PRICE_UNIT_NAMES[unit]}, ${formatCount(shown.count!)} estaciones.`
+          : ""}
+      </p>
       <figcaption className="sr-only">{label}</figcaption>
       {/* Una tabla ignora el ancho de sr-only: se oculta su contenedor. */}
       <div className="sr-only">
@@ -238,24 +333,21 @@ export function PriceHistoryPanel({
   }, []);
 
   return (
-    <section
-      aria-labelledby="history-title"
-      className="border-line bg-surface rounded-2xl border p-5 shadow-sm sm:p-6"
-    >
-      <h2 id="history-title" className="text-ink text-lg font-semibold">
+    <section aria-labelledby="history-title">
+      <h2
+        id="history-title"
+        className="text-ink text-[1.5rem] leading-tight font-extrabold tracking-[-0.025em] md:text-[1.875rem]"
+      >
         Evolución del precio medio
       </h2>
 
       {national.status === "loading" ? (
-        <p
-          className="bg-canvas text-muted mt-3 rounded-xl p-4 text-sm leading-6"
-          role="status"
-        >
+        <p className="text-muted mt-3 text-[0.9375rem] leading-6" role="status">
           Cargando el histórico…
         </p>
       ) : national.status === "error" ? (
         <p
-          className="mt-3 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-950"
+          className="mt-3 rounded-xl bg-amber-50 px-4 pt-3.5 pb-3 text-[0.9375rem] leading-6 text-amber-950"
           role="alert"
         >
           El histórico no se ha podido validar y no se muestra. Las estadísticas
@@ -263,7 +355,7 @@ export function PriceHistoryPanel({
         </p>
       ) : national.status === "missing" ||
         national.value.entries.length === 0 ? (
-        <div className="bg-canvas mt-3 rounded-xl p-4 text-sm leading-6">
+        <div className="mt-3 text-[0.9375rem] leading-6">
           <p className="text-ink font-medium">Todavía no hay histórico.</p>
           <p className="text-muted mt-1">
             FuelShift solo mostrará la evolución con observaciones reales, una
@@ -327,45 +419,31 @@ function HistoryContent({
 
   return (
     <>
-      <p className="text-muted mt-1 text-sm">
+      <p className="text-muted mt-2 text-[0.9375rem]">
         Observaciones diarias reales desde el{" "}
         {formatLongDate(series.collectingSince!)}.
       </p>
       {history.discarded > 0 ? (
-        <p className="text-muted mt-1 text-xs leading-5">
+        <p className="text-muted mt-1 text-[0.8125rem] leading-5">
           {history.discarded === 1
             ? "Un registro diario no superó la validación y no se muestra."
             : `${history.discarded} registros diarios no superaron la validación y no se muestran.`}
         </p>
       ) : null}
-      <div className="mt-4 flex flex-wrap items-end gap-3">
-        <fieldset>
-          <legend className="text-muted mb-1.5 text-xs font-medium">
-            Periodo
-          </legend>
-          <div className="bg-canvas ring-line inline-grid grid-cols-3 gap-1 rounded-xl p-1 ring-1">
-            {HISTORY_PERIODS.map((days) => (
-              <label
-                key={days}
-                className="text-muted hover:text-ink has-checked:text-accent-strong flex min-h-8 items-center justify-center rounded-lg px-3 text-xs font-medium has-checked:bg-white has-checked:font-semibold has-checked:shadow-[0_1px_3px_rgb(15_29_46/12%)] has-focus-visible:outline-3 has-focus-visible:outline-offset-1 has-focus-visible:outline-[#f4a261]"
-              >
-                <input
-                  type="radio"
-                  name="history-period"
-                  value={days}
-                  checked={period === days}
-                  onChange={() => setPeriod(days)}
-                  className="sr-only"
-                />
-                {days} días
-              </label>
-            ))}
-          </div>
-        </fieldset>
+      <div className="mt-5 flex flex-wrap items-end gap-x-5 gap-y-3">
+        <ChipRadios
+          name="history-period"
+          legend="Periodo"
+          options={HISTORY_PERIODS.map(
+            (days) => [String(days), `${days} días`] as const,
+          )}
+          value={String(period)}
+          onChange={(value) => setPeriod(Number(value) as HistoryPeriod)}
+        />
         <div className="min-w-48 flex-1 sm:max-w-64">
           <label
             htmlFor="history-province"
-            className="text-muted mb-1.5 block text-xs font-medium"
+            className="text-muted mb-1.5 block text-[0.75rem] font-bold"
           >
             Ámbito
           </label>
@@ -386,15 +464,12 @@ function HistoryContent({
       </div>
 
       {provinceLoad?.status === "loading" ? (
-        <p
-          className="bg-canvas text-muted mt-4 rounded-xl p-4 text-sm leading-6"
-          role="status"
-        >
+        <p className="text-muted mt-4 text-[0.9375rem] leading-6" role="status">
           Cargando el histórico de {scope}…
         </p>
       ) : provinceLoad?.status === "error" ? (
         <p
-          className="mt-4 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-950"
+          className="mt-4 rounded-xl bg-amber-50 px-4 pt-3.5 pb-3 text-[0.9375rem] leading-6 text-amber-950"
           role="alert"
         >
           El histórico de {scope} no se ha podido validar y no se muestra. El
@@ -404,7 +479,7 @@ function HistoryContent({
         <>
           <HistoryChart series={series} label={label} unit={priceUnit(fuel)} />
           {!series.complete ? (
-            <p className="text-muted mt-2 text-xs leading-5">
+            <p className="text-muted mt-3 text-[0.8125rem] leading-5">
               Periodo incompleto: {series.observedDays} de {series.periodDays}{" "}
               días con observación
               {series.startsAfterPeriod
@@ -415,10 +490,7 @@ function HistoryContent({
           ) : null}
         </>
       ) : (
-        <p
-          className="bg-canvas text-muted mt-4 rounded-xl p-4 text-sm leading-6"
-          role="status"
-        >
+        <p className="text-muted mt-4 text-[0.9375rem] leading-6" role="status">
           {series.observedDays === 0
             ? `No hay observaciones de ${FUEL_LABELS[fuel]} en ${scope} en los últimos ${period} días registrados.`
             : `Solo hay ${series.observedDays} observación en los últimos ${period} días. La evolución se mostrará con al menos ${MIN_CHART_OBSERVATIONS}.`}

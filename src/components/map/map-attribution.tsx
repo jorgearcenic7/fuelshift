@@ -7,12 +7,12 @@ export function MapAttribution({
   manifest: MitecoManifest | null;
 }) {
   return (
-    <footer className="border-line bg-surface text-muted space-y-1 px-4 py-4 text-[0.6875rem] leading-5 sm:px-[max(1.5rem,calc((100%-48rem)/2))] xl:col-start-1 xl:row-start-2 xl:border-t xl:border-r xl:px-5 xl:py-3">
+    <footer className="text-muted space-y-1 px-5 pt-4 pb-6 text-[0.75rem] leading-[1.15rem] shadow-[inset_0_1px_0_var(--line-soft)]">
       <p>
         Datos:{" "}
         {manifest ? (
           <a
-            className="hover:text-ink font-medium underline underline-offset-2"
+            className="hover-fine:text-ink text-ink-2 font-semibold underline decoration-[rgb(15_29_46/30%)] underline-offset-[3px]"
             href={manifest.source.catalog}
             target="_blank"
             rel="noreferrer"
@@ -24,7 +24,7 @@ export function MapAttribution({
         )}
         {" · "}
         <a
-          className="hover:text-ink font-medium underline underline-offset-2"
+          className="hover-fine:text-ink text-ink-2 font-semibold underline decoration-[rgb(15_29_46/30%)] underline-offset-[3px]"
           href={
             manifest?.source.license.url ??
             "https://creativecommons.org/licenses/by/4.0/"
@@ -39,7 +39,7 @@ export function MapAttribution({
       <p>
         Cartografía:{" "}
         <a
-          className="hover:text-ink font-medium underline underline-offset-2"
+          className="hover-fine:text-ink text-ink-2 font-semibold underline decoration-[rgb(15_29_46/30%)] underline-offset-[3px]"
           href="https://openfreemap.org/"
           target="_blank"
           rel="noreferrer"
@@ -48,7 +48,7 @@ export function MapAttribution({
         </a>{" "}
         · OpenMapTiles ·{" "}
         <a
-          className="hover:text-ink font-medium underline underline-offset-2"
+          className="hover-fine:text-ink text-ink-2 font-semibold underline decoration-[rgb(15_29_46/30%)] underline-offset-[3px]"
           href="https://www.openstreetmap.org/copyright"
           target="_blank"
           rel="noreferrer"

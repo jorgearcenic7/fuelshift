@@ -13,7 +13,12 @@ import {
   setWorkerUrl,
 } from "maplibre-gl";
 
-import { HEATMAP_REGIONS, type PriceHeatmap } from "@/domain/price-heatmap";
+import { priceUnit } from "@/domain/fuel-units";
+import {
+  HEATMAP_REGIONS,
+  type PriceHeatmap,
+  type PriceScale,
+} from "@/domain/price-heatmap";
 import {
   getStationPrice,
   type Coordinates,
@@ -21,20 +26,24 @@ import {
   type MapBounds,
   type StationResult,
 } from "@/domain/stations";
+import { formatCount, formatPrice } from "@/lib/format";
 
+import { BASE_STYLE_URL, customizeBaseStyle } from "./map-style";
 import {
   EMPTY_IMAGE,
   heatmapDataUrl,
   imageCoordinates,
   layerVisibility,
+  pointColorExpression,
   type MapView,
 } from "./price-heatmap-layer";
 
-const MAP_STYLE = "https://tiles.openfreemap.org/styles/positron";
 const CLUSTER_MAX_ZOOM = 14;
 // Por encima del último nivel agrupado, para que la estación elegida se vea
 // como punto propio y no dentro de un clúster.
 const SELECTED_ZOOM = CLUSTER_MAX_ZOOM + 1;
+/** Vuelo hacia la estación elegida: corto, para no hacer esperar. */
+const FLY_DURATION_MS = 450;
 // Con el zoom fijo, un mapa estrecho (móvil) solo muestra el centro de la
 // península. Por debajo de este ancho se encuadra entera al cargar; por
 // encima se conserva la vista inicial de siempre.
@@ -43,6 +52,8 @@ const PENINSULA_BOUNDS: [[number, number], [number, number]] = [
   [-9.6, 35.9],
   [3.4, 43.9],
 ];
+const NAVY = "#14406f";
+const BRAND = "#1f62b0";
 setWorkerUrl(
   new URL(
     "maplibre-gl/dist/maplibre-gl-worker.mjs",
@@ -77,6 +88,10 @@ function applyLayerVisibility(map: MapLibreMap, view: MapView) {
   }
 }
 
+function prefersReducedMotion(): boolean {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 function toGeoJson(
   stations: readonly StationResult[],
   fuel: FuelCode,
@@ -104,8 +119,12 @@ interface StationMapProps {
   stations: readonly StationResult[];
   fuel: FuelCode;
   selectedId: string | null;
+  /** Estación resaltada desde la lista (o `null`). */
+  hoveredId?: string | null;
   userLocation: Coordinates | null;
   onSelect: (stationId: string) => void;
+  /** Avisa de la estación bajo el ratón en el mapa, para resaltarla en la lista. */
+  onHoverChange?: (stationId: string | null) => void;
   /**
    * Zona visible tras la carga y tras cada movimiento iniciado por el usuario.
    * Los desplazamientos automáticos al seleccionar una estación no la cambian.
@@ -114,24 +133,31 @@ interface StationMapProps {
   view?: MapView;
   /** Superficie de precios del combustible; solo se dibuja en la vista "heat". */
   heatmap?: PriceHeatmap | null;
+  /** Escala nacional P5–P95 con la que se colorea cada estación; `null` hasta calcularla. */
+  colorScale?: PriceScale | null;
 }
 
 export function StationMap({
   stations,
   fuel,
   selectedId,
+  hoveredId = null,
   userLocation,
   onSelect,
+  onHoverChange,
   onBoundsChange,
   view = "stations",
   heatmap = null,
+  colorScale = null,
 }: StationMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const dataRef =
     useRef<GeoJSON.FeatureCollection<GeoJSON.Point>>(EMPTY_COLLECTION);
   const onSelectRef = useRef(onSelect);
+  const onHoverChangeRef = useRef(onHoverChange);
   const onBoundsChangeRef = useRef(onBoundsChange);
+  const fuelRef = useRef(fuel);
   const [providerError, setProviderError] = useState(false);
   const geoJson = useMemo(
     () => toGeoJson(stations, fuel, selectedId),
@@ -154,10 +180,13 @@ export function StationMap({
   );
   const heatImagesRef = useRef(heatImages);
   const viewRef = useRef(view);
+  const colorScaleRef = useRef(colorScale);
 
   useEffect(() => {
     onSelectRef.current = onSelect;
-  }, [onSelect]);
+    onHoverChangeRef.current = onHoverChange;
+    fuelRef.current = fuel;
+  }, [onSelect, onHoverChange, fuel]);
 
   useEffect(() => {
     heatImagesRef.current = heatImages;
@@ -170,6 +199,18 @@ export function StationMap({
     const map = mapRef.current;
     if (map?.getLayer("station-points")) applyLayerVisibility(map, view);
   }, [view]);
+
+  useEffect(() => {
+    colorScaleRef.current = colorScale;
+    const map = mapRef.current;
+    if (map?.getLayer("station-points")) {
+      map.setPaintProperty(
+        "station-points",
+        "circle-color",
+        pointColorExpression(colorScale),
+      );
+    }
+  }, [colorScale]);
 
   useEffect(() => {
     onBoundsChangeRef.current = onBoundsChange;
@@ -196,7 +237,6 @@ export function StationMap({
         : { center: [-3.7, 40.2] as [number, number], zoom: 5.1 };
     const map = new MapLibreMap({
       container: containerRef.current,
-      style: MAP_STYLE,
       ...initialView,
       minZoom: 4,
       maxZoom: 18,
@@ -206,6 +246,8 @@ export function StationMap({
       ],
       attributionControl: {},
     });
+    // El estilo se personaliza antes de pintarse (colores y nombres en español).
+    map.setStyle(BASE_STYLE_URL, { transformStyle: customizeBaseStyle });
     mapRef.current = map;
     let styleLoaded = false;
     // Un fallo aislado de una tesela no inutiliza el mapa; solo se avisa si el
@@ -213,10 +255,7 @@ export function StationMap({
     map.on("error", () => {
       if (!styleLoaded) setProviderError(true);
     });
-    map.addControl(
-      new NavigationControl({ showCompass: false }),
-      "bottom-right",
-    );
+    map.addControl(new NavigationControl({ showCompass: false }), "top-right");
     map.addControl(new ScaleControl({ unit: "metric" }), "bottom-left");
 
     function emitBounds() {
@@ -239,6 +278,46 @@ export function StationMap({
     const timeout = window.setTimeout(() => {
       if (!map.loaded()) setProviderError(true);
     }, 12_000);
+
+    // Un único tooltip, reutilizado por grupos y estaciones.
+    const tooltip = new Popup({
+      closeButton: false,
+      closeOnClick: false,
+      className: "fs-tip",
+      offset: 14,
+      maxWidth: "none",
+    });
+    let tooltipKey: string | null = null;
+    function showTooltip(
+      key: string,
+      coordinates: [number, number],
+      text: string,
+    ) {
+      if (tooltip.isOpen() && tooltipKey === key) return;
+      tooltipKey = key;
+      tooltip.setLngLat(coordinates).setText(text);
+      // addTo desmonta un popup ya abierto: hacerlo por mousemove reinicia la
+      // entrada y reconstruye el DOM aunque no cambie el grupo o la estación.
+      if (!tooltip.isOpen()) tooltip.addTo(map);
+    }
+    let mapHoverId: string | null = null;
+    function setMapHover(stationId: string | null) {
+      if (stationId === mapHoverId) return;
+      if (mapHoverId !== null) {
+        map.setFeatureState(
+          { source: "stations", id: mapHoverId },
+          { hover: false },
+        );
+      }
+      mapHoverId = stationId;
+      if (stationId !== null) {
+        map.setFeatureState(
+          { source: "stations", id: stationId },
+          { hover: true },
+        );
+      }
+      onHoverChangeRef.current?.(stationId);
+    }
 
     map.once("load", () => {
       styleLoaded = true;
@@ -272,11 +351,11 @@ export function StationMap({
                 ["linear"],
                 ["zoom"],
                 5,
-                0.8,
+                0.5,
                 9,
-                0.65,
-                13,
                 0.4,
+                13,
+                0.27,
               ],
             },
           },
@@ -289,6 +368,8 @@ export function StationMap({
         cluster: true,
         clusterMaxZoom: CLUSTER_MAX_ZOOM,
         clusterRadius: 44,
+        // El identificador de MITECO permite resaltar una estación desde la lista.
+        promoteId: "id",
       });
       // Halo translúcido bajo cada clúster para darle profundidad.
       map.addLayer({
@@ -297,16 +378,16 @@ export function StationMap({
         source: "stations",
         filter: ["has", "point_count"],
         paint: {
-          "circle-color": "#1f62b0",
-          "circle-opacity": 0.16,
+          "circle-color": BRAND,
+          "circle-opacity": 0.07,
           "circle-radius": [
             "step",
             ["get", "point_count"],
-            24,
+            23,
             100,
-            30,
+            27,
             500,
-            37,
+            32,
           ],
         },
       });
@@ -319,23 +400,23 @@ export function StationMap({
           "circle-color": [
             "step",
             ["get", "point_count"],
-            "#3a7bc8",
+            "#ffffff",
             100,
-            "#1f62b0",
+            "#ffffff",
             500,
-            "#174d8c",
+            NAVY,
           ],
           "circle-radius": [
             "step",
             ["get", "point_count"],
-            17,
+            18,
             100,
             22,
             500,
-            28,
+            27,
           ],
-          "circle-stroke-color": "#ffffff",
-          "circle-stroke-width": 2.5,
+          "circle-stroke-color": "#5784a7",
+          "circle-stroke-width": 1.5,
         },
       });
       map.addLayer({
@@ -347,25 +428,62 @@ export function StationMap({
           "text-field": ["get", "point_count_abbreviated"],
           // Fuente servida por OpenFreeMap; la predeterminada de MapLibre no existe allí.
           "text-font": ["Noto Sans Bold"],
-          "text-size": 12,
+          "text-size": 13,
         },
-        paint: { "text-color": "#ffffff" },
+        paint: {
+          "text-color": ["step", ["get", "point_count"], NAVY, 500, "#ffffff"],
+        },
       });
+      // Halo oscuro y fino bajo cada estación: separa del mapa claro incluso
+      // el amarillo central de la rampa.
+      map.addLayer({
+        id: "station-points-halo",
+        type: "circle",
+        source: "stations",
+        filter: ["!", ["has", "point_count"]],
+        paint: {
+          "circle-color": "rgba(15, 29, 46, 0.32)",
+          "circle-radius": [
+            "case",
+            ["==", ["get", "selected"], 1],
+            13.5,
+            ["boolean", ["feature-state", "hover"], false],
+            12,
+            8.5,
+          ],
+        },
+      });
+      // Cada estación con el color de su precio en la escala nacional (la
+      // misma del mapa de calor); la elegida, con anillo azul marino.
       map.addLayer({
         id: "station-points",
         type: "circle",
         source: "stations",
         filter: ["!", ["has", "point_count"]],
         paint: {
-          "circle-color": [
+          "circle-color": pointColorExpression(colorScaleRef.current),
+          "circle-radius": [
             "case",
             ["==", ["get", "selected"], 1],
-            "#f08c00",
-            "#1f62b0",
+            9,
+            ["boolean", ["feature-state", "hover"], false],
+            8.5,
+            6,
           ],
-          "circle-radius": ["case", ["==", ["get", "selected"], 1], 9, 6],
-          "circle-stroke-color": "#ffffff",
-          "circle-stroke-width": ["case", ["==", ["get", "selected"], 1], 3, 2],
+          "circle-stroke-color": [
+            "case",
+            ["==", ["get", "selected"], 1],
+            NAVY,
+            "#ffffff",
+          ],
+          "circle-stroke-width": [
+            "case",
+            ["==", ["get", "selected"], 1],
+            3.5,
+            ["boolean", ["feature-state", "hover"], false],
+            3,
+            2,
+          ],
         },
       });
 
@@ -381,9 +499,14 @@ export function StationMap({
         if (clusterId === undefined || !coordinates) return;
         const source = map.getSource("stations") as GeoJSONSource;
         const zoom = await source.getClusterExpansionZoom(clusterId);
+        tooltip.remove();
         // Ampliar un clúster es una navegación del usuario.
         map.easeTo(
-          { center: coordinates as [number, number], zoom },
+          {
+            center: coordinates as [number, number],
+            zoom,
+            duration: prefersReducedMotion() ? 0 : 400,
+          },
           { userInitiated: true },
         );
       });
@@ -393,14 +516,44 @@ export function StationMap({
           | undefined;
         if (stationId) onSelectRef.current(stationId);
       });
-      for (const layer of ["station-clusters", "station-points"]) {
-        map.on("mouseenter", layer, () => {
-          map.getCanvas().style.cursor = "pointer";
-        });
-        map.on("mouseleave", layer, () => {
-          map.getCanvas().style.cursor = "";
-        });
-      }
+
+      // Tooltips: «N estaciones · pulsa para ampliar» y «Marca · precio».
+      map.on("mousemove", "station-clusters", (event: MapLayerMouseEvent) => {
+        const feature = event.features?.[0];
+        if (!feature || feature.geometry.type !== "Point") return;
+        const count = Number(feature.properties?.point_count ?? 0);
+        map.getCanvas().style.cursor = "pointer";
+        showTooltip(
+          `cluster:${feature.properties?.cluster_id}:${count}`,
+          feature.geometry.coordinates as [number, number],
+          `${formatCount(count)} estaciones · pulsa para ampliar`,
+        );
+      });
+      map.on("mouseleave", "station-clusters", () => {
+        map.getCanvas().style.cursor = "";
+        tooltip.remove();
+      });
+      map.on("mousemove", "station-points", (event: MapLayerMouseEvent) => {
+        const feature = event.features?.[0];
+        if (!feature || feature.geometry.type !== "Point") return;
+        const stationId = String(feature.properties?.id ?? "");
+        const price = Number(feature.properties?.price);
+        map.getCanvas().style.cursor = "pointer";
+        setMapHover(stationId || null);
+        showTooltip(
+          `station:${stationId}:${fuelRef.current}:${price}`,
+          feature.geometry.coordinates as [number, number],
+          Number.isFinite(price)
+            ? `${feature.properties?.brand} · ${formatPrice(price)} ${priceUnit(fuelRef.current)}`
+            : String(feature.properties?.brand ?? ""),
+        );
+      });
+      map.on("mouseleave", "station-points", () => {
+        map.getCanvas().style.cursor = "";
+        setMapHover(null);
+        tooltip.remove();
+      });
+      map.on("movestart", () => tooltip.remove());
       applyLayerVisibility(map, viewRef.current);
     });
 
@@ -410,39 +563,62 @@ export function StationMap({
     return () => {
       window.clearTimeout(timeout);
       resizeObserver.disconnect();
+      tooltip.remove();
       map.remove();
       mapRef.current = null;
     };
   }, []);
 
+  // Resaltado desde la lista: el punto crece mientras la fila está bajo el ratón.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!hoveredId || !map?.getSource("stations")) return;
+    map.setFeatureState({ source: "stations", id: hoveredId }, { hover: true });
+    return () => {
+      if (map.getSource("stations")) {
+        map.setFeatureState(
+          { source: "stations", id: hoveredId },
+          { hover: false },
+        );
+      }
+    };
+  }, [hoveredId]);
+
   useEffect(() => {
     if (!userLocation || !mapRef.current) return;
-    const marker = new Marker({ color: "#2563eb" })
+    const element = document.createElement("div");
+    element.className = "me-marker";
+    const marker = new Marker({ element })
       .setLngLat([userLocation.longitude, userLocation.latitude])
-      .setPopup(new Popup().setText("Tu ubicación aproximada"))
+      .setPopup(new Popup({ offset: 14 }).setText("Tu ubicación aproximada"))
       .addTo(mapRef.current);
     return () => {
       marker.remove();
     };
   }, [userLocation]);
 
-  // Centra el mapa solo cuando cambia la selección, no cada vez que se filtran
-  // los resultados.
+  // Vuela a la estación solo cuando cambia la selección, no cada vez que se
+  // filtran los resultados.
   useEffect(() => {
-    if (!selectedId || !mapRef.current) return;
+    const map = mapRef.current;
+    if (!selectedId || !map) return;
     const station = stationsRef.current.find(
       (candidate) => candidate.id === selectedId,
     );
-    if (station) {
-      mapRef.current.easeTo({
-        center: [station.location.longitude, station.location.latitude],
-        zoom: Math.max(mapRef.current.getZoom(), SELECTED_ZOOM),
-      });
-    }
+    if (!station) return;
+    const target = {
+      center: [station.location.longitude, station.location.latitude] as [
+        number,
+        number,
+      ],
+      zoom: Math.max(map.getZoom(), SELECTED_ZOOM),
+    };
+    if (prefersReducedMotion()) map.jumpTo(target);
+    else map.flyTo({ ...target, duration: FLY_DURATION_MS });
   }, [selectedId]);
 
   return (
-    <div className="relative h-full overflow-hidden bg-[#eef2f5]">
+    <div className="relative h-full overflow-hidden bg-[#c9d6e0]">
       {/* MapLibre fuerza position: relative sobre su contenedor, así que el
           posicionamiento absoluto va en un envoltorio propio. */}
       <div className="absolute inset-0">
@@ -459,10 +635,10 @@ export function StationMap({
       </div>
       {providerError ? (
         <div
-          className="absolute inset-x-4 top-4 z-10 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-5 text-amber-950 shadow-[0_12px_30px_-14px_rgb(15_29_46/45%)] xl:right-auto xl:max-w-sm"
+          className="glass absolute inset-x-3 top-16 z-10 p-4 text-sm leading-5 text-amber-950 md:right-auto md:left-4 md:max-w-sm"
           role="alert"
         >
-          <strong className="block font-semibold">
+          <strong className="block font-bold">
             El mapa base no está disponible.
           </strong>
           Puedes seguir consultando las estaciones y sus precios en la lista.

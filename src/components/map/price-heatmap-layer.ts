@@ -1,3 +1,5 @@
+import type { ExpressionSpecification } from "maplibre-gl";
+
 import {
   HEATMAP_REGIONS,
   scalePosition,
@@ -29,6 +31,7 @@ export const STATION_LAYER_IDS = [
   "station-cluster-halo",
   "station-clusters",
   "station-cluster-count",
+  "station-points-halo",
   "station-points",
 ] as const;
 export const HEAT_LAYER_IDS = HEATMAP_REGIONS.map(
@@ -110,3 +113,42 @@ export function heatmapDataUrl(
 /** PNG transparente de 1 × 1 para crear las fuentes antes de tener datos. */
 export const EMPTY_IMAGE =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+
+/** Color de los puntos sin escala todavía (o sin precio): azul de marca. */
+export const POINT_FALLBACK_COLOR = "#1f62b0";
+
+/**
+ * Expresión de MapLibre que colorea cada estación con la misma rampa y la
+ * misma escala nacional que el mapa de calor. MapLibre interpola en RGB
+ * lineal, igual que `heatColor`, y satura fuera de P5–P95.
+ */
+export function pointColorExpression(
+  scale: PriceScale | null,
+): string | ExpressionSpecification {
+  if (!scale) return POINT_FALLBACK_COLOR;
+  const middle = HEAT_COLOR_STOPS[1];
+  if (scale.high - scale.low < 1e-9) {
+    return [
+      "case",
+      ["==", ["get", "price"], null],
+      POINT_FALLBACK_COLOR,
+      middle,
+    ];
+  }
+  return [
+    "case",
+    ["==", ["get", "price"], null],
+    POINT_FALLBACK_COLOR,
+    [
+      "interpolate",
+      ["linear"],
+      ["get", "price"],
+      scale.low,
+      HEAT_COLOR_STOPS[0],
+      (scale.low + scale.high) / 2,
+      middle,
+      scale.high,
+      HEAT_COLOR_STOPS[2],
+    ],
+  ];
+}
