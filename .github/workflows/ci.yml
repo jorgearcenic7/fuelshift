@@ -53,7 +53,7 @@ jobs:
           set -euo pipefail
 
           title_pattern='^(feat|fix|refactor|perf|test|docs|style|build|ci|chore|revert)\([a-z0-9][a-z0-9-]*\): [^[:space:]].*$'
-          branch_pattern='^(feat|fix|refactor|perf|test|docs|style|build|ci|chore|revert)/.+$'
+          branch_pattern='^((feat|fix|refactor|perf|test|docs|style|build|ci|chore|revert)/.+|dependabot/.+)$'
 
           if [[ ! "$PR_TITLE" =~ $title_pattern ]]; then
             echo "El título debe seguir: tipo(alcance): descripción en español."
