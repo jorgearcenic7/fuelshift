@@ -13,9 +13,9 @@ Crear una aplicación web pública de precios oficiales de carburantes en Españ
 - No desproteger `main` para automatizar ingestas. Los datos persistentes y los despliegues requieren un mecanismo separado, aprobado y probado.
 - No introducir secretos en el código, el historial Git ni el navegador.
 
-## Stack propuesto (sujeto a validación por fases)
-Next.js App Router con exportación estática, React/TypeScript, Tailwind, shadcn/ui, MapLibre, Recharts y Lucide.
-Python, Polars, DuckDB/SQL, Parquet, JSON optimizados; Pydantic cuando aporte valor.
+## Stack
+Next.js App Router con exportación estática, React 19/TypeScript estricto, Tailwind CSS 4, MapLibre GL JS y gráficos SVG propios (sin librería de gráficos).
+Python 3.12 con Pydantic; salida en JSON estático validado con JSON Schema, sin base de datos.
 GitHub Actions, Cloudflare Pages Free, Pytest, Vitest, Playwright, Ruff, ESLint y Prettier.
 
 ## Flujo de trabajo

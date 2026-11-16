@@ -7,7 +7,9 @@ Todos los cambios relevantes de FuelShift. El formato sigue
 
 ## [Sin publicar]
 
-### Añadido — v1.1.0 en preparación
+## [1.1.0] — 2026-11-16
+
+### Añadido
 
 - Histórico oficial de MITECO en `/estadisticas`, independiente del diario: muestras
   mensuales desde enero de 2007 de gasolina 95 E5, 98 E5 y gasóleo A, para España
@@ -21,6 +23,13 @@ Todos los cambios relevantes de FuelShift. El formato sigue
   Activación tras el merge mediante `MITECO_MONTHLY_ENABLED=true`, sin secretos nuevos.
 - Contrato y pruebas locales del histórico mensual; documentación de la API realmente
   verificada, metodología y limitación del histórico individual de estaciones.
+
+### Cambiado
+
+- Rediseño visual de mapa, comparador y estadísticas: fuente local, leyenda de colores de
+  estaciones, mapa provincial y controles segmentados, adaptados a escritorio y móvil (#39).
+- Refuerzo de las cabeceras de seguridad y auditorías de rediseño y seguridad documentadas (#39).
+- README con capturas actualizadas de la web publicada (#40).
 
 ## [1.0.0] — 2026-11-15
 
@@ -85,5 +94,6 @@ Primera versión pública estable. Reúne todo lo fusionado en `main` desde el 1
 - Contraste insuficiente de los textos verdes y rojos, y el foco del teclado acompaña a la ficha
   al elegir una estación de la lista en pantallas estrechas (#25).
 
-[Sin publicar]: https://github.com/jorgearcenic7/fuelshift/compare/v1.0.0...main
+[Sin publicar]: https://github.com/jorgearcenic7/fuelshift/compare/v1.1.0...main
+[1.1.0]: https://github.com/jorgearcenic7/fuelshift/releases/tag/v1.1.0
 [1.0.0]: https://github.com/jorgearcenic7/fuelshift/releases/tag/v1.0.0

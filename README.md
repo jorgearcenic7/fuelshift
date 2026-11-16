@@ -283,10 +283,8 @@ umbrales, el diagnóstico y la recuperación están en [`docs/monitoring.md`](do
 
 ## Seguridad y versiones
 
-El rediseño y el histórico mensual desde 2007 ya están implementados en `main` y visibles en la
-web comprobada el 16 de noviembre de 2026. Esto no cambia por sí solo el número de una versión:
-`package.json` sigue en `1.0.0` y el `CHANGELOG.md` recoge el histórico mensual en «Sin publicar»,
-como parte de la v1.1.0 en preparación. Las versiones etiquetadas y las fechas de los datos son
+La versión actual es la **1.1.0** (16 de noviembre de 2026), que añade el histórico mensual
+oficial desde 2007 y el rediseño. Las versiones etiquetadas y las fechas de los datos son
 independientes.
 
 La web no usa credenciales en el navegador ni servicios de pago. Las cabeceras de seguridad
