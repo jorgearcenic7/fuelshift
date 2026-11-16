@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 import { PriceUnitLabel } from "@/components/price-unit";
 import { priceUnit } from "@/domain/fuel-units";
 import { HEATMAP_SIGMA_KM, type PriceHeatmap } from "@/domain/price-heatmap";
@@ -40,6 +38,8 @@ export function PriceHeatmapLegend({
   failedProvinces,
   stale,
   filtersActive,
+  expanded,
+  onExpandedChange,
 }: {
   heatmap: PriceHeatmap | null;
   fuel: FuelCode;
@@ -48,9 +48,9 @@ export function PriceHeatmapLegend({
   failedProvinces: number;
   stale: boolean;
   filtersActive: boolean;
+  expanded: boolean;
+  onExpandedChange: (expanded: boolean) => void;
 }) {
-  // La escala siempre se ve; su explicación se despliega cuando se necesita.
-  const [expanded, setExpanded] = useState(false);
   const scale = !loading ? (heatmap?.scale ?? null) : null;
   const flat = scale !== null && scale.high - scale.low < 1e-9;
   const unit = priceUnit(fuel);
@@ -68,7 +68,7 @@ export function PriceHeatmapLegend({
       aria-labelledby="heat-legend-title"
       className="heat-legend glass text-ink-2 w-[21rem] max-w-full px-4 py-2.5 text-[0.875rem] leading-5"
     >
-      <div className="flex items-center justify-between gap-2">
+      <div className="heat-legend-header flex items-center justify-between gap-2">
         <h2
           id="heat-legend-title"
           className="text-ink optical min-w-0 text-[0.875rem] leading-snug font-extrabold"
@@ -79,7 +79,7 @@ export function PriceHeatmapLegend({
           type="button"
           aria-expanded={expanded}
           aria-controls="heat-legend-details"
-          onClick={() => setExpanded((current) => !current)}
+          onClick={() => onExpandedChange(!expanded)}
           className="link-action press -my-2 -mr-1 shrink-0 px-1 text-[0.8125rem]"
         >
           {expanded ? "Reducir" : "Ampliar"}

@@ -461,8 +461,34 @@
 
 /* Hoja inferior (móvil): solo se anima la posición. */
 @media (max-width: 47.999rem) {
+  .map-workspace {
+    --workspace-height: calc(
+      100dvh - var(--header-h) - var(--tabbar-h) - env(safe-area-inset-bottom)
+    );
+    --map-clearance: clamp(16.5rem, 30dvh, 18rem);
+    --peek: min(
+      clamp(20rem, 44dvh, 23rem),
+      calc(var(--workspace-height) - var(--map-clearance) - 3rem)
+    );
+    --sheet-height: min(
+      calc(var(--workspace-height) - 3.5rem),
+      max(calc(var(--workspace-height) - var(--map-clearance)), var(--peek))
+    );
+  }
+
   .map-sheet {
+    height: var(--sheet-height);
     transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .map-viewport {
+    bottom: calc(var(--peek) - 1.375rem);
+  }
+
+  /* El lienzo no cambia de tamaño al mover la hoja: solo suben sus controles. */
+  .map-workspace[data-sheet-expanded="true"] .maplibregl-ctrl-bottom-left,
+  .map-workspace[data-sheet-expanded="true"] .maplibregl-ctrl-bottom-right {
+    bottom: calc(1.375rem + var(--sheet-height) - var(--peek));
   }
 
   /* Asomada: solo queda a la vista la franja superior (--peek). */
@@ -473,10 +499,7 @@
   /* Lo que queda por debajo del borde de la pantalla sigue siendo alcanzable
      al desplazarse dentro de la hoja asomada. */
   .map-sheet[data-expanded="false"] .panel-scroll {
-    padding-bottom: calc(
-      100dvh - var(--header-h) - var(--tabbar-h) - 3.5rem -
-        env(safe-area-inset-bottom) - var(--peek)
-    );
+    padding-bottom: calc(var(--sheet-height) - var(--peek));
   }
 }
 
@@ -1121,6 +1144,85 @@
   line-height: 1.5;
 }
 
+.map-legend-position {
+  bottom: 2.5rem;
+  left: 0.75rem;
+  max-width: calc(100% - 5rem);
+}
+.mobile-legend-toggle {
+  display: none;
+}
+
+@media (max-width: 47.999rem) {
+  .map-legend-position {
+    top: 4.25rem;
+    right: max(0.75rem, env(safe-area-inset-right));
+    bottom: var(--legend-clearance, 6rem);
+    left: max(0.75rem, env(safe-area-inset-left));
+    max-width: none;
+    pointer-events: none;
+  }
+  .map-legend-disclosure {
+    display: flex;
+    max-height: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  .mobile-legend-toggle {
+    display: inline-flex;
+    min-height: 2.75rem;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 999px;
+    color: var(--ink);
+    font-size: 0.8125rem;
+    font-weight: 800;
+    line-height: 1.25;
+    white-space: nowrap;
+    pointer-events: auto;
+  }
+  .mobile-legend-toggle svg {
+    flex-shrink: 0;
+  }
+  .mobile-legend-chevron {
+    transition: transform 160ms var(--ease-out);
+  }
+  .map-legend-disclosure[data-expanded="true"] .mobile-legend-chevron {
+    transform: rotate(180deg);
+  }
+  .map-legend-content {
+    display: none;
+    min-height: 0;
+    max-width: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: 0.875rem;
+    pointer-events: auto;
+    scrollbar-width: thin;
+  }
+  .map-legend-disclosure[data-expanded="true"] .map-legend-content {
+    display: block;
+  }
+  .station-color-legend {
+    display: flex;
+    flex-direction: column;
+  }
+  .station-legend-info {
+    order: 1;
+    margin-top: 0.5rem;
+  }
+  .station-color-legend > div {
+    margin-top: 0;
+  }
+  .station-legend-info summary,
+  .heat-legend-header {
+    display: none;
+  }
+}
+
 /* Edición a la izquierda y resultado a la derecha, sobre una sola superficie. */
 .comparison-layout {
   display: grid;
@@ -1649,6 +1751,7 @@
   .result-bar,
   .tab-option::after,
   .station-legend-info summary svg,
+  .mobile-legend-chevron,
   .how-chevron {
     transition: none;
   }

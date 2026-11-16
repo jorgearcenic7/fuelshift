@@ -13,9 +13,13 @@ import { HEAT_GRADIENT_CSS } from "./price-heatmap-layer";
 export function StationColorLegend({
   scale,
   fuel,
+  expanded,
+  onExpandedChange,
 }: {
   scale: PriceScale;
   fuel: FuelCode;
+  expanded: boolean;
+  onExpandedChange: (expanded: boolean) => void;
 }) {
   const unit = priceUnit(fuel);
   return (
@@ -23,8 +27,13 @@ export function StationColorLegend({
       aria-labelledby="station-color-title"
       className="station-color-legend glass text-ink-2 w-[20rem] max-w-full px-4 pt-3 pb-3 text-[0.8125rem] leading-5"
     >
-      <details className="station-legend-info">
-        <summary>
+      <details className="station-legend-info" open={expanded}>
+        <summary
+          onClick={(event) => {
+            event.preventDefault();
+            onExpandedChange(!expanded);
+          }}
+        >
           <h2
             id="station-color-title"
             className="text-ink optical text-[0.8125rem] font-extrabold"
