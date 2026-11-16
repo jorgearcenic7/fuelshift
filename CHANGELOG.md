@@ -7,6 +7,11 @@ Todos los cambios relevantes de FuelShift. El formato sigue
 
 ## [Sin publicar]
 
+### Añadido
+
+- Dependabot mensual para npm, Python y GitHub Actions, con actualizaciones agrupadas; la CI
+  admite sus ramas `dependabot/`.
+
 ## [1.1.0] — 2026-11-16
 
 ### Añadido
