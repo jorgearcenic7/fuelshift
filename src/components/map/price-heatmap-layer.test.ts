@@ -14,6 +14,8 @@ import {
   heatmapPixels,
   imageCoordinates,
   layerVisibility,
+  pointColorExpression,
+  POINT_FALLBACK_COLOR,
 } from "./price-heatmap-layer";
 
 const hex = (color: readonly number[]) =>
@@ -108,6 +110,7 @@ describe("layerVisibility", () => {
       "station-cluster-halo",
       "station-clusters",
       "station-cluster-count",
+      "station-points-halo",
       "station-points",
     ]);
   });
@@ -166,5 +169,39 @@ describe("color con filtros", () => {
         ...nationalPixels.slice(index * 4, index * 4 + 4),
       ]);
     }
+  });
+});
+
+describe("pointColorExpression", () => {
+  it("usa la rampa del calor entre P5 y P95", () => {
+    expect(pointColorExpression({ low: 1.5, high: 1.7 })).toEqual([
+      "case",
+      ["==", ["get", "price"], null],
+      POINT_FALLBACK_COLOR,
+      [
+        "interpolate",
+        ["linear"],
+        ["get", "price"],
+        1.5,
+        HEAT_COLOR_STOPS[0],
+        1.6,
+        HEAT_COLOR_STOPS[1],
+        1.7,
+        HEAT_COLOR_STOPS[2],
+      ],
+    ]);
+  });
+
+  it("deja el azul de marca mientras no hay escala", () => {
+    expect(pointColorExpression(null)).toBe(POINT_FALLBACK_COLOR);
+  });
+
+  it("con una escala plana usa el color central", () => {
+    expect(pointColorExpression({ low: 1.6, high: 1.6 })).toEqual([
+      "case",
+      ["==", ["get", "price"], null],
+      POINT_FALLBACK_COLOR,
+      HEAT_COLOR_STOPS[1],
+    ]);
   });
 });

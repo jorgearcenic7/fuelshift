@@ -1,607 +1,403 @@
-import { existsSync, mkdirSync } from "node:fs";
-import path from "node:path";
-import process from "node:process";
-
+﻿// E2E del rediseño sobre el servidor local: datos reales y Chromium instalado.
+import assert from "node:assert/strict";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { chromium } from "playwright-core";
 
-// Navegadores ya instalados: no se descarga ninguno. Las rutas de Linux son
-// las de los runners de GitHub Actions (Google Chrome viene preinstalado).
-const browserCandidates = [
+const executablePath = [
   process.env.PLAYWRIGHT_BROWSER_PATH,
-  "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
-  "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
-  "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+  "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
+  "C:/Program Files/Microsoft/Edge/Application/msedge.exe",
+  "C:/Program Files/Google/Chrome/Application/chrome.exe",
   "/usr/bin/google-chrome",
-  "/usr/bin/google-chrome-stable",
   "/usr/bin/chromium",
-  "/usr/bin/chromium-browser",
-].filter(Boolean);
-const executablePath = browserCandidates.find((candidate) =>
-  existsSync(candidate),
+]
+  .filter(Boolean)
+  .find(existsSync);
+assert.ok(
+  executablePath,
+  "Define PLAYWRIGHT_BROWSER_PATH con un Chromium instalado",
 );
-
-if (!executablePath) {
-  throw new Error(
-    "No se encontró Chromium. Define PLAYWRIGHT_BROWSER_PATH para ejecutar esta prueba manual.",
-  );
-}
-
-const targetUrl = process.env.FUELSHIFT_URL ?? "http://localhost:3000";
-const outputDirectory = path.resolve(process.cwd(), ".screenshots");
+const origin = process.env.FUELSHIFT_URL ?? "http://localhost:3000";
+assert.ok(
+  ["localhost", "127.0.0.1"].includes(new URL(origin).hostname),
+  "Usa un servidor local",
+);
+const outputDirectory =
+  process.env.FUELSHIFT_SCREENSHOTS ?? ".screenshots/after";
 mkdirSync(outputDirectory, { recursive: true });
-
 const browser = await chromium.launch({
   executablePath,
   headless: true,
   args: [
-    "--ignore-certificate-errors",
     "--disable-extensions",
     "--enable-unsafe-swiftshader",
     "--use-angle=swiftshader",
   ],
 });
-
-async function waitForDataset(page) {
+const errors = [],
+  network = [],
+  report = [];
+async function newPage(width, extra = {}) {
+  const page = await browser.newPage({
+    viewport: { width, height: 1000 },
+    hasTouch: width < 768,
+    ...extra,
+  });
+  page.on("pageerror", (e) => errors.push(e.message));
+  page.on("console", (m) => {
+    if (["error", "warning"].includes(m.type())) errors.push(m.text());
+  });
+  page.on("response", (r) => {
+    if (r.status() >= 400) network.push(`${r.status()} ${r.url()}`);
+  });
+  page.on("requestfailed", (r) => {
+    // Al cambiar el viewport o cerrar una página MapLibre cancela teselas pendientes.
+    if (r.failure()?.errorText !== "net::ERR_ABORTED")
+      network.push(`${r.failure()?.errorText} ${r.url()}`);
+  });
+  return page;
+}
+async function mapReady(page) {
   await page.waitForFunction(
-    () => {
-      const body = document.body.textContent ?? "";
-      return (
-        body.includes("estaciones cargadas") ||
-        body.includes("No hay datos oficiales disponibles")
-      );
-    },
-    undefined,
-    { timeout: 30_000 },
+    () => document.body.textContent.includes("estaciones cargadas"),
+    null,
+    { timeout: 60_000 },
+  );
+  await page.locator(".maplibregl-canvas").waitFor();
+  await page
+    .locator('[aria-label="Lista de estaciones"] button')
+    .first()
+    .waitFor();
+}
+const radio = (page, name, value) =>
+  page.locator(`label:has(input[name="${name}"][value="${value}"])`);
+async function noOverflow(page, context) {
+  assert.ok(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+    `Desbordamiento: ${context}`,
   );
 }
-
 try {
-  const desktop = await browser.newPage({
-    viewport: { width: 1440, height: 1000 },
-  });
-  const browserErrors = [];
-  desktop.on("pageerror", (error) => browserErrors.push(error.message));
-  desktop.on("response", (response) => {
-    const url = new URL(response.url());
-    if (
-      url.origin === new URL(targetUrl).origin &&
-      response.status() >= 400 &&
-      url.pathname !== "/favicon.ico"
-    ) {
-      browserErrors.push(`${response.status()} ${url.pathname}`);
+  // Las tres rutas en los cinco anchos del encargo, incluidos dispositivos táctiles.
+  for (const [slug, route] of [
+    ["map", "/"],
+    ["comparison", "/comparador/"],
+    ["statistics", "/estadisticas/"],
+  ]) {
+    for (const width of [320, 375, 768, 1024, 1440]) {
+      const page = await newPage(width);
+      await page.goto(`${origin}${route}`, { waitUntil: "networkidle" });
+      if (slug === "map") await mapReady(page);
+      if (slug === "statistics") await page.locator(".province-map").waitFor();
+      await page.waitForTimeout(350);
+      await noOverflow(page, `${slug} ${width}`);
+      assert.equal(await page.locator("h1").count(), 1);
+      await page.screenshot({
+        path: `${outputDirectory}/${slug}-${width}.png`,
+        fullPage: true,
+      });
+      await page.screenshot({
+        path: `${outputDirectory}/${slug}-${width}-viewport.png`,
+      });
+      report.push({ route, width, overflow: false });
+      await page.close();
     }
-  });
-
-  await desktop.goto(targetUrl, { waitUntil: "domcontentloaded" });
-  try {
-    await waitForDataset(desktop);
-  } catch (error) {
-    throw new Error(
-      `La aplicación no terminó de cargar. ${error instanceof Error ? error.message : ""}\n${browserErrors.join("\n")}`,
-    );
   }
-  await desktop.locator("#station-search").fill("Alcalá");
-  const firstResult = desktop
-    .locator('[aria-label="Lista de estaciones"] button')
-    .first();
-  await firstResult.waitFor({ state: "visible" });
-  await firstResult.click();
-  await desktop
-    .getByRole("heading", { name: /selecciona una estación/i })
-    .waitFor({ state: "detached" });
-  await desktop.waitForTimeout(5_000);
-  await desktop.screenshot({
-    path: path.join(outputDirectory, "map-desktop.png"),
-    fullPage: true,
+  const map = await newPage(1440);
+  await map.goto(origin);
+  await mapReady(map);
+  assert.equal(await map.locator(".maplibregl-ctrl-attrib").count(), 1);
+  assert.equal(
+    await map.getByText("El mapa base no está disponible.").count(),
+    0,
+  );
+  const mapBox = await map.locator(".maplibregl-map").boundingBox();
+  assert.equal(mapBox.x, 460);
+  assert.ok(mapBox.height > 500);
+  const desktopFilters = map.getByRole("button", { name: /^Filtros/ });
+  assert.equal(await desktopFilters.getAttribute("aria-expanded"), "false");
+  await desktopFilters.focus();
+  await map.keyboard.press("Enter");
+  assert.ok(await map.locator("#advanced-filters").isVisible());
+  await map.keyboard.press("Enter");
+  assert.equal(await desktopFilters.getAttribute("aria-expanded"), "false");
+  const dataOrigin = map.locator(".dataset-details summary");
+  await dataOrigin.click();
+  await map.getByText(/^Descarga:/).waitFor();
+  await dataOrigin.click();
+  // Clúster de Madrid en la vista inicial: hover estable y ampliación real.
+  const canvas = map.locator(".maplibregl-canvas");
+  const madridCluster = { x: mapBox.width / 2 + 47, y: mapBox.height / 2 - 81 };
+  await canvas.hover({ position: madridCluster });
+  const tooltip = map.locator(".fs-tip");
+  await tooltip.waitFor();
+  assert.match(await tooltip.innerText(), /estaciones.*ampliar/);
+  const popupElement = await tooltip.elementHandle();
+  await map.mouse.move(
+    mapBox.x + madridCluster.x + 1,
+    mapBox.y + madridCluster.y + 1,
+  );
+  assert.ok(
+    await popupElement.evaluate((el) => el.isConnected),
+    "El tooltip no se remonta al mover el ratón",
+  );
+  const initialScale = await map.locator(".maplibregl-ctrl-scale").innerText();
+  await canvas.click({ position: madridCluster });
+  await map.waitForFunction(
+    (previous) =>
+      document.querySelector(".maplibregl-ctrl-scale").textContent !== previous,
+    initialScale,
+  );
+  const search = map.locator("#station-search");
+  await search.fill("Alcalá");
+  const row = map.locator('[aria-label="Lista de estaciones"] button').first();
+  await row.click();
+  const title = map.locator("#station-detail-title");
+  await title.waitFor();
+  assert.equal(
+    await title.evaluate((el) => el === document.activeElement),
+    true,
+  );
+  const selected = await title.innerText();
+  await map.waitForTimeout(600);
+  await canvas.hover({
+    position: { x: mapBox.width / 2, y: mapBox.height / 2 },
   });
-
-  // Alterna a precios por zona y vuelve: filtros, resultados y selección se
-  // conservan, y los controles del mapa siguen respondiendo.
-  const mapView = (page, value) =>
-    page.locator(`label:has(input[name="map-view"][value="${value}"])`);
-  const legendOf = (page) =>
-    page.locator('[aria-labelledby="heat-legend-title"]');
-  const legendToggle = (page) =>
-    legendOf(page).getByRole("button", { name: /la leyenda/ });
-  const viewState = async () => ({
-    search: await desktop.locator("#station-search").inputValue(),
-    results: await desktop
-      .locator('[aria-labelledby="results-title"] span')
-      .first()
-      .innerText(),
-    selected: await desktop.locator("#station-detail-title").innerText(),
-  });
-  const scaleText = () => desktop.locator(".maplibregl-ctrl-scale").innerText();
-  const heatLegend = legendOf(desktop);
-  const beforeHeat = await viewState();
-  await mapView(desktop, "heat").click();
-  await heatLegend.getByText("Cómo se calcula").waitFor({ state: "visible" });
-  const desktopLegendExpanded =
-    (await legendToggle(desktop).getAttribute("aria-expanded")) === "true";
-  const scaleBefore = await scaleText();
-  await desktop.locator(".maplibregl-ctrl-zoom-in").click();
-  await desktop.waitForTimeout(1_500);
-  const zoomControlWorks = (await scaleText()) !== scaleBefore;
-  await desktop.screenshot({
-    path: path.join(outputDirectory, "map-heat-desktop.png"),
-  });
-  const heatLegendText = await heatLegend.innerText();
-  // Límites P5–P95: estables al quitar el filtro de búsqueda.
-  const scaleLimits = () =>
-    heatLegend.locator("p").filter({ hasText: "barato" }).first().innerText();
-  const limitsFiltered = await scaleLimits();
-  await desktop.locator("#station-search").fill("");
-  await desktop.waitForTimeout(1_000);
-  const limitsUnfiltered = await scaleLimits();
-  await desktop.locator("#station-search").fill("Alcalá");
-  await desktop.waitForTimeout(1_000);
-  await mapView(desktop, "stations").click();
-  await heatLegend.waitFor({ state: "detached" });
-  const afterHeat = await viewState();
-  await desktop
+  await tooltip.waitFor();
+  assert.match(await tooltip.innerText(), /€/);
+  await radio(map, "map-view", "heat").click();
+  const legend = map.locator('[aria-labelledby="heat-legend-title"]');
+  const legendToggle = legend.getByRole("button", { name: /la leyenda/ });
+  assert.equal(await legendToggle.getAttribute("aria-expanded"), "false");
+  await legendToggle.click();
+  await legend.getByText("Cómo se calcula").waitFor();
+  const limits = () =>
+    legend.locator("p").filter({ hasText: "barato" }).innerText();
+  const gasoline = await limits();
+  const scale = map.locator(".maplibregl-ctrl-scale");
+  const scaleBefore = await scale.innerText();
+  await map.locator(".maplibregl-ctrl-zoom-in").click();
+  await map.waitForFunction(
+    (previous) =>
+      document.querySelector(".maplibregl-ctrl-scale").textContent !== previous,
+    scaleBefore,
+  );
+  await map.screenshot({ path: `${outputDirectory}/map-heat-1440.png` });
+  await radio(map, "map-view", "stations").click();
+  assert.equal(await title.innerText(), selected);
+  await map
     .getByRole("button", { name: "Cerrar ficha de la estación" })
     .click();
-  const detailCloses = await desktop
-    .getByRole("heading", { name: /selecciona una estación/i })
-    .isVisible();
-  // La escala cambia con el combustible y vuelve al mismo valor al regresar.
-  const fuelOption = (code) =>
-    desktop.locator(`label:has(input[name="fuel"][value="${code}"])`);
-  await mapView(desktop, "heat").click();
-  await heatLegend.getByText("Cómo se calcula").waitFor({ state: "visible" });
-  const limitsGasoline = await scaleLimits();
-  await fuelOption("diesel_a").click();
-  await desktop.waitForTimeout(1_000);
-  const limitsDiesel = await scaleLimits();
-  await fuelOption("gasoline_95_e5").click();
-  await desktop.waitForTimeout(1_000);
-  const limitsGasolineAgain = await scaleLimits();
-  await mapView(desktop, "stations").click();
-
-  const mobile = await browser.newPage({
-    viewport: { width: 390, height: 844 },
-  });
-  mobile.on("pageerror", (error) => browserErrors.push(error.message));
-  await mobile.goto(targetUrl, { waitUntil: "domcontentloaded" });
-  await waitForDataset(mobile);
-  await mobile.waitForTimeout(5_000);
-  await mobile.screenshot({
-    path: path.join(outputDirectory, "map-mobile.png"),
-    fullPage: true,
-  });
-  await mapView(mobile, "heat").click();
-  const mobileLegend = legendOf(mobile);
-  await mobileLegend
-    .getByText("caro", { exact: true })
-    .waitFor({ state: "visible" });
-  const mobileCollapsed = {
-    expanded: await legendToggle(mobile).getAttribute("aria-expanded"),
-    height: Math.round((await mobileLegend.boundingBox())?.height ?? 0),
-    scaleEnds:
-      (await mobileLegend.getByText("barato", { exact: true }).isVisible()) &&
-      (await mobileLegend.getByText("caro", { exact: true }).isVisible()),
-    horizontalScroll: await mobile.evaluate(
-      () => document.documentElement.scrollWidth > window.innerWidth,
-    ),
-  };
-  await mobile
-    .locator('[role=region][aria-label^="Mapa"]')
-    .scrollIntoViewIfNeeded();
-  await mobile.waitForTimeout(1_500);
-  await mobile.screenshot({
-    path: path.join(outputDirectory, "map-heat-mobile.png"),
-  });
-  await legendToggle(mobile).click();
-  await mobileLegend.getByText("Cómo se calcula").waitFor({ state: "visible" });
-  const mobileExpanded =
-    (await legendToggle(mobile).getAttribute("aria-expanded")) === "true";
-  await mobile.screenshot({
-    path: path.join(outputDirectory, "map-heat-mobile-expanded.png"),
-  });
-
-  // Móvil: el mapa se ve al abrir, los filtros avanzados se pliegan sin
-  // perder valores, el mapa responde a ellos y una estación elegida en la lista
-  // muestra su ficha junto al mapa.
-  const phoneHeight = 844;
-  const phone = await browser.newPage({
-    viewport: { width: 390, height: phoneHeight },
-  });
-  phone.on("pageerror", (error) => browserErrors.push(error.message));
-  phone.on("console", (message) => {
-    if (message.type() === "error" && /hydrat/i.test(message.text())) {
-      browserErrors.push(message.text());
-    }
-  });
-  await phone.goto(targetUrl, { waitUntil: "domcontentloaded" });
-  await waitForDataset(phone);
-  const phoneMap = phone.locator(".maplibregl-map");
-  const openBox = await phoneMap.boundingBox();
-  const mapVisibleOnOpen = Math.round(
-    Math.max(0, Math.min(phoneHeight, openBox.y + openBox.height) - openBox.y),
+  assert.equal(await search.inputValue(), "Alcalá");
+  assert.ok(await row.evaluate((el) => el === document.activeElement));
+  await radio(map, "map-view", "heat").click();
+  await legendToggle.click();
+  await search.fill("");
+  assert.equal(
+    await limits(),
+    gasoline,
+    "La escala nacional se conserva al filtrar",
   );
-  await phone.waitForTimeout(3_000);
-  await phone.screenshot({
-    path: path.join(outputDirectory, "map-mobile-open.png"),
-  });
+  await radio(map, "fuel", "diesel_a").click();
+  await map.waitForFunction(
+    (previous) =>
+      document
+        .querySelector('[aria-labelledby="heat-legend-title"]')
+        .textContent.includes("Gasóleo A") &&
+      !document
+        .querySelector('[aria-labelledby="heat-legend-title"]')
+        .textContent.includes(previous),
+    gasoline,
+  );
+  assert.notEqual(await limits(), gasoline);
+  await radio(map, "fuel", "gasoline_95_e5").click();
+  await legend.getByText("Cómo se calcula").waitFor();
+  assert.equal(await limits(), gasoline);
+  await map.close();
 
-  const filtersButton = phone.getByRole("button", { name: /^Filtros/ });
-  const advancedFilters = phone.locator("#advanced-filters");
-  const filtersState = async () => ({
-    expanded: await filtersButton.getAttribute("aria-expanded"),
-    visible: await advancedFilters.isVisible(),
-  });
-  const resultsCount = () =>
-    phone.locator('[aria-labelledby="results-title"] span').first().innerText();
-  const legendStations = () =>
-    legendOf(phone)
-      .getByText(/^Representa las/)
-      .innerText();
-  const closedOnOpen = await filtersState();
-  const unfilteredCount = await resultsCount();
-  await mapView(phone, "heat").click();
-  await legendToggle(phone).click();
-  const legendUnfiltered = await legendStations();
-  await legendToggle(phone).click();
-
-  await filtersButton.click();
-  const opened = await filtersState();
-  await phone.screenshot({
-    path: path.join(outputDirectory, "map-mobile-filters.png"),
-  });
-  const brandValue = await phone
-    .locator("#brand option")
-    .nth(1)
-    .getAttribute("value");
-  await phone.locator("#brand").selectOption(brandValue);
+  const phone = await newPage(375, { reducedMotion: "reduce" });
+  await phone.goto(origin);
+  await mapReady(phone);
+  const sheet = phone.locator(".map-sheet");
+  assert.equal(
+    await phone
+      .locator(".maplibregl-ctrl-attrib-button")
+      .evaluate((el) => getComputedStyle(el).backgroundRepeat),
+    "no-repeat",
+    "El icono de atribución no se repite dentro del objetivo táctil",
+  );
+  assert.equal(await sheet.getAttribute("data-expanded"), "false");
+  const box = await phone.locator(".maplibregl-map").boundingBox();
+  assert.ok(box.height >= 300, "Mapa protagonista al abrir");
+  await phone.locator("#station-search").focus();
+  assert.equal(
+    await sheet.getAttribute("data-expanded"),
+    "true",
+    "El foco abre la hoja",
+  );
+  const filters = phone.getByRole("button", { name: /^Filtros/ });
+  await filters.click();
+  await phone.locator("#brand").selectOption({ index: 1 });
   await phone.locator("#max-price").fill("9");
-  await filtersButton.click();
-  const closed = await filtersState();
-  const badgeAnnounced =
-    (await phone.getByRole("button", { name: /2 activos/ }).count()) === 1;
-  await phone.waitForTimeout(1_000);
-  const filteredCount = await resultsCount();
-  await legendToggle(phone).click();
-  const legendFiltered = await legendStations();
-  await legendToggle(phone).click();
-  await filtersButton.click();
-  const keepsValues =
-    (await phone.locator("#brand").inputValue()) === brandValue &&
-    (await phone.locator("#max-price").inputValue()) === "9";
-  await filtersButton.click();
+  await filters.click();
+  assert.match(await filters.innerText(), /2/);
+  await filters.click();
+  assert.equal(await phone.locator("#max-price").inputValue(), "9");
   await phone.getByRole("button", { name: "Limpiar filtros" }).click();
-  await mapView(phone, "stations").click();
-
-  const phoneResult = phone
+  await phone.locator("#station-search").fill("Alcalá");
+  const phoneRow = phone
     .locator('[aria-label="Lista de estaciones"] button')
     .first();
-  await phoneResult.scrollIntoViewIfNeeded();
-  await phoneResult.click();
+  await phoneRow.click();
+  await phone.locator("#station-detail-title").waitFor();
+  await phone.screenshot({ path: `${outputDirectory}/map-detail-375.png` });
+  await phone.keyboard.press("Escape");
+  assert.ok(await phoneRow.evaluate((el) => el === document.activeElement));
   await phone
-    .getByRole("heading", { name: /selecciona una estación/i })
-    .waitFor({ state: "detached" });
-  await phone.waitForTimeout(2_000);
-  const focusOnDetail = await phone.evaluate(
-    () => document.activeElement?.id === "station-detail-title",
+    .getByRole("button", { name: "Reducir el panel para ver el mapa" })
+    .tap();
+  await radio(phone, "map-view", "heat").tap();
+  const mobileLegend = phone.locator('[aria-labelledby="heat-legend-title"]');
+  const toggle = mobileLegend.getByRole("button", { name: /la leyenda/ });
+  assert.equal(await toggle.getAttribute("aria-expanded"), "false");
+  await toggle.tap();
+  await mobileLegend.getByText("Cómo se calcula").waitFor();
+  await phone.screenshot({ path: `${outputDirectory}/map-heat-375.png` });
+  assert.equal(
+    await phone
+      .locator(".map-sheet")
+      .evaluate((el) => getComputedStyle(el).transitionDuration),
+    "0s",
   );
-  const selectedMapBox = await phoneMap.boundingBox();
-  const detailBox = await phone
-    .locator('aside[aria-labelledby="station-detail-title"]')
-    .boundingBox();
-  await phone.screenshot({
-    path: path.join(outputDirectory, "map-mobile-station.png"),
-  });
+  await phone.close();
 
-  // Teclado: desde la búsqueda se llega a «Filtros», se abre y se cierra con
-  // Intro, y dos tabulaciones después (combustible) el foco entra en el mapa,
-  // cuyo lienzo es lo primero que se enfoca.
-  await phone.evaluate(() => window.scrollTo(0, 0));
-  await phone.locator("#station-search").focus();
-  await phone.keyboard.press("Tab");
-  const focusOnFilters = await phone.evaluate(
-    () =>
-      document.activeElement?.getAttribute("aria-controls") ===
-        "advanced-filters" &&
-      getComputedStyle(document.activeElement).outlineStyle !== "none",
+  const comparison = await newPage(320);
+  await comparison.goto(
+    `${origin}/comparador/?fuel=gasoline_95_e5&price=1.299&station=123`,
   );
-  await phone.keyboard.press("Enter");
-  const keyboardOpens = (await filtersState()).expanded === "true";
-  await phone.keyboard.press("Enter");
-  const keyboardCloses = (await filtersState()).expanded === "false";
-  let tabsToMap = 0;
-  while (tabsToMap < 10) {
-    await phone.keyboard.press("Tab");
-    tabsToMap += 1;
-    const inMap = await phone.evaluate(() =>
-      Boolean(document.activeElement?.closest(".maplibregl-map")),
-    );
-    if (inMap) break;
-  }
-
-  const horizontalScroll = {};
-  for (const width of [320, 360, 390, 430, 768, 1024, 1440]) {
-    const page = await browser.newPage({ viewport: { width, height: 900 } });
-    page.on("pageerror", (error) => browserErrors.push(error.message));
-    await page.goto(targetUrl, { waitUntil: "domcontentloaded" });
-    await waitForDataset(page);
-    horizontalScroll[width] = await page.evaluate(
-      () => document.documentElement.scrollWidth > window.innerWidth,
-    );
-    await page.close();
-  }
-
-  // Estadísticas: indicadores por combustible y estados del histórico. Usa
-  // pestañas propias para que el informe final siga midiendo el mapa.
-  const statisticsUrl = new URL("/estadisticas/", targetUrl).href;
-  const statsDesktop = await browser.newPage({
-    viewport: { width: 1440, height: 1000 },
+  const km = comparison.getByRole("spinbutton", {
+    name: "Kilómetros al año (km)",
+    exact: true,
   });
-  const statsMobile = await browser.newPage({
-    viewport: { width: 390, height: 844 },
-  });
-  for (const page of [statsDesktop, statsMobile]) {
-    page.on("pageerror", (error) => browserErrors.push(error.message));
-  }
-  const nationalMean = (page) => page.locator("dl dd").first().innerText();
-  const rankingHeading = (page) =>
-    page.getByRole("heading", { name: "Precio medio por provincia" });
-
-  await statsDesktop.goto(statisticsUrl, { waitUntil: "domcontentloaded" });
-  await rankingHeading(statsDesktop).waitFor({ state: "visible" });
-  const statisticsActiveNav = await statsDesktop
-    .locator('nav a[aria-current="page"]')
-    .innerText();
-  const meanGasoline = await nationalMean(statsDesktop);
-  // El HTML estático muestra el selector antes de que React lo hidrate, y un
-  // clic previo se pierde. React enlaza en cada nodo hidratado una propiedad
-  // "__reactProps$…" con sus manejadores: se espera a que el selector la tenga
-  // y se pulsa una sola vez. Si React cambiara ese detalle interno, la espera
-  // fallaría con un error explícito, nunca con un falso positivo.
-  await statsDesktop
-    .waitForFunction(
-      () => {
-        const input = document.querySelector(
-          'input[name="statistics-fuel"][value="diesel_a"]',
-        );
-        return (
-          input !== null &&
-          Object.keys(input).some((key) => key.startsWith("__reactProps$"))
-        );
-      },
-      undefined,
-      { timeout: 30_000 },
-    )
-    .catch(() => {
-      throw new Error(
-        "El selector de combustible de /estadisticas no llegó a hidratarse.",
-      );
-    });
-  await statsDesktop
-    .locator('label:has(input[name="statistics-fuel"][value="diesel_a"])')
+  await km.fill("24000");
+  // Con el doble de kilómetros, el consumo eléctrico inicial cuesta 816 €/año.
+  assert.match(
+    await comparison.locator(".result-row").nth(2).innerText(),
+    /816/,
+  );
+  await comparison
+    .getByRole("button", { name: "Personalizado", exact: true })
     .click();
-  const fuelChangesMean = await statsDesktop
-    .waitForFunction(
-      (previous) => document.querySelector("dl dd")?.textContent !== previous,
-      meanGasoline,
-      { timeout: 5_000 },
-    )
-    .then(
-      () => true,
-      () => false,
-    );
-  // El histórico se descarga después de hidratar: se espera a que el panel
-  // deje de indicar la carga antes de leerlo o capturarlo.
-  const historyLoaded = (page) =>
-    page
-      .waitForFunction(
-        () => {
-          const text =
-            document.querySelector("#history-title")?.parentElement
-              ?.textContent ?? "";
-          return text !== "" && !text.includes("Cargando el histórico");
-        },
-        undefined,
-        { timeout: 10_000 },
-      )
-      .catch(() => {});
-  await historyLoaded(statsDesktop);
-  const historyState = await statsDesktop
-    .locator("#history-title")
-    .locator("xpath=..")
-    .innerText();
-  await statsDesktop.screenshot({
-    path: path.join(outputDirectory, "statistics-desktop.png"),
-    fullPage: true,
+  const years = comparison.getByRole("spinbutton", {
+    name: "Proyección (años)",
+    exact: true,
   });
+  await years.fill("0");
+  assert.equal(await years.getAttribute("aria-invalid"), "true");
+  assert.equal(await comparison.locator(".result-row").count(), 0);
+  await comparison
+    .getByRole("button", { name: "Sencillo", exact: true })
+    .click();
+  assert.equal(await comparison.locator(".result-row").count(), 3);
+  await km.fill("123456789123456789");
+  await noOverflow(comparison, "número inválido largo");
+  await comparison.getByRole("button", { name: "Restablecer ejemplo" }).click();
+  assert.equal(await km.inputValue(), "12000");
+  await comparison.getByRole("slider").focus();
+  await comparison.keyboard.press("ArrowRight");
+  assert.equal(await km.inputValue(), "12500");
+  await comparison
+    .getByRole("button", { name: "Personalizado", exact: true })
+    .click();
+  for (const [name, value] of [
+    ["Kilómetros al año (km)", "150000"],
+    ["Proyección (años)", "20"],
+    ["Gasolina (€/L)", "10"],
+    ["Diésel (€/L)", "10"],
+    ["Electricidad (€/kWh)", "5"],
+    ["Consumo gasolina (L/100 km)", "60"],
+    ["Consumo diésel (L/100 km)", "60"],
+    ["Consumo eléctrico (kWh/100 km)", "120"],
+  ])
+    await comparison.getByRole("spinbutton", { name, exact: true }).fill(value);
+  assert.equal(await comparison.locator(".result-row").count(), 3);
+  for (const width of [320, 375, 768, 1024, 1440]) {
+    await comparison.setViewportSize({ width, height: 1000 });
+    await noOverflow(comparison, `valores máximos válidos, ${width}px`);
+  }
+  await comparison.close();
 
-  await statsMobile.goto(statisticsUrl, { waitUntil: "domcontentloaded" });
-  await rankingHeading(statsMobile).waitFor({ state: "visible" });
-  await historyLoaded(statsMobile);
-  const statisticsMobileScroll = await statsMobile.evaluate(
-    () => document.documentElement.scrollWidth > window.innerWidth,
+  const stats = await newPage(375);
+  await stats.goto(`${origin}/estadisticas/`, { waitUntil: "networkidle" });
+  const mean = await stats.locator("dl dd").first().innerText();
+  await radio(stats, "statistics-fuel", "diesel_a").click();
+  assert.notEqual(await stats.locator("dl dd").first().innerText(), mean);
+  const provinceMap = stats.locator(".province-map");
+  await provinceMap.focus();
+  await stats.keyboard.press("Home");
+  const announcement = provinceMap
+    .locator("xpath=../..")
+    .locator('[aria-live="polite"]');
+  const first = await announcement.innerText();
+  await stats.keyboard.press("ArrowRight");
+  assert.notEqual(await announcement.innerText(), first);
+  await stats.keyboard.press("End");
+  assert.match(await announcement.innerText(), /MELILLA/);
+  await stats.keyboard.press("Escape");
+  assert.equal(await announcement.innerText(), "");
+  await provinceMap.locator("circle").first().tap();
+  assert.match(await announcement.innerText(), /CEUTA/);
+  await stats.getByRole("button", { name: /Ver las 52 provincias/ }).click();
+  assert.equal(
+    await stats.locator('ol[aria-label="Provincias"] > li').count(),
+    52,
   );
-  await statsMobile.screenshot({
-    path: path.join(outputDirectory, "statistics-mobile.png"),
-    fullPage: true,
-  });
-
-  if (browserErrors.length > 0) {
-    throw new Error(`Errores de navegador:\n${browserErrors.join("\n")}`);
+  const daily = stats.locator('[aria-labelledby="history-title"]');
+  await daily.getByRole("group", { name: /Usa las flechas/ }).focus();
+  await stats.keyboard.press("Home");
+  assert.match(
+    await daily.locator('[aria-live="polite"]').innerText(),
+    /estaciones/,
+  );
+  // La navegación debe funcionar también sirviendo out/ sin un runtime Next.
+  for (const [name, path] of [
+    ["Comparador", "/comparador/"],
+    ["Mapa", "/"],
+    ["Estadísticas", "/estadisticas/"],
+  ]) {
+    await stats
+      .locator("nav:visible")
+      .getByRole("link", { name, exact: true })
+      .click();
+    await stats.waitForURL(`${origin}${path}`);
+    assert.equal(
+      await stats.locator('nav:visible [aria-current="page"]').innerText(),
+      name,
+    );
+    if (path === "/") await mapReady(stats);
   }
-
-  // En desarrollo, compilar /estadisticas por primera vez puede recargar las
-  // pestañas del mapa. Antes de medirlo se espera a que MapLibre vuelva a
-  // montar un lienzo visible y su atribución; si no ocurre en el plazo, la
-  // prueba falla con `mapReady: false` además de las comprobaciones de abajo.
-  const mapReady = await desktop
-    .waitForFunction(
-      () => {
-        const canvas = document.querySelector(".maplibregl-canvas");
-        const box = canvas?.getBoundingClientRect();
-        return Boolean(
-          box &&
-            box.width > 0 &&
-            box.height > 0 &&
-            getComputedStyle(canvas).visibility !== "hidden" &&
-            document.querySelector(".maplibregl-ctrl-attrib"),
-        );
+  await stats.close();
+  assert.deepEqual(errors, [], "Consola y errores JavaScript");
+  assert.deepEqual(network, [], "Red");
+  console.log(
+    JSON.stringify(
+      {
+        responsive: report,
+        interactions:
+          "mapa, filtros, selección, foco, calor, zoom, comparador, estadísticas e histórico: PASS",
+        consoleErrors: errors,
+        networkErrors: network,
       },
-      undefined,
-      { timeout: 30_000 },
-    )
-    .then(
-      () => true,
-      () => false,
-    );
-
-  // Escritorio sin cambios: panel lateral de 25rem con todos los filtros a la
-  // vista y el mapa fijo a su derecha aunque se desplace la columna.
-  const desktopLayout = await desktop.evaluate(() => {
-    const mapBox = () =>
-      document.querySelector(".maplibregl-map").getBoundingClientRect();
-    const column = document
-      .querySelector("#map-title")
-      .closest("section").parentElement;
-    const before = mapBox();
-    column.scrollTop = 600;
-    const scrolled = mapBox();
-    column.scrollTop = 0;
-    const filtersButton = document.querySelector(
-      '[aria-controls="advanced-filters"]',
-    );
-    return {
-      mapLeft: Math.round(before.left),
-      mapTop: Math.round(before.top),
-      mapWidth: Math.round(before.width),
-      columnScrolls: column.scrollHeight > column.clientHeight,
-      mapStaysOnScroll:
-        before.top === scrolled.top && before.left === scrolled.left,
-      filtersButtonHidden: getComputedStyle(filtersButton).display === "none",
-      advancedVisible:
-        document.querySelector("#advanced-filters").offsetParent !== null,
-    };
-  });
-
-  const report = {
-    url: targetUrl,
-    mapReady,
-    desktopLayout,
-    mobileMap: {
-      mapVisibleOnOpen,
-      closedOnOpen,
-      opened,
-      closed,
-      badgeAnnounced,
-      keepsValues,
-      resultsFollowFilters: filteredCount !== unfilteredCount,
-      heatmapFollowsFilters: legendFiltered !== legendUnfiltered,
-      stationFromList: {
-        mapTop: Math.round(selectedMapBox?.y ?? -1),
-        detailTop: Math.round(detailBox?.y ?? -1),
-        focusOnDetail,
-      },
-      keyboard: { focusOnFilters, keyboardOpens, keyboardCloses, tabsToMap },
-      horizontalScroll,
-    },
-    stations: await desktop
-      .locator('[aria-label="Lista de estaciones"] button')
-      .count(),
-    mapCanvas: await desktop.locator(".maplibregl-canvas").count(),
-    mapHeight: Math.round(
-      (await desktop.locator(".maplibregl-map").boundingBox())?.height ?? 0,
+      null,
+      2,
     ),
-    attribution: await desktop.locator(".maplibregl-ctrl-attrib").count(),
-    providerError: await desktop
-      .getByText("El mapa base no está disponible.")
-      .count(),
-    heatLegend: ["barato", "caro", "Escala nacional", "Precios reales"].every(
-      (label) => heatLegendText.includes(label),
-    ),
-    viewKeepsState: JSON.stringify(beforeHeat) === JSON.stringify(afterHeat),
-    desktopLegendExpanded,
-    scaleStableWithFilters: limitsFiltered === limitsUnfiltered,
-    scaleFollowsFuel:
-      limitsDiesel !== limitsGasoline && limitsGasolineAgain === limitsGasoline,
-    zoomControlWorks,
-    detailCloses,
-    mobileLegend: { ...mobileCollapsed, expandable: mobileExpanded },
-    statistics: {
-      activeNav: statisticsActiveNav,
-      fuelChangesMean,
-      historyShown:
-        /Todavía no hay histórico|Observaciones diarias reales/.test(
-          historyState,
-        ),
-      mobileScroll: statisticsMobileScroll,
-    },
-    screenshots: [
-      ".screenshots/map-desktop.png",
-      ".screenshots/map-heat-desktop.png",
-      ".screenshots/map-mobile.png",
-      ".screenshots/map-heat-mobile.png",
-      ".screenshots/map-heat-mobile-expanded.png",
-      ".screenshots/map-mobile-open.png",
-      ".screenshots/map-mobile-filters.png",
-      ".screenshots/map-mobile-station.png",
-      ".screenshots/statistics-desktop.png",
-      ".screenshots/statistics-mobile.png",
-    ],
-  };
-  if (
-    !report.mapReady ||
-    report.mapCanvas !== 1 ||
-    report.mapHeight < 200 ||
-    report.attribution !== 1 ||
-    report.providerError !== 0 ||
-    !report.heatLegend ||
-    !report.viewKeepsState ||
-    !report.desktopLegendExpanded ||
-    !report.scaleStableWithFilters ||
-    !report.scaleFollowsFuel ||
-    !report.zoomControlWorks ||
-    !report.detailCloses ||
-    report.mobileLegend.expanded !== "false" ||
-    !report.mobileLegend.scaleEnds ||
-    report.mobileLegend.height > 110 ||
-    report.mobileLegend.horizontalScroll ||
-    !report.mobileLegend.expandable ||
-    report.desktopLayout.mapLeft !== 400 ||
-    report.desktopLayout.mapTop !== 56 ||
-    report.desktopLayout.mapWidth !== 1040 ||
-    !report.desktopLayout.columnScrolls ||
-    !report.desktopLayout.mapStaysOnScroll ||
-    !report.desktopLayout.filtersButtonHidden ||
-    !report.desktopLayout.advancedVisible ||
-    report.mobileMap.mapVisibleOnOpen < 300 ||
-    report.mobileMap.closedOnOpen.expanded !== "false" ||
-    report.mobileMap.closedOnOpen.visible ||
-    report.mobileMap.opened.expanded !== "true" ||
-    !report.mobileMap.opened.visible ||
-    report.mobileMap.closed.expanded !== "false" ||
-    report.mobileMap.closed.visible ||
-    !report.mobileMap.badgeAnnounced ||
-    !report.mobileMap.keepsValues ||
-    !report.mobileMap.resultsFollowFilters ||
-    !report.mobileMap.heatmapFollowsFilters ||
-    Math.abs(report.mobileMap.stationFromList.mapTop) > 16 ||
-    report.mobileMap.stationFromList.detailTop < 0 ||
-    report.mobileMap.stationFromList.detailTop > phoneHeight - 150 ||
-    !report.mobileMap.stationFromList.focusOnDetail ||
-    !report.mobileMap.keyboard.focusOnFilters ||
-    !report.mobileMap.keyboard.keyboardOpens ||
-    !report.mobileMap.keyboard.keyboardCloses ||
-    report.mobileMap.keyboard.tabsToMap > 2 ||
-    Object.values(report.mobileMap.horizontalScroll).some(Boolean) ||
-    report.statistics.activeNav !== "Estadísticas" ||
-    !report.statistics.fuelChangesMean ||
-    !report.statistics.historyShown ||
-    report.statistics.mobileScroll
-  ) {
-    throw new Error(
-      `El mapa no superó la comprobación visual: ${JSON.stringify(report)}`,
-    );
-  }
-
-  console.log(JSON.stringify(report, null, 2));
+  );
 } finally {
+  writeFileSync(
+    `${outputDirectory}/e2e-report.json`,
+    JSON.stringify({ responsive: report, errors, network }, null, 2),
+  );
   await browser.close();
 }

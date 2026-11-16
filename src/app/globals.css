@@ -1,137 +1,1708 @@
 @import "tailwindcss";
 
+/* Hover solo con ratón: en pantallas táctiles el estado quedaría «pegado». */
+@custom-variant hover-fine {
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      @slot;
+    }
+  }
+}
+
 @theme inline {
   --color-accent: var(--accent);
   --color-accent-strong: var(--accent-strong);
   --color-accent-soft: var(--accent-soft);
   --color-navy: var(--navy);
   --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
   --color-line: var(--line);
   --color-muted: var(--muted);
   --color-canvas: var(--canvas);
+  --color-side: var(--side);
+  --color-mist: var(--mist);
   --color-surface: var(--surface);
   --color-positive: var(--positive);
+  --color-positive-strong: var(--positive-strong);
   --color-positive-soft: var(--positive-soft);
-  --font-sans: var(--font-sans);
+  --color-dear: var(--dear);
+  --color-amber: var(--amber);
+  --font-sans: var(--font-overpass), "Segoe UI", system-ui, sans-serif;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 :root {
-  /* Azul de marca: acciones, selección y precios destacados. */
+  /* Azul de marca: acciones, selección y precios destacados (6,1:1 sobre blanco). */
   --accent: #1f62b0;
   --accent-strong: #174d8c;
-  --accent-soft: #ebf3fc;
-  /* Navegación. */
-  --navy: #0e2f52;
+  --accent-soft: #e8f0fa;
+  /* Azul marino: marca, tótem de precios y estación seleccionada. */
+  --navy: #14406f;
   /* Texto y estructura. */
   --ink: #0f1d2e;
-  --muted: #5a6b7e;
-  --line: #e3e9f0;
-  --canvas: #f4f7fa;
+  --ink-2: #2e4157;
+  /* 5,7:1 sobre blanco y 5,3:1 sobre el panel. */
+  --muted: #55687d;
+  /* Placeholders: 4,5:1 sobre blanco. */
+  --placeholder: #66788b;
+  --line: #e4e9ef;
+  --line-soft: rgb(15 29 46 / 8%);
+  --line-strong: rgb(15 29 46 / 14%);
+  --canvas: #fbfcfd;
+  /* Panel lateral y superficies secundarias. */
+  --side: #ffffff;
+  --mist: #eef2f6;
   --surface: #ffffff;
-  /* Verde reservado a estados positivos. */
-  /* 4,8:1 sobre --positive-soft y 5,4:1 sobre blanco (WCAG AA en texto). */
+  /* Verde = barato (5,35:1 sobre blanco). */
   --positive: #0c7a54;
-  --positive-soft: #e6f6ef;
-  --font-sans: "Aptos", "Segoe UI", system-ui, sans-serif;
+  --positive-strong: #0a6145;
+  --positive-soft: #e3f3ea;
+  /* Rojo = caro (5,95:1 sobre blanco). */
+  --dear: #b8322a;
+  --amber: #e3a21a;
+  --focus: #1f62b0;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --header-h: 4rem;
+  --tabbar-h: 4rem;
 }
 
-* {
-  box-sizing: border-box;
+/* El punto medio «·» de Overpass queda pegado a la palabra siguiente; solo ese
+   carácter se toma de una fuente del sistema. */
+@font-face {
+  font-family: "Separador";
+  src:
+    local("Segoe UI"), local("Helvetica Neue"), local("Arial"), local("Roboto"),
+    local("DejaVu Sans");
+  unicode-range: U+00B7;
 }
 
-html {
-  scroll-behavior: smooth;
+/* Base en su capa: las clases de componentes y las utilidades la ajustan. */
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100vh;
+    margin: 0;
+    color: var(--ink);
+    background: var(--canvas);
+    font-family: "Separador", var(--font-sans);
+    font-optical-sizing: auto;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* En móvil la navegación vive en la barra inferior fija: el contenido no
+     debe quedar debajo. */
+  @media (max-width: 47.999rem) {
+    body {
+      padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+    }
+  }
+
+  ::selection {
+    color: var(--ink);
+    background: rgb(31 98 176 / 18%);
+  }
+
+  button,
+  select,
+  input {
+    font: inherit;
+    color: inherit;
+  }
+
+  button,
+  a,
+  select,
+  input,
+  summary,
+  label {
+    touch-action: manipulation;
+  }
+
+  button:not(:disabled),
+  select:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
 }
 
-body {
-  min-height: 100vh;
-  margin: 0;
-  color: var(--ink);
-  background: var(--canvas);
-  font-family: var(--font-sans);
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
+/* Foco visible: azul de marca (6,1:1 sobre blanco). */
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
-::selection {
-  color: var(--ink);
-  background: #cfe2f7;
+.num {
+  font-variant-numeric: tabular-nums;
 }
 
-button,
-select,
-input {
-  font: inherit;
-}
-
-button:not(:disabled),
-select:not(:disabled) {
-  cursor: pointer;
+/* Overpass asienta el texto un poco bajo: este ajuste centra ópticamente las
+   etiquetas de una línea en botones y controles. */
+.optical {
+  padding-top: 0.125em;
 }
 
 /* En una capa para que las utilidades de Tailwind puedan ajustarlo. */
 @layer components {
   .control {
     width: 100%;
-    height: 2.5rem;
-    border: 1px solid #d5dde7;
+    height: 3rem;
+    border: 1px solid var(--line-strong);
     border-radius: 0.625rem;
     background-color: var(--surface);
-    padding: 0 0.75rem;
+    padding: 0.125rem 0.875rem 0;
     color: var(--ink);
-    font-size: 0.875rem;
+    font-size: 1rem;
+    font-weight: 500;
     line-height: 1.25rem;
     transition:
-      border-color 150ms ease,
-      box-shadow 150ms ease;
+      border-color 160ms var(--ease-out),
+      box-shadow 160ms var(--ease-out);
   }
 
   .control::placeholder {
-    color: #8494a7;
-  }
-
-  .control:hover {
-    border-color: #b4c1d0;
+    color: var(--placeholder);
   }
 
   .control:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgb(31 98 176 / 25%);
+    box-shadow: 0 0 0 4px rgb(31 98 176 / 16%);
     outline: none;
   }
 
   select.control {
     appearance: none;
     padding-right: 2.25rem;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%235a6b7e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    background-position: right 0.75rem center;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' stroke='%2355687d' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right 0.875rem center;
     background-repeat: no-repeat;
+  }
+
+  /* Pulsable: respuesta al presionar, no al soltar. */
+  .press {
+    transition: transform 140ms var(--ease-out);
+  }
+
+  .press:active {
+    transform: scale(0.97);
+  }
+
+  /* Control segmentado: radios reales con una pastilla que se desliza. La
+     posición la fija --i (índice) y el ancho --n (opciones). */
+  .seg {
+    position: relative;
+    display: grid;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+    padding: 3px;
+    border-radius: 0.75rem;
+    background: #edf2f6;
+  }
+
+  .seg-thumb {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    left: 3px;
+    width: calc((100% - 6px) / var(--n));
+    border-radius: 0.5625rem;
+    background: var(--surface);
+    box-shadow: 0 1px 3px rgb(15 29 46 / 10%);
+    transform: translateX(calc(var(--i) * 100%));
+    transition: transform 260ms var(--ease-out);
+    pointer-events: none;
+  }
+
+  .seg-option {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    padding: 0.1875rem 0.375rem 0;
+    border-radius: 0.5625rem;
+    color: var(--muted);
+    font-size: 0.875rem;
+    white-space: normal;
+    font-weight: 700;
+    line-height: 1.25;
+    text-align: center;
+    transition:
+      color 160ms var(--ease-out),
+      transform 140ms var(--ease-out);
+  }
+
+  .seg-option:active {
+    transform: scale(0.97);
+  }
+
+  .seg-option:has(:checked) {
+    color: var(--ink);
+  }
+
+  .seg-option:has(:focus-visible) {
+    outline: 2px solid var(--focus);
+    outline-offset: 1px;
+  }
+
+  .seg-sm .seg-option {
+    min-height: 2.25rem;
+    font-size: 0.8125rem;
+  }
+
+  /* Variante oscura, sobre el mapa. */
+  .seg-dark .seg-thumb {
+    background: var(--ink);
+  }
+
+  .seg-dark .seg-option:has(:checked) {
+    color: #fff;
+  }
+
+  /* Material translúcido para lo que flota sobre el mapa. */
+  .glass {
+    border-radius: 0.875rem;
+    background: rgb(255 255 255 / 96%);
+    box-shadow:
+      0 0 0 1px rgb(15 29 46 / 7%),
+      0 8px 22px -12px rgb(15 29 46 / 40%);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .btn {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.1875rem 1.125rem 0;
+    border-radius: 0.75rem;
+    font-size: 0.9375rem;
+    font-weight: 800;
+    line-height: 1.2;
+    text-align: center;
+    text-decoration: none;
+    transition:
+      background-color 160ms var(--ease-out),
+      box-shadow 160ms var(--ease-out),
+      transform 140ms var(--ease-out);
+  }
+
+  .btn:active {
+    transform: scale(0.97);
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .btn-soft {
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+  }
+
+  .link-action {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    gap: 0.375rem;
+    padding-top: 0.125rem;
+    color: var(--accent);
+    font-size: 0.875rem;
+    font-weight: 800;
+    transition: color 160ms var(--ease-out);
+  }
+
+  /* Indicador de posición en la escala nacional del calor. */
+  .gauge {
+    position: relative;
+    display: block;
+    height: 0.5rem;
+    border-radius: 999px;
+  }
+
+  .gauge-mark {
+    position: absolute;
+    top: -0.375rem;
+    width: 0.25rem;
+    height: 1.25rem;
+    margin-left: -0.125rem;
+    border-radius: 3px;
+    background: var(--ink);
+    box-shadow: 0 0 0 2.5px #fff;
   }
 }
 
-.maplibregl-ctrl-attrib {
-  font-size: 10px;
+/* Hover solo con ratón: en pantallas táctiles quedaría «pegado». En la capa
+   de componentes para no pisar el estado activo de cada control. */
+@layer components {
+  @media (hover: hover) and (pointer: fine) {
+    .control:hover {
+      border-color: rgb(15 29 46 / 28%);
+    }
+
+    .control:focus:hover {
+      border-color: var(--accent);
+    }
+
+    .seg-option:hover {
+      color: var(--ink);
+    }
+
+    .seg-dark .seg-option:not(:has(:checked)):hover {
+      color: var(--ink);
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-strong);
+      box-shadow: 0 8px 18px -10px rgb(31 98 176 / 80%);
+    }
+
+    .btn-soft:hover {
+      background: #dce8f7;
+    }
+
+    .link-action:hover {
+      color: var(--accent-strong);
+    }
+  }
 }
 
+/* ===================== Mapa ===================== */
+
+/* Panel lateral: dos vistas apiladas que entran y salen por el mismo eje. */
+.panel-view {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--side);
+  transition:
+    transform 300ms var(--ease-out),
+    opacity 220ms var(--ease-out);
+}
+
+.panel-view[data-state="hidden-left"] {
+  opacity: 0;
+  transform: translateX(-2rem);
+  pointer-events: none;
+}
+
+.panel-view[data-state="hidden-right"] {
+  opacity: 0;
+  transform: translateX(2rem);
+  pointer-events: none;
+}
+
+.panel-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Fila de lista: se eleva al pasar el ratón o al resaltarse desde el mapa. */
+.station-row {
+  transition:
+    background-color 160ms var(--ease-out),
+    box-shadow 160ms var(--ease-out),
+    transform 140ms var(--ease-out);
+}
+
+.station-row:active {
+  transform: scale(0.985);
+}
+
+.station-row[data-hot="true"] {
+  background: var(--surface);
+  box-shadow:
+    0 1px 2px rgb(15 29 46 / 6%),
+    0 6px 16px -10px rgb(15 29 46 / 25%);
+}
+
+.station-row .row-go {
+  opacity: 0;
+  transform: translateX(-4px);
+  transition:
+    opacity 160ms var(--ease-out),
+    transform 200ms var(--ease-out);
+}
+
+.station-row[data-hot="true"] .row-go {
+  opacity: 1;
+  transform: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .station-row:hover {
+    background: var(--surface);
+    box-shadow:
+      0 1px 2px rgb(15 29 46 / 6%),
+      0 6px 16px -10px rgb(15 29 46 / 25%);
+  }
+
+  .station-row:hover .row-go {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Hoja inferior (móvil): solo se anima la posición. */
+@media (max-width: 47.999rem) {
+  .map-sheet {
+    transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  /* Asomada: solo queda a la vista la franja superior (--peek). */
+  .map-sheet[data-expanded="false"] {
+    transform: translateY(calc(100% - var(--peek)));
+  }
+
+  /* Lo que queda por debajo del borde de la pantalla sigue siendo alcanzable
+     al desplazarse dentro de la hoja asomada. */
+  .map-sheet[data-expanded="false"] .panel-scroll {
+    padding-bottom: calc(
+      100dvh - var(--header-h) - var(--tabbar-h) - 3.5rem -
+        env(safe-area-inset-bottom) - var(--peek)
+    );
+  }
+}
+
+/* En móvil, el borde redondeado de la hoja tapa la franja inferior del mapa. */
+@media (max-width: 47.999rem) {
+  .maplibregl-ctrl-bottom-left,
+  .maplibregl-ctrl-bottom-right {
+    bottom: 1.375rem;
+  }
+}
+
+/* Controles de MapLibre con el mismo lenguaje que el resto. */
 .maplibregl-ctrl-group:not(:empty) {
-  border-radius: 0.625rem;
-  box-shadow: 0 4px 14px -6px rgb(15 29 46 / 35%);
+  overflow: hidden;
+  border-radius: 0.75rem;
+  background: rgb(255 255 255 / 92%);
+  box-shadow:
+    0 0 0 1px rgb(15 29 46 / 7%),
+    0 8px 22px -12px rgb(15 29 46 / 40%);
 }
 
-:focus-visible {
-  outline: 3px solid #f4a261;
+.maplibregl-ctrl-group button {
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+.maplibregl-ctrl-attrib {
+  font-size: 11px;
+}
+
+.maplibregl-ctrl-scale {
+  border-color: var(--muted);
+  color: var(--ink-2);
+  font-size: 11px;
+}
+
+/* Tooltip de los grupos de estaciones y de cada estación. */
+.fs-tip .maplibregl-popup-content {
+  padding: 0.375rem 0.625rem 0.25rem;
+  border-radius: 0.5rem;
+  background: var(--ink);
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  box-shadow: 0 10px 24px -10px rgb(15 29 46 / 60%);
+  white-space: nowrap;
+}
+
+.fs-tip .maplibregl-popup-tip {
+  border-top-color: var(--ink);
+}
+
+.fs-tip {
+  animation: fs-tip-in 140ms var(--ease-out);
+}
+
+@keyframes fs-tip-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Marcador de la ubicación de la persona. */
+.me-marker {
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow:
+    0 0 0 6px rgb(31 98 176 / 22%),
+    0 2px 8px rgb(15 29 46 / 30%);
+}
+
+/* ===================== Comparador ===================== */
+
+/* Botones con aria-pressed dentro de un control segmentado. */
+.seg button.seg-option {
+  border: 0;
+  background: none;
+}
+
+/* El foco del teclado confirma el cambio de selección sin deslizamiento. */
+.seg:has(:focus-visible) .seg-thumb,
+.tab-option:has(:focus-visible)::after {
+  transition: none;
+}
+
+.seg .seg-option[aria-pressed="true"] {
+  color: var(--ink);
+}
+
+/* Frase con los campos dentro del texto. */
+.sentence {
+  color: var(--ink);
+  font-size: 1.5625rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.6;
+}
+
+.sentence p {
+  max-width: 26em;
+  margin: 0;
+}
+
+@media (min-width: 48rem) {
+  .sentence {
+    font-size: 2.375rem;
+    line-height: 1.45;
+    letter-spacing: -0.025em;
+  }
+}
+
+.inline-field {
+  max-width: calc(100% - 0.125rem);
+  margin: 0 0.0625rem;
+  padding: 0 0.125rem;
+  border: 0;
+  border-bottom: 2px solid rgb(31 98 176 / 45%);
+  border-radius: 0.375rem 0.375rem 0 0;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font: inherit;
+  font-weight: 800;
+  text-align: center;
+  appearance: textfield;
+  -moz-appearance: textfield;
+  transition:
+    border-color 160ms var(--ease-out),
+    background-color 160ms var(--ease-out);
+}
+
+.inline-field::-webkit-outer-spin-button,
+.inline-field::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.inline-field:focus {
+  border-bottom-style: solid;
+  border-color: var(--accent);
+  outline: none;
+  background: var(--accent-soft);
+}
+
+.inline-field:focus-visible {
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
+.inline-field-invalid {
+  border-bottom-color: #b45309;
+  border-bottom-style: solid;
+  color: #92400e;
+}
+
+/* Deslizador de kilómetros. */
+.km-slider {
+  max-width: 45rem;
+  margin: 0.75rem 0 1.75rem;
+}
+
+.km-slider input {
+  width: 100%;
+  height: 2.75rem;
+  margin: 0;
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: grab;
+}
+
+.km-slider input:active {
+  cursor: grabbing;
+}
+
+.km-slider input::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--accent) var(--fill),
+    var(--mist) var(--fill)
+  );
+}
+
+.km-slider input::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--accent) var(--fill),
+    var(--mist) var(--fill)
+  );
+}
+
+.km-slider input::-webkit-slider-thumb {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-top: -9px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow:
+    0 0 0 1px rgb(15 29 46 / 12%),
+    0 3px 10px rgb(15 29 46 / 25%);
+  -webkit-appearance: none;
+  transition: transform 140ms var(--ease-out);
+}
+
+.km-slider input:active::-webkit-slider-thumb {
+  transform: scale(1.15);
+}
+
+.km-slider input::-moz-range-thumb {
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow:
+    0 0 0 1px rgb(15 29 46 / 12%),
+    0 3px 10px rgb(15 29 46 / 25%);
+}
+
+/* Barras de gasto: solo se anima la escala horizontal. */
+.result-bar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(var(--share, 0));
+  transform-origin: left;
+  transition: transform 200ms var(--ease-out);
+}
+
+.result-row {
+  transition: background-color 160ms var(--ease-out);
+}
+
+@layer components {
+  @media (hover: hover) and (pointer: fine) {
+    .result-row:hover {
+      background: var(--side);
+    }
+
+    .inline-field:hover {
+      background: var(--accent-soft);
+    }
+  }
+}
+
+/* ===================== Estadísticas ===================== */
+
+/* Chips de elección única (orden, periodos). */
+.chip-option {
+  display: inline-flex;
+  min-height: 2.25rem;
+  align-items: center;
+  padding: 0.125rem 0.875rem 0;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 160ms var(--ease-out),
+    color 160ms var(--ease-out),
+    transform 140ms var(--ease-out);
+}
+
+.chip-option:active {
+  transform: scale(0.96);
+}
+
+.chip-option:has(:checked) {
+  background: var(--ink);
+  color: #fff;
+}
+
+.chip-option:has(:disabled) {
+  cursor: not-allowed;
+  opacity: 0.55;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.chip-option:has(:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Pestañas de combustible con subrayado que crece desde la izquierda. */
+.tab-option {
+  position: relative;
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: color 160ms var(--ease-out);
+}
+
+.tab-option::after {
+  position: absolute;
+  right: 0;
+  bottom: 0.25rem;
+  left: 0;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--accent);
+  content: "";
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 260ms var(--ease-out);
+}
+
+.tab-option:has(:checked) {
+  color: var(--ink);
+}
+
+.tab-option:has(:checked)::after {
+  transform: scaleX(1);
+}
+
+.tab-option:has(:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 0.375rem;
+}
+
+/* KPIs separados por filetes verticales. */
+.kpi {
+  padding-inline: 1rem;
+}
+
+.kpi:first-child {
+  padding-left: 0;
+}
+
+.kpi + .kpi {
+  box-shadow: inset 1px 0 0 var(--line-soft);
+}
+
+@media (max-width: 39.999rem) {
+  .kpi:nth-child(3) {
+    padding-left: 0;
+    box-shadow: none;
+  }
+}
+
+/* Ranking ↔ mapa de provincias. */
+.province-row {
+  transition: background-color 160ms var(--ease-out);
+}
+
+.province-row[data-hot="true"] {
+  background: var(--mist);
+}
+
+.province-map .province {
+  stroke: #fff;
+  stroke-width: 0.8;
+  cursor: pointer;
+  transition: opacity 160ms var(--ease-out);
+}
+
+.province-map.has-hot .province:not(.is-hot) {
+  opacity: 0.5;
+}
+
+.province-map .province.is-hot {
+  stroke: var(--ink);
+  stroke-width: 1.6;
+}
+
+/* «Cómo se calcula»: la flecha gira al abrir. */
+.how-details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.how-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.how-chevron {
+  transition: transform 220ms var(--ease-out);
+}
+
+.how-details[open] .how-chevron {
+  transform: rotate(90deg);
+}
+
+@layer components {
+  @media (hover: hover) and (pointer: fine) {
+    .chip-option:not(:has(:checked)):not(:has(:disabled)):hover {
+      background: var(--mist);
+      color: var(--ink);
+    }
+
+    .tab-option:hover {
+      color: var(--ink-2);
+    }
+
+    .province-row:hover {
+      background: var(--mist);
+    }
+  }
+}
+
+/* Pantallas táctiles: todo control llega a 44 px de alto. */
+@media (pointer: coarse) {
+  .seg-option,
+  .seg-sm .seg-option,
+  .chip-option {
+    min-height: 2.75rem;
+  }
+
+  .inline-field {
+    min-height: 2.75rem;
+  }
+
+  summary.link-action {
+    min-height: 2.75rem;
+  }
+
+  /* Botón «i» de la atribución de MapLibre. */
+  .maplibregl-ctrl-attrib-button {
+    width: 2.75rem;
+    height: 2.75rem;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+
+  .maplibregl-ctrl-attrib.maplibregl-compact {
+    min-height: 2.75rem;
+    padding-right: 3rem;
+  }
+}
+
+/* ===================== Composición editorial ===================== */
+
+.site-brand {
+  font-size: 1.5rem;
+  letter-spacing: -0.04em;
+}
+.site-brand > span:first-child {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.75rem;
+}
+.desktop-nav {
+  padding: 4px;
+  border-radius: 0.875rem;
+  background: var(--mist);
+}
+.nav-link {
+  height: 2.75rem;
+  min-height: 2.75rem;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.625rem;
+}
+.nav-link > svg {
+  display: block;
+  flex-shrink: 0;
+  width: 1.125rem;
+  height: 1.125rem;
+}
+.nav-label {
+  display: block;
+  padding-top: 3px;
+  line-height: 1;
+}
+.tabbar a {
+  line-height: 1;
+}
+.tabbar a > svg {
+  display: block;
+  flex-shrink: 0;
+}
+.tab-label {
+  display: block;
+  padding-top: 2px;
+}
+.nav-link[aria-current="page"] {
+  background: var(--navy);
+  color: white;
+}
+.header-country {
+  padding-left: 1rem;
+  border-left: 1px solid var(--line);
+}
+.tabbar a[aria-current="page"] > svg {
+  color: var(--accent);
+}
+
+.page-shell {
+  width: 100%;
+  max-width: 90rem;
+  margin: auto;
+  padding: 2.25rem 1.25rem 5rem;
+}
+.page-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1.5rem 3rem;
+}
+.page-heading h1 {
+  max-width: 20ch;
+  margin: 0;
+  font-size: clamp(2.125rem, 3.6vw, 3.25rem);
+  line-height: 1.04;
+  letter-spacing: -0.04em;
+  font-weight: 800;
+  text-wrap: balance;
+}
+.page-heading p {
+  max-width: 64ch;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+/* La columna gana ancho sin restar la mayoría del lienzo al mapa. */
+.map-intro {
+  background: var(--surface);
+}
+.map-intro #map-title {
+  font-size: 1.625rem;
+  letter-spacing: -0.035em;
+}
+.dataset-details {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.dataset-details summary {
+  display: flex;
+  align-items: center;
+  min-height: 2rem;
+  gap: 0.5rem;
+  list-style: none;
+  cursor: pointer;
+}
+.dataset-details summary::after {
+  content: "+";
+  font-size: 1rem;
+  font-weight: 700;
+}
+.dataset-details[open] summary::after {
+  content: "−";
+}
+.dataset-details summary::-webkit-details-marker {
+  display: none;
+}
+.dataset-details p {
+  margin: 0.25rem 0 0.5rem;
+}
+.map-filters {
+  background: var(--surface);
+  gap: 1rem;
+}
+.map-filters #station-search {
+  height: 3.25rem;
+  background-color: var(--canvas);
+}
+.filter-toggle {
+  min-height: 2.5rem;
+}
+.map-ranking {
+  background: #f5f9fc;
+}
+.map-ranking h2 {
+  font-size: 1.125rem;
+}
+.map-ranking .station-row {
+  min-height: 4rem;
+}
+.map-ranking .station-row > span:last-child {
+  font-size: 1.375rem;
+}
+.map-sheet .station-row {
+  border-radius: 0.5rem;
+}
+.map-sheet .station-row:focus-visible {
+  outline-offset: -2px;
+}
+.map-sheet .panel-scroll {
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: #b6c5d2 transparent;
+}
+.map-sheet .panel-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+.map-sheet .panel-scroll::-webkit-scrollbar-thumb {
+  background: #b6c5d2;
+  border-radius: 4px;
+}
+.map-ranking .seg {
+  background: #e5eef5;
+}
+.map-ranking .seg-sm .seg-option {
+  min-height: 2.5rem;
+  font-size: 0.875rem;
+}
+.station-color-legend {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+.station-color-legend .legend-note {
+  font-size: 0.8125rem;
+}
+.station-color-legend h2 {
+  font-size: 0.875rem;
+}
+.station-legend-info summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  list-style: none;
+}
+.station-legend-info summary::-webkit-details-marker {
+  display: none;
+}
+.station-legend-info summary svg {
+  flex-shrink: 0;
+  transition: transform 160ms var(--ease-out);
+}
+.station-legend-info[open] summary svg {
+  transform: rotate(180deg);
+}
+.heat-legend {
+  line-height: 1.5;
+}
+
+/* Edición a la izquierda y resultado a la derecha, sobre una sola superficie. */
+.comparison-layout {
+  display: grid;
+  gap: 3rem;
+  margin-top: 2rem;
+}
+.section-label {
+  margin: 0 0 1rem;
+  font-size: 1.125rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.comparison-editor .sentence {
+  font-size: 1.5rem;
+  line-height: 1.65;
+  letter-spacing: -0.025em;
+}
+.comparison-editor .inline-field {
+  padding-inline: 0.2ch;
+}
+.inline-measure {
+  display: inline-block;
+  max-width: 100%;
+  white-space: nowrap;
+}
+.measure-unit {
+  font-size: 0.75em;
+  font-weight: 500;
+  color: var(--ink-2);
+  letter-spacing: 0;
+}
+.comparison-editor .km-slider {
+  margin-block: 1rem 2rem;
+}
+.comparison-editor .km-slider input {
+  height: 3rem;
+}
+.comparison-editor .km-slider input::-webkit-slider-runnable-track {
+  height: 4px;
+}
+.comparison-editor .km-slider input::-webkit-slider-thumb {
+  width: 1.75rem;
+  height: 1.75rem;
+  margin-top: -12px;
+  border: 5px solid white;
+  background: var(--accent);
+}
+.comparison-editor .km-slider input::-moz-range-thumb {
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 5px solid white;
+  background: var(--accent);
+}
+.comparison-results {
+  min-width: 0;
+  padding-top: 2rem;
+  border-top: 1px solid var(--line);
+}
+.comparison-results > h2 {
+  font-size: 1.375rem;
+  line-height: 1.2;
+}
+.results-chart {
+  display: grid;
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+.result-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.625rem 0.5rem;
+  min-width: 0;
+}
+.result-name {
+  grid-column: 1;
+  align-self: center;
+  font-size: 1rem;
+  font-weight: 800;
+}
+.result-amount {
+  grid-column: 2;
+  grid-row: 1;
+  text-align: right;
+  color: var(--ink);
+}
+.result-amount > span:first-child {
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+}
+.result-unit {
+  margin-left: 0.25rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+.result-period {
+  display: block;
+  margin-top: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.result-track {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: block;
+  height: 0.625rem;
+  background: var(--mist);
+  border-radius: 0.25rem;
+  overflow: hidden;
+}
+.result-bar {
+  border-radius: 0.25rem;
+  background: #5781a5;
+}
+.is-cheapest .result-bar {
+  background: var(--positive);
+}
+.is-cheapest .result-amount > span:first-child {
+  color: var(--positive);
+}
+.result-consumption {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+.result-best {
+  color: var(--positive-strong);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: right;
+}
+.comparison-results h3 {
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+  font-size: 1.125rem;
+  margin-top: 1.5rem;
+}
+.comparison-scope {
+  margin-top: 0;
+}
+.result-period,
+.result-consumption,
+.result-best {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+.comparison-difference p:nth-child(2) > span {
+  display: block;
+  margin: 0.5rem 0 0;
+}
+.comparison-difference p:nth-child(2) {
+  font-size: 2.5rem;
+}
+.comparison-difference p:last-child {
+  line-height: 1.6;
+}
+
+/* El importe contextualiza; la geografía ocupa el primer plano. */
+.statistics-page .page-heading h1 {
+  font-size: clamp(2rem, 3vw, 2.75rem);
+}
+.statistics-page .page-heading > p {
+  margin: 0;
+}
+.stats-overview {
+  display: grid;
+  align-items: center;
+  gap: 1.5rem 3rem;
+  margin-top: 2rem;
+}
+.stats-story .tab-option {
+  font-size: 0.9375rem;
+}
+.stats-story fieldset > div {
+  gap: 0.25rem 1rem;
+}
+.fill-headline {
+  margin-top: 1.5rem;
+}
+.fill-headline h2 {
+  max-width: 22ch;
+  font-size: 1.625rem;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+.fill-amount {
+  margin-top: 1rem;
+  font-size: clamp(3.75rem, 6vw, 5rem);
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--navy);
+}
+.fill-caption {
+  color: var(--muted);
+  margin-top: 0.75rem;
+  font-size: 0.9375rem;
+}
+.fill-range {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 2rem;
+  margin-top: 1.5rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.fill-range strong {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--ink-2);
+  font-size: 1.375rem;
+  font-weight: 700;
+}
+.stats-map {
+  min-width: 0;
+}
+.stats-map figcaption {
+  justify-content: center;
+  font-size: 0.8125rem;
+}
+.stats-map figcaption > span:last-child {
+  text-align: center;
+  font-size: 0.75rem;
+}
+.stats-provenance {
+  max-width: 105ch;
+  margin-top: 1.5rem;
+}
+.stats-indicators {
+  margin-top: 1.5rem;
+  padding-block: 1.25rem;
+  border-block: 1px solid var(--line);
+}
+.stats-indicators .kpi dt {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.stats-indicators .kpi dd:first-of-type {
+  font-size: clamp(1.75rem, 2.7vw, 2.5rem);
+  letter-spacing: -0.04em;
+}
+.stats-indicators .kpi dd:last-child {
+  margin-top: 0.5rem;
+  line-height: 1.5;
+}
+.stats-histories {
+  display: grid;
+  align-items: start;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+.stats-histories > section {
+  min-width: 0;
+}
+.stats-histories h2 {
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+.stats-histories svg text {
+  font-size: 0.8125rem;
+}
+.stats-histories svg {
+  overflow: visible;
+}
+.stats-histories figure {
+  margin-top: 1.25rem;
+}
+.stats-histories .history-method h2 {
+  font-size: 1rem;
+}
+.history-method ul {
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+.stats-histories .chip-option {
+  font-size: 0.875rem;
+}
+
+@media (min-width: 40rem) {
+  .results-chart {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.5rem;
+  }
+  .result-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .result-name {
+    align-self: start;
+  }
+  .result-amount {
+    margin-top: 0.875rem;
+    text-align: left;
+  }
+  .result-track {
+    flex: none;
+    height: 11rem;
+    width: 100%;
+    margin-block: 1.5rem 0.75rem;
+    border-radius: 0;
+    background: repeating-linear-gradient(
+      to top,
+      var(--line) 0 1px,
+      transparent 1px 44px
+    );
+  }
+  .result-bar {
+    width: 65%;
+    margin-inline: auto;
+    transform: scaleY(var(--share, 0));
+    transform-origin: bottom;
+    border-radius: 0.5rem 0.5rem 0 0;
+  }
+  .result-best {
+    margin-top: 0.375rem;
+    text-align: left;
+  }
+}
+
+@media (min-width: 48rem) {
+  :root {
+    --header-h: 4.5rem;
+  }
+  .site-header > div {
+    padding-inline: 2rem;
+  }
+  .page-shell {
+    padding: 3rem 2.5rem 5rem;
+  }
+  .map-workspace {
+    grid-template-columns: 21.5rem minmax(0, 1fr);
+  }
+  .map-intro,
+  .map-filters,
+  .map-ranking {
+    padding-inline: 1.5rem;
+  }
+  .map-intro {
+    padding-top: 1.75rem;
+    padding-bottom: 1.25rem;
+  }
+  .map-filters {
+    padding-top: 1rem;
+    padding-bottom: 1.5rem;
+  }
+  .map-ranking {
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+  .map-ranking h2 {
+    font-size: 1.125rem;
+  }
+  .comparison-editor .sentence {
+    font-size: 2rem;
+    line-height: 1.6;
+  }
+  .comparison-editor .sentence p {
+    max-width: none;
+  }
+  .comparison-results > h2 {
+    font-size: 1.5rem;
+  }
+  .stats-overview {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  }
+  .stats-provenance {
+    font-size: 0.8125rem;
+  }
+}
+
+@media (min-width: 64rem) {
+  .map-workspace {
+    grid-template-columns: 25rem minmax(0, 1fr);
+  }
+  .map-intro,
+  .map-filters,
+  .map-ranking {
+    padding-inline: 1.75rem;
+  }
+  .map-intro #map-title {
+    font-size: 1.875rem;
+  }
+  .map-sheet .seg-option {
+    font-size: 0.9375rem;
+  }
+  .stats-overview {
+    grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
+    gap: 4rem;
+    margin-top: 1rem;
+  }
+  .fill-headline h2 {
+    font-size: 1.875rem;
+  }
+}
+
+@media (min-width: 75rem) {
+  .page-shell {
+    padding-inline: 3rem;
+  }
+  .comparison-page .page-heading {
+    align-items: end;
+  }
+  .comparison-page .page-heading > div:first-child {
+    max-width: 46rem;
+  }
+  .comparison-layout {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    grid-template-rows: max-content 1fr;
+    gap: 1.5rem 3.5rem;
+    margin-top: 2.5rem;
+  }
+  .comparison-editor {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .comparison-scope {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .comparison-results {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    border-top: 0;
+    border-left: 1px solid var(--line);
+    padding: 0 0 0 2.5rem;
+  }
+  .comparison-editor .sentence {
+    font-size: 2rem;
+  }
+  .comparison-editor .km-slider {
+    margin-bottom: 2.5rem;
+  }
+  .comparison-difference p:nth-child(2) {
+    font-size: 2.75rem;
+  }
+  .stats-histories {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: max-content 1fr;
+    gap: 1.5rem 3.5rem;
+  }
+  .stats-histories > section:first-child {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .stats-histories > section:nth-child(2) {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+  .stats-histories > .history-method {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .statistics-page {
+    padding-top: 2.25rem;
+  }
+  .stats-story {
+    align-self: center;
+  }
+  .stats-overview {
+    margin-top: 0.5rem;
+  }
+  .comparison-results .results-chart {
+    margin-top: 1.5rem;
+  }
+  .comparison-results .result-track {
+    height: 9.5rem;
+    margin-top: 1.25rem;
+  }
+  .comparison-results h3 + div {
+    gap: 1.5rem;
+    margin-top: 1rem;
+  }
+  .stats-histories > section + section {
+    padding-left: 2.5rem;
+    border-left: 1px solid var(--line);
+  }
+}
+
+@media (min-width: 80rem) {
+  .map-workspace {
+    grid-template-columns: 28.75rem minmax(0, 1fr);
+  }
+  .map-intro,
+  .map-filters,
+  .map-ranking {
+    padding-inline: 2rem;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .nav-link:not([aria-current]):hover {
+    background: white;
+    color: var(--accent-strong);
+  }
+  .dataset-details summary:hover {
+    color: var(--accent);
+  }
+  .inline-field:hover {
+    border-color: var(--accent);
+    background: #dceafa;
+  }
+}
+
+/* ===================== Preferencias del sistema ===================== */
+
+/* Movimiento reducido: sin desplazamientos ni escalas; los cambios de estado
+   siguen siendo visibles con un fundido corto. */
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
 
-  *,
-  *::before,
-  *::after {
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
+  .press:active,
+  .chip-option:active,
+  .btn:active,
+  .seg-option:active,
+  .station-row:active {
+    transform: none;
+  }
+
+  .seg-thumb,
+  .gauge-mark,
+  .result-bar,
+  .tab-option::after,
+  .station-legend-info summary svg,
+  .how-chevron {
+    transition: none;
+  }
+
+  .km-slider input:active::-webkit-slider-thumb {
+    transform: none;
+  }
+
+  .panel-view,
+  .panel-view[data-state] {
+    transform: none;
+    transition: opacity 160ms ease;
+  }
+
+  .map-sheet {
+    transition: none;
+  }
+
+  .fs-tip {
+    animation: none;
+  }
+
+  .station-row .row-go {
+    transform: none;
+  }
+
+  .animate-spin,
+  .animate-pulse {
+    animation-duration: 2.4s;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .maplibregl-ctrl-group:not(:empty),
+  .tabbar {
+    background: #fff;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --muted: #3a4b5e;
+    --placeholder: #4f6073;
+    --line: #b9c4d0;
+    --line-soft: rgb(15 29 46 / 22%);
+    --line-strong: rgb(15 29 46 / 40%);
+  }
+
+  .glass,
+  .maplibregl-ctrl-group:not(:empty) {
+    background: #fff;
+    box-shadow: 0 0 0 1px var(--ink);
   }
 }

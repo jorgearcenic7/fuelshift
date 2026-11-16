@@ -8,15 +8,15 @@ import type { BrandIdentity } from "@/domain/brands";
 // los textos de las listas queden alineados.
 const SIZES = {
   sm: {
-    slot: "w-16 h-7",
-    logo: "w-16 h-7 rounded-md px-1 py-0.5",
-    square: "size-7 rounded-lg text-[0.625rem]",
-    icon: "size-3.5",
+    slot: "w-12 h-9",
+    logo: "w-12 h-9 rounded-[0.625rem] px-1 py-1",
+    square: "size-9 rounded-[0.625rem] text-[0.6875rem]",
+    icon: "size-4",
   },
   lg: {
-    slot: "w-20 h-12",
-    logo: "w-20 h-12 rounded-xl p-1.5",
-    square: "size-12 rounded-xl text-base",
+    slot: "w-16 h-11",
+    logo: "w-16 h-11 rounded-[0.625rem] px-1.5 py-1",
+    square: "size-11 rounded-[0.625rem] text-sm",
     icon: "size-5",
   },
 } as const;
@@ -42,7 +42,7 @@ export function BrandMark({
   if (logo) {
     content = (
       <span
-        className={`ring-line flex items-center justify-center overflow-hidden bg-white ring-1 ${styles.logo}`}
+        className={`flex items-center justify-center overflow-hidden bg-white shadow-[inset_0_0_0_1px_rgb(15_29_46/13%)] ${styles.logo}`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- recurso local estático */}
         <img
@@ -58,7 +58,7 @@ export function BrandMark({
   } else if (identity.mark) {
     content = (
       <span
-        className={`grid place-items-center font-bold tracking-[-0.02em] ${styles.square}`}
+        className={`grid place-items-center pt-[0.1em] font-extrabold tracking-[-0.02em] ${styles.square}`}
         style={{ backgroundColor: identity.color, color: identity.onColor }}
       >
         {identity.mark}
@@ -67,7 +67,7 @@ export function BrandMark({
   } else {
     content = (
       <span
-        className={`bg-canvas text-muted ring-line grid place-items-center ring-1 ${styles.square}`}
+        className={`text-muted grid place-items-center bg-white shadow-[inset_0_0_0_1px_rgb(15_29_46/13%)] ${styles.square}`}
       >
         <svg
           viewBox="0 0 24 24"
