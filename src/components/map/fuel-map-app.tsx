@@ -54,6 +54,7 @@ import { PriceHeatmapLegend } from "./price-heatmap-legend";
 import { StationColorLegend } from "./station-color-legend";
 import { StationDetail } from "./station-detail";
 import { StationMap } from "./station-map";
+import { useSheetDrag } from "./use-sheet-drag";
 
 /** Estaciones de la lista por tanda; «Mostrar más estaciones» añade otra. */
 const RESULT_LIMIT = 50;
@@ -228,6 +229,7 @@ export function FuelMapApp() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   // Hoja inferior de móvil: asomada (el mapa a la vista) o abierta.
   const [sheetExpanded, setSheetExpanded] = useState(false);
+  const sheetRef = useSheetDrag(sheetExpanded, setSheetExpanded);
   // Tamaño de la lista. Vuelve a la primera tanda al cambiar la búsqueda, los
   // filtros, el combustible o el orden.
   const [listSize, setListSize] = useState({ key: "", count: RESULT_LIMIT });
@@ -463,6 +465,7 @@ export function FuelMapApp() {
           inferior sobre el mapa. Primero en el documento: el orden de lectura
           es buscar → resultados → ficha; el mapa es una región aparte. */}
       <aside
+        ref={sheetRef}
         aria-label="Buscar y filtrar gasolineras"
         data-expanded={sheetExpanded}
         onFocusCapture={(event) => {
@@ -477,7 +480,8 @@ export function FuelMapApp() {
         }}
         className="map-sheet border-line bg-side absolute inset-x-0 bottom-0 z-20 flex h-[calc(100%-3.5rem)] flex-col overflow-hidden rounded-t-[1.375rem] shadow-[0_-12px_30px_-16px_rgb(15_29_46/40%)] md:static md:col-start-1 md:row-start-1 md:h-full md:rounded-none md:border-r md:shadow-none"
       >
-        {/* Asa de la hoja (solo móvil). */}
+        <span data-peek-probe aria-hidden="true" className="sheet-peek-probe" />
+        {/* Asa de la hoja (solo móvil): se toca o se arrastra. */}
         <button
           type="button"
           onClick={() => setSheetExpanded((open) => !open)}
