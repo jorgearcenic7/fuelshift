@@ -88,10 +88,7 @@ export function MobileMapLegend({
         >
           <path d="M5 17v-4M12 17V7M19 17V3" />
         </svg>
-        <span>
-          Precios ·{" "}
-          {expanded ? FUEL_LABELS[fuel] : FUEL_LABELS[fuel].replace(" E5", "")}
-        </span>
+        <span>Precios · {FUEL_LABELS[fuel]}</span>
         <svg
           className="mobile-legend-chevron"
           aria-hidden="true"
