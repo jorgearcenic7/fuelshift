@@ -12,6 +12,8 @@ Todos los cambios relevantes de FuelShift. El formato sigue
 - Mapa en móvil con más espacio útil: hoja inferior más baja, leyenda junto a la escala
   y abierta hacia arriba, sin botones de zoom (se amplía con el gesto) y sin giro ni
   inclinación del mapa. La página ya no se desplaza al arrastrar.
+- La hoja inferior del mapa en móvil se abre y se cierra arrastrándola, además de
+  tocando su asa.
 - La leyenda móvil muestra siempre el nombre completo del combustible.
 - Dependabot deja de proponer saltos de versión mayor; se revisan a mano.
 
