@@ -48,6 +48,7 @@ import { formatPrice, formatRetrievedAt } from "@/lib/format";
 import { BrandMark } from "./brand-mark";
 import { AlertIcon, LocateIcon, SearchIcon, SlidersIcon } from "./icons";
 import { MapAttribution } from "./map-attribution";
+import { MobileMapLegend } from "./mobile-map-legend";
 import type { MapView } from "./price-heatmap-layer";
 import { PriceHeatmapLegend } from "./price-heatmap-legend";
 import { StationColorLegend } from "./station-color-legend";
@@ -455,7 +456,8 @@ export function FuelMapApp() {
   return (
     <main
       id="contenido"
-      className="map-workspace relative h-[calc(100dvh-var(--header-h)-var(--tabbar-h)-env(safe-area-inset-bottom))] overflow-hidden [--peek:clamp(20rem,44dvh,23rem)] md:grid md:h-[calc(100dvh-var(--header-h))]"
+      data-sheet-expanded={sheetExpanded}
+      className="map-workspace relative h-[calc(100dvh-var(--header-h)-var(--tabbar-h)-env(safe-area-inset-bottom))] overflow-hidden md:grid md:h-[calc(100dvh-var(--header-h))]"
     >
       {/* Panel: en escritorio, columna fija junto al mapa; en móvil, hoja
           inferior sobre el mapa. Primero en el documento: el orden de lectura
@@ -984,7 +986,7 @@ export function FuelMapApp() {
       </aside>
 
       {/* Mapa. En móvil queda por encima de la hoja asomada. */}
-      <div className="absolute inset-x-0 top-0 bottom-[calc(var(--peek)-1.375rem)] md:relative md:inset-auto md:col-start-2 md:row-start-1 md:h-full">
+      <div className="map-viewport absolute inset-x-0 top-0 md:relative md:inset-auto md:col-start-2 md:row-start-1 md:h-full">
         <StationMap
           stations={results}
           fuel={fuel}
@@ -1011,21 +1013,44 @@ export function FuelMapApp() {
         {mapView === "stations" &&
         nationalHeatmap?.scale &&
         nationalHeatmap.scale.high - nationalHeatmap.scale.low > 1e-9 ? (
-          <div className="absolute top-[4.25rem] left-3 z-10 max-w-[calc(100%-5rem)] md:top-auto md:bottom-10">
-            <StationColorLegend scale={nationalHeatmap.scale} fuel={fuel} />
+          <div className="map-legend-position absolute z-10">
+            <MobileMapLegend
+              key="stations"
+              fuel={fuel}
+              sheetExpanded={sheetExpanded}
+            >
+              {(expanded, onExpandedChange) => (
+                <StationColorLegend
+                  scale={nationalHeatmap.scale!}
+                  fuel={fuel}
+                  expanded={expanded}
+                  onExpandedChange={onExpandedChange}
+                />
+              )}
+            </MobileMapLegend>
           </div>
         ) : null}
         {mapView === "heat" && !loadError ? (
-          <div className="absolute top-[4.25rem] left-3 z-10 max-w-[calc(100%-5rem)] md:top-auto md:bottom-10">
-            <PriceHeatmapLegend
-              heatmap={heatmap}
+          <div className="map-legend-position absolute z-10">
+            <MobileMapLegend
+              key="heat"
               fuel={fuel}
-              loading={loading}
-              loadingStatus={dataStatus}
-              failedProvinces={failedProvinces.length}
-              stale={stale}
-              filtersActive={filtersActive}
-            />
+              sheetExpanded={sheetExpanded}
+            >
+              {(expanded, onExpandedChange) => (
+                <PriceHeatmapLegend
+                  heatmap={heatmap}
+                  fuel={fuel}
+                  loading={loading}
+                  loadingStatus={dataStatus}
+                  failedProvinces={failedProvinces.length}
+                  stale={stale}
+                  filtersActive={filtersActive}
+                  expanded={expanded}
+                  onExpandedChange={onExpandedChange}
+                />
+              )}
+            </MobileMapLegend>
           </div>
         ) : null}
         {loading && !loadError ? (

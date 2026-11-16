@@ -161,10 +161,18 @@ try {
     true,
   );
   const selected = await title.innerText();
-  await map.waitForTimeout(600);
-  await canvas.hover({
-    position: { x: mapBox.width / 2, y: mapBox.height / 2 },
-  });
+  // El worker puede terminar de dibujar la selección después del vuelo.
+  // Repetir el movimiento vuelve a evaluar el punto cuando ya está listo.
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await canvas.hover({
+      position: { x: mapBox.width / 2 + 1, y: mapBox.height / 2 },
+    });
+    await canvas.hover({
+      position: { x: mapBox.width / 2, y: mapBox.height / 2 },
+    });
+    if (await tooltip.isVisible()) break;
+    await map.waitForTimeout(100);
+  }
   await tooltip.waitFor();
   assert.match(await tooltip.innerText(), /€/);
   await radio(map, "map-view", "heat").click();
@@ -260,7 +268,7 @@ try {
     .tap();
   await radio(phone, "map-view", "heat").tap();
   const mobileLegend = phone.locator('[aria-labelledby="heat-legend-title"]');
-  const toggle = mobileLegend.getByRole("button", { name: /la leyenda/ });
+  const toggle = phone.getByRole("button", { name: /^Leyenda de precios/ });
   assert.equal(await toggle.getAttribute("aria-expanded"), "false");
   await toggle.tap();
   await mobileLegend.getByText("Cómo se calcula").waitFor();
@@ -272,6 +280,120 @@ try {
     "0s",
   );
   await phone.close();
+
+  // La pastilla y su contenido permanecen fuera de la hoja, el zoom y las
+  // atribuciones, también en el iPhone más pequeño y al ampliar los filtros.
+  for (const [width, height] of [
+    [320, 568],
+    [375, 844],
+    [430, 932],
+  ]) {
+    const page = await newPage(width, {
+      viewport: { width, height },
+      reducedMotion: "reduce",
+    });
+    await page.goto(origin);
+    await mapReady(page);
+    const sheetToggle = page.locator("[data-sheet-toggle]");
+    const legendToggle = page.getByRole("button", {
+      name: /^Leyenda de precios/,
+    });
+    const content = page.locator(".map-legend-content");
+    const overlap = (a, b) =>
+      a.x < b.x + b.width &&
+      a.x + a.width > b.x &&
+      a.y < b.y + b.height &&
+      a.y + a.height > b.y;
+    for (const view of ["stations", "heat"]) {
+      await radio(page, "map-view", view).tap();
+      assert.equal(await legendToggle.getAttribute("aria-expanded"), "false");
+      for (const panelExpanded of [false, true]) {
+        if (
+          (await sheetToggle.getAttribute("aria-expanded")) !==
+          String(panelExpanded)
+        )
+          await sheetToggle.tap();
+        if (panelExpanded) {
+          await page.getByRole("button", { name: /^Filtros/ }).click();
+          await page.locator("#brand").waitFor();
+        }
+        for (const legendExpanded of [false, true]) {
+          if (
+            (await legendToggle.getAttribute("aria-expanded")) !==
+            String(legendExpanded)
+          )
+            await legendToggle.tap();
+          assert.equal(await content.isVisible(), legendExpanded);
+          const pill = await legendToggle.boundingBox();
+          assert.ok(pill.height >= 44 && pill.height <= 48);
+          const visibleMap = await page
+            .locator(".maplibregl-map")
+            .boundingBox();
+          const panel = await page.locator(".map-sheet").boundingBox();
+          assert.ok(panel.y - visibleMap.y >= 190, "Franja útil de mapa");
+          const occupied = legendExpanded
+            ? [pill, await content.boundingBox()]
+            : [pill];
+          for (const selector of [
+            ".map-sheet",
+            ".maplibregl-ctrl-top-right",
+            ".maplibregl-ctrl-bottom-right",
+            ".maplibregl-ctrl-bottom-left",
+          ]) {
+            const box = await page.locator(selector).boundingBox();
+            if (box)
+              assert.ok(
+                occupied.every((rect) => !overlap(rect, box)),
+                `${width} ${view}: leyenda sobre ${selector}`,
+              );
+          }
+          if (legendExpanded) {
+            assert.ok((await content.innerText()).includes("P5"));
+            assert.ok((await content.innerText()).includes("P95"));
+          }
+          await page.screenshot({
+            path: `${outputDirectory}/legend-${width}-${view}-${panelExpanded}-${legendExpanded}.png`,
+          });
+          if (legendExpanded) {
+            await legendToggle.tap();
+            assert.equal(
+              await legendToggle.getAttribute("aria-expanded"),
+              "false",
+            );
+            await legendToggle.focus();
+            await page.keyboard.press("Space");
+            await page
+              .locator('.mobile-legend-toggle[aria-expanded="true"]')
+              .waitFor({ timeout: 3000 });
+            assert.equal(
+              await legendToggle.getAttribute("aria-expanded"),
+              "true",
+            );
+            await content.evaluate((el) => {
+              el.scrollTop = el.scrollHeight;
+            });
+            await content.focus();
+            await page.keyboard.press("Escape");
+            assert.equal(
+              await legendToggle.getAttribute("aria-expanded"),
+              "false",
+            );
+            assert.ok(
+              await legendToggle.evaluate(
+                (el) => el === document.activeElement,
+              ),
+            );
+          }
+          await noOverflow(page, `leyenda ${width} ${view}`);
+        }
+        if (panelExpanded)
+          await page.getByRole("button", { name: /^Filtros/ }).click();
+      }
+      if ((await sheetToggle.getAttribute("aria-expanded")) === "true")
+        await sheetToggle.tap();
+    }
+    await page.close();
+  }
 
   const comparison = await newPage(320);
   await comparison.goto(
