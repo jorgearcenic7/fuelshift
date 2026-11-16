@@ -467,7 +467,7 @@
     );
     --map-clearance: clamp(16.5rem, 30dvh, 18rem);
     --peek: min(
-      clamp(20rem, 44dvh, 23rem),
+      clamp(9.5rem, 22dvh, 10.5rem),
       calc(var(--workspace-height) - var(--map-clearance) - 3rem)
     );
     --sheet-height: min(
@@ -505,6 +505,23 @@
 
 /* En móvil, el borde redondeado de la hoja tapa la franja inferior del mapa. */
 @media (max-width: 47.999rem) {
+  /* En la página del mapa solo se desplaza la hoja, nunca el documento: así
+     arrastrar el mapa no mueve la cabecera ni recorta la hoja en Safari. */
+  html:has(.map-workspace),
+  body:has(.map-workspace) {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  /* En el móvil se amplía con el gesto de pellizcar; los botones de zoom
+     solo restarían mapa útil. */
+  .maplibregl-ctrl-top-right .maplibregl-ctrl-zoom-in,
+  .maplibregl-ctrl-top-right .maplibregl-ctrl-zoom-out,
+  .maplibregl-ctrl-top-right
+    .maplibregl-ctrl-group:has(.maplibregl-ctrl-zoom-in) {
+    display: none;
+  }
+
   .maplibregl-ctrl-bottom-left,
   .maplibregl-ctrl-bottom-right {
     bottom: 1.375rem;
@@ -1159,13 +1176,20 @@
     right: max(0.75rem, env(safe-area-inset-right));
     bottom: var(--legend-clearance, 6rem);
     left: max(0.75rem, env(safe-area-inset-left));
+    display: flex;
     max-width: none;
+    flex-direction: column;
+    justify-content: flex-end;
     pointer-events: none;
   }
+  /* La pastilla queda abajo, junto a la escala, y el contenido se abre hacia
+     arriba: la parte superior del mapa queda libre. */
   .map-legend-disclosure {
     display: flex;
+    max-width: 100%;
     max-height: 100%;
-    flex-direction: column;
+    min-height: 0;
+    flex-direction: column-reverse;
     align-items: flex-start;
     gap: 0.5rem;
   }
@@ -1181,17 +1205,25 @@
     font-size: 0.8125rem;
     font-weight: 800;
     line-height: 1.25;
+    max-width: 100%;
     white-space: nowrap;
     pointer-events: auto;
+  }
+  .mobile-legend-toggle > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .mobile-legend-toggle svg {
     flex-shrink: 0;
   }
+  /* Cerrada apunta hacia arriba, que es hacia donde se abre. */
   .mobile-legend-chevron {
+    transform: rotate(180deg);
     transition: transform 160ms var(--ease-out);
   }
   .map-legend-disclosure[data-expanded="true"] .mobile-legend-chevron {
-    transform: rotate(180deg);
+    transform: none;
   }
   .map-legend-content {
     display: none;

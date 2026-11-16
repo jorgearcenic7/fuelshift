@@ -255,6 +255,12 @@ export function StationMap({
     map.on("error", () => {
       if (!styleLoaded) setProviderError(true);
     });
+    // Sin giro ni inclinación: en móvil, arrastrar y pellizcar solo desplazan
+    // y amplían, y el norte queda siempre arriba.
+    map.dragRotate.disable();
+    map.touchZoomRotate.disableRotation();
+    map.touchPitch.disable();
+    map.keyboard.disableRotation();
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");
     map.addControl(new ScaleControl({ unit: "metric" }), "bottom-left");
 

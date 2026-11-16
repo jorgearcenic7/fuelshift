@@ -7,6 +7,14 @@ Todos los cambios relevantes de FuelShift. El formato sigue
 
 ## [Sin publicar]
 
+### Cambiado
+
+- Mapa en móvil con más espacio útil: hoja inferior más baja, leyenda junto a la escala
+  y abierta hacia arriba, sin botones de zoom (se amplía con el gesto) y sin giro ni
+  inclinación del mapa. La página ya no se desplaza al arrastrar.
+- La leyenda móvil muestra siempre el nombre completo del combustible.
+- Dependabot deja de proponer saltos de versión mayor; se revisan a mano.
+
 ### Añadido
 
 - Dependabot mensual para npm, Python y GitHub Actions, con actualizaciones agrupadas; la CI

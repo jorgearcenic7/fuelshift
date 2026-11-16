@@ -1055,7 +1055,7 @@ export function FuelMapApp() {
         ) : null}
         {loading && !loadError ? (
           <div
-            className="glass text-ink num pointer-events-none absolute bottom-10 left-1/2 z-10 inline-flex -translate-x-1/2 items-center gap-2 rounded-full px-3.5 pt-2 pb-1.5 text-[0.8125rem] font-bold whitespace-nowrap md:top-[4.25rem] md:bottom-auto md:left-3 md:translate-x-0"
+            className="glass text-ink num pointer-events-none absolute top-[4.25rem] left-1/2 z-10 inline-flex -translate-x-1/2 items-center gap-2 rounded-full px-3.5 pt-2 pb-1.5 text-[0.8125rem] font-bold whitespace-nowrap md:left-3 md:translate-x-0"
             aria-hidden="true"
           >
             <span className="border-accent -mt-0.5 size-3 animate-spin rounded-full border-2 border-t-transparent" />
