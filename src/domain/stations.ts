@@ -41,10 +41,7 @@ export interface Station {
   address: string;
   brand: string | null;
   opening_hours: string | null;
-  location: {
-    latitude: number;
-    longitude: number;
-  };
+  location: Coordinates;
   fuels: Partial<Record<FuelCode, string>>;
   provinceId: string;
   provinceName: string;
@@ -124,7 +121,7 @@ export function filterAndSortStations(
 ): StationResult[] {
   const query = normalizeSearch(filters.search);
 
-  const filtered = stations.flatMap((station): StationResult[] => {
+  const filtered = stations.flatMap((station) => {
     const price = getStationPrice(station, filters.fuel);
     if (price === null) return [];
     if (filters.brand && station.brand !== filters.brand) return [];
@@ -142,26 +139,33 @@ export function filterAndSortStations(
 
     return [
       {
-        ...station,
-        distanceKm: userLocation
-          ? distanceInKm(userLocation, station.location)
-          : null,
+        price,
+        station: {
+          ...station,
+          distanceKm: userLocation
+            ? distanceInKm(userLocation, station.location)
+            : null,
+        },
       },
     ];
   });
 
+  // Conserva el precio ya validado para no convertirlo en cada comparación.
   // Sin ubicación no hay distancia: se cae siempre al orden por precio.
-  return filtered.sort((left, right) => {
+  filtered.sort((left, right) => {
     if (sort === "distance" && userLocation) {
-      return (left.distanceKm ?? Infinity) - (right.distanceKm ?? Infinity);
+      return (
+        (left.station.distanceKm ?? Infinity) -
+        (right.station.distanceKm ?? Infinity)
+      );
     }
 
     return (
-      (getStationPrice(left, filters.fuel) ?? Infinity) -
-        (getStationPrice(right, filters.fuel) ?? Infinity) ||
-      left.municipality.localeCompare(right.municipality, "es")
+      left.price - right.price ||
+      left.station.municipality.localeCompare(right.station.municipality, "es")
     );
   });
+  return filtered.map(({ station }) => station);
 }
 
 export interface MapBounds {

@@ -2,6 +2,8 @@
 // llenar un depósito y posición frente a la media nacional. Son plantillas: si
 // falta un dato, se omite su parte de la frase en lugar de inventarla.
 
+import { formatLongDate, formatPrice } from "@/lib/format";
+
 import type { PriceUnit } from "./fuel-units";
 
 /** Litros de referencia para «llenar el depósito». */
@@ -14,14 +16,6 @@ const euroAmount = new Intl.NumberFormat("es-ES", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
-const unitPrice = new Intl.NumberFormat("es-ES", {
-  minimumFractionDigits: 3,
-  maximumFractionDigits: 3,
-});
-const longDate = new Intl.DateTimeFormat("es-ES", {
-  dateStyle: "long",
-  timeZone: "UTC",
-});
 
 /** «64,95 €» con espacio duro. */
 export function formatEuros(value: number): string {
@@ -30,7 +24,7 @@ export function formatEuros(value: number): string {
 
 /** «1,299 €/L» con espacio duro. */
 export function formatUnitPrice(value: number, unit: PriceUnit): string {
-  return `${unitPrice.format(value)}${NBSP}${unit}`;
+  return `${formatPrice(value)}${NBSP}${unit}`;
 }
 
 /** Redondeo a milésimas, la precisión con la que MITECO publica. */
@@ -141,7 +135,7 @@ export function describeFillHeadline({
   const when = isToday
     ? "cuesta hoy"
     : dataDate
-      ? `costaba el ${longDate.format(new Date(`${dataDate}T00:00:00Z`))}`
+      ? `costaba el ${formatLongDate(dataDate)}`
       : "cuesta";
 
   const subject = `Llenar ${FILL_LITRES}${NBSP}litros de ${fuelLabel} ${when}`;

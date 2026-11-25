@@ -200,9 +200,7 @@ function MonthlyHistoryContent({ manifest }: { manifest: MonthlyManifest }) {
               (value === "all" ? "all" : Number(value)) as MonthlyPeriod,
             )
           }
-          disabled={MONTHLY_PERIODS.filter(
-            (value) => !available.includes(value),
-          ).map(String)}
+          disabled={unavailable.map(String)}
           disabledTitle="Sin cobertura suficiente para este periodo"
         />
       </div>
