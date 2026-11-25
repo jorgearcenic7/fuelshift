@@ -19,6 +19,9 @@ Todos los cambios relevantes de FuelShift. El formato sigue
 
 ### Añadido
 
+- Metodología reducida de desarrollo asistido por IA, tres perfiles especializados
+  para Codex y Claude Code y dos skills de FuelShift, con control humano de Git.
+
 - Dependabot mensual para npm, Python y GitHub Actions, con actualizaciones agrupadas; la CI
   admite sus ramas `dependabot/`.
 

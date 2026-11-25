@@ -197,6 +197,10 @@ La metodología, los contratos, los huecos de cobertura y los comandos de reprod
 
 ## Desarrollo y comprobaciones
 
+La [metodología de desarrollo asistido por IA](docs/desarrollo-ia.md) define tareas,
+perfiles, uso de recursos y revisión; [AGENTS.md](AGENTS.md) mantiene las reglas
+compartidas y reserva al propietario todas las operaciones de escritura en Git.
+
 ```powershell
 # Servidor local
 npm run dev

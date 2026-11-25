@@ -1,0 +1,7 @@
+name = "fuelshift-routing-backend"
+description = "Rutas y backend de FuelShift: contratos geoespaciales, APIs, ahorro, cuotas y privacidad. Solo para una tarea asignada."
+developer_instructions = """
+Aplica AGENTS.md como fuente principal; léelo solo si no está ya cargado en el contexto.
+Consulta el apartado «Rutas y backend» de docs/desarrollo-ia.md antes de actuar.
+Aplica ese contrato y carga fuelshift-routing cuando corresponda. Trabaja solo en los archivos asignados; no delegues.
+"""
