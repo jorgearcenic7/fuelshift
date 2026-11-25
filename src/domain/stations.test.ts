@@ -61,6 +61,35 @@ describe("ranking por precio", () => {
 });
 
 describe("consulta de estaciones", () => {
+  it("conserva empates completos sin mutar ni ampliar las estaciones originales", () => {
+    const candidates = [
+      withPrice(stations[0], "b", "1.400"),
+      withPrice(stations[0], "a", "1.400"),
+      withPrice(stations[0], "c", "1.300"),
+    ];
+    const original = structuredClone(candidates);
+    const results = filterAndSortStations(
+      candidates,
+      {
+        fuel: "diesel_a",
+        search: "",
+        brand: "",
+        minPrice: null,
+        maxPrice: null,
+      },
+      "price",
+      null,
+    );
+
+    expect(results).toEqual(
+      [candidates[2], candidates[0], candidates[1]].map((station) => ({
+        ...station,
+        distanceKm: null,
+      })),
+    );
+    expect(candidates).toEqual(original);
+  });
+
   it("selecciona el precio del combustible exacto del contrato", () => {
     expect(getStationPrice(stations[0], "gasoline_98_e5")).toBe(1.699);
     expect(getStationPrice(stations[1], "gasoline_98_e5")).toBeNull();

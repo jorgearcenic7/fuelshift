@@ -86,14 +86,6 @@ export function AlertIcon(props: IconProps) {
   );
 }
 
-export function CursorIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="m4 4 7 17 2.5-7.5L21 11 4 4Z" />
-    </Icon>
-  );
-}
-
 export function SlidersIcon(props: IconProps) {
   return (
     <Icon {...props}>
