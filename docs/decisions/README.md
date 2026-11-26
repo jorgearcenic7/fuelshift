@@ -12,6 +12,7 @@ alternativas descartadas y sus consecuencias. Explican **por qué** el sistema e
 | [0004](0004-proveedor-de-mapa.md)             | MapLibre GL JS con la instancia pública de OpenFreeMap              | Aceptada |
 | [0005](0005-almacen-del-historico.md)         | Histórico diario en la rama huérfana `data/historico`               | Aceptada |
 | [0006](0006-estadisticas-en-un-solo-lugar.md) | Estadísticas calculadas solo en TypeScript; histórico en `scripts/` | Aceptada |
+| [0007](0007-intermediario-de-rutas.md)        | Intermediario de rutas en Workers Free con presupuesto persistente  | Aceptada |
 
 Las ADR 0001 a 0006 se registraron el 21 de octubre de 2026 a partir de decisiones ya aplicadas
 y documentadas en el repositorio.

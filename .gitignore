@@ -42,3 +42,6 @@ data/historico/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Archivos temporales de Wrangler (Worker de rutas)
+.wrangler/

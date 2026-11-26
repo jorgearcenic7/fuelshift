@@ -184,6 +184,9 @@ jobs:
         run: npm run test:coverage
 
       - name: Generar exportación estática
+        # URL pública del Worker de rutas (ADR 0007); Next.js la incrusta al compilar.
+        env:
+          NEXT_PUBLIC_ROUTING_URL: https://fuelshift-rutas.jorgearcenic7.workers.dev
         run: npm run build
 
   python:

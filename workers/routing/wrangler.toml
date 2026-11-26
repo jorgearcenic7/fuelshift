@@ -1,0 +1,29 @@
+# Intermediario de rutas de FuelShift (ADR docs/decisions/0007-intermediario-de-rutas.md).
+# No se despliega desde la CI ni hay workflow que lo haga. Desactivado por defecto: los
+# interruptores solo los cambia el propietario tras verificar cuentas y condiciones.
+name = "fuelshift-rutas"
+main = "src/index.ts"
+# Fecha soportada por workerd incluido en Wrangler 4.149.0, comprobado en local.
+compatibility_date = "2026-10-13"
+# URL pública *.workers.dev para el frontend; sin URL de vista previa por versión.
+workers_dev = true
+preview_urls = false
+
+[vars]
+ROUTING_ENABLED = "false"
+GEOAPIFY_ENABLED = "false"
+# Matriz y ruta no tienen cota de coste previa (recargo por distancia). Solo se habilitan
+# con el valor "confirmada-por-escrito", tras obtener de Geoapify por escrito que superar la
+# cuota no genera cargos. La ausencia de tarjeta no es garantía suficiente.
+GEOAPIFY_CHARGE_GUARANTEE = "ninguna"
+ALLOWED_ORIGINS = "https://fuelshift.pages.dev"
+# Secretos (wrangler secret put): GEOAPIFY_API_KEY, VISITOR_SALT.
+
+[[durable_objects.bindings]]
+name = "ROUTING_BUDGET"
+class_name = "RoutingBudget"
+
+# Durable Object con SQLite: el único backend disponible en Workers Free.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RoutingBudget"]

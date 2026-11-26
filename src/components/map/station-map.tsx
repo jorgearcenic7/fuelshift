@@ -15,6 +15,10 @@ import {
 
 import { priceUnit } from "@/domain/fuel-units";
 import {
+  featureBounds,
+  type RefuelFeatureCollection,
+} from "@/domain/refuel/map-features";
+import {
   HEATMAP_REGIONS,
   type PriceHeatmap,
   type PriceScale,
@@ -35,8 +39,17 @@ import {
   imageCoordinates,
   layerVisibility,
   pointColorExpression,
+  STATION_LAYER_IDS,
   type MapView,
 } from "./price-heatmap-layer";
+import {
+  addRefuelLayers,
+  boundsKey,
+  EMPTY_REFUEL,
+  focusedRadius,
+  focusedStroke,
+  setRefuelData,
+} from "./refuel-layers";
 
 const CLUSTER_MAX_ZOOM = 14;
 // Por encima del último nivel agrupado, para que la estación elegida se vea
@@ -81,10 +94,20 @@ function applyHeatImages(
   }
 }
 
-/** Muestra las capas de la vista elegida y oculta las de la otra. */
-function applyLayerVisibility(map: MapLibreMap, view: MapView) {
+/**
+ * Muestra las capas de la vista elegida y oculta las de la otra. Con un
+ * resultado de repostaje a la vista, las estaciones generales se ocultan para
+ * que solo se lean las comparadas.
+ */
+function applyLayerVisibility(
+  map: MapLibreMap,
+  view: MapView,
+  refuelActive = false,
+) {
   for (const [layer, visibility] of Object.entries(layerVisibility(view))) {
-    map.setLayoutProperty(layer, "visibility", visibility);
+    const hidden =
+      refuelActive && (STATION_LAYER_IDS as readonly string[]).includes(layer);
+    map.setLayoutProperty(layer, "visibility", hidden ? "none" : visibility);
   }
 }
 
@@ -135,6 +158,10 @@ interface StationMapProps {
   heatmap?: PriceHeatmap | null;
   /** Escala nacional P5–P95 con la que se colorea cada estación; `null` hasta calcularla. */
   colorScale?: PriceScale | null;
+  /** Resultado de repostaje (ruta y gasolineras comparadas); `null` si no hay. */
+  refuel?: RefuelFeatureCollection | null;
+  refuelFocusId?: string | null;
+  onRefuelSelect?: (stationId: string) => void;
 }
 
 export function StationMap({
@@ -149,6 +176,9 @@ export function StationMap({
   view = "stations",
   heatmap = null,
   colorScale = null,
+  refuel = null,
+  refuelFocusId = null,
+  onRefuelSelect,
 }: StationMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -181,12 +211,18 @@ export function StationMap({
   const heatImagesRef = useRef(heatImages);
   const viewRef = useRef(view);
   const colorScaleRef = useRef(colorScale);
+  const refuelRef = useRef(refuel);
+  const refuelFocusRef = useRef(refuelFocusId);
+  const onRefuelSelectRef = useRef(onRefuelSelect);
+  const fittedKeyRef = useRef<string | null>(null);
+  const refuelActive = (refuel?.features.length ?? 0) > 0;
 
   useEffect(() => {
     onSelectRef.current = onSelect;
     onHoverChangeRef.current = onHoverChange;
+    onRefuelSelectRef.current = onRefuelSelect;
     fuelRef.current = fuel;
-  }, [onSelect, onHoverChange, fuel]);
+  }, [onSelect, onHoverChange, onRefuelSelect, fuel]);
 
   useEffect(() => {
     heatImagesRef.current = heatImages;
@@ -197,8 +233,59 @@ export function StationMap({
   useEffect(() => {
     viewRef.current = view;
     const map = mapRef.current;
-    if (map?.getLayer("station-points")) applyLayerVisibility(map, view);
-  }, [view]);
+    if (map?.getLayer("station-points")) {
+      applyLayerVisibility(map, view, refuelActive);
+    }
+  }, [view, refuelActive]);
+
+  // Resultado de repostaje: datos, y encuadre solo cuando es una búsqueda
+  // nueva (cambiar la referencia no mueve el mapa).
+  useEffect(() => {
+    refuelRef.current = refuel;
+    const map = mapRef.current;
+    if (!map?.getSource("refuel")) return;
+    const data = refuel ?? EMPTY_REFUEL;
+    setRefuelData(map, data);
+    const key = boundsKey(data);
+    const isNewSearch = key !== null && key !== fittedKeyRef.current;
+    fittedKeyRef.current = key;
+    if (!isNewSearch) return;
+    map.fitBounds(featureBounds(data)!, {
+      padding: { top: 72, bottom: 48, left: 48, right: 64 },
+      maxZoom: 15,
+      duration: prefersReducedMotion() ? 0 : 500,
+    });
+  }, [refuel]);
+
+  useEffect(() => {
+    refuelFocusRef.current = refuelFocusId;
+    const map = mapRef.current;
+    if (!map?.getLayer("refuel-points")) return;
+    map.setPaintProperty(
+      "refuel-points",
+      "circle-radius",
+      focusedRadius(refuelFocusId),
+    );
+    map.setPaintProperty(
+      "refuel-points",
+      "circle-stroke-width",
+      focusedStroke(refuelFocusId),
+    );
+    const point = refuelRef.current?.features.find(
+      (feature) =>
+        feature.properties.kind === "station" &&
+        feature.properties.stationId === refuelFocusId,
+    );
+    if (point?.geometry.type !== "Point") return;
+    const [longitude, latitude] = point.geometry.coordinates;
+    // Solo se desplaza si la gasolinera elegida no está a la vista.
+    if (!map.getBounds().contains([longitude, latitude])) {
+      map.easeTo({
+        center: [longitude, latitude],
+        duration: prefersReducedMotion() ? 0 : 400,
+      });
+    }
+  }, [refuelFocusId]);
 
   useEffect(() => {
     colorScaleRef.current = colorScale;
@@ -559,8 +646,31 @@ export function StationMap({
         setMapHover(null);
         tooltip.remove();
       });
+      addRefuelLayers(
+        map,
+        refuelRef.current ?? EMPTY_REFUEL,
+        refuelFocusRef.current,
+      );
+      fittedKeyRef.current = boundsKey(refuelRef.current ?? EMPTY_REFUEL);
+      map.on("click", "refuel-points", (event: MapLayerMouseEvent) => {
+        const stationId = event.features?.[0]?.properties?.stationId as
+          | string
+          | undefined;
+        if (stationId) onRefuelSelectRef.current?.(stationId);
+      });
+      map.on("mouseenter", "refuel-points", () => {
+        map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", "refuel-points", () => {
+        map.getCanvas().style.cursor = "";
+      });
+
       map.on("movestart", () => tooltip.remove());
-      applyLayerVisibility(map, viewRef.current);
+      applyLayerVisibility(
+        map,
+        viewRef.current,
+        (refuelRef.current?.features.length ?? 0) > 0,
+      );
     });
 
     const resizeObserver = new ResizeObserver(() => map.resize());
@@ -633,9 +743,11 @@ export function StationMap({
           className="h-full w-full"
           role="region"
           aria-label={
-            view === "heat"
-              ? "Mapa de calor de precios. La leyenda explica la escala; los precios de cada estación están en la lista accesible."
-              : "Mapa interactivo de gasolineras. Los resultados también están disponibles como lista accesible."
+            refuelActive
+              ? "Mapa con la ruta y las gasolineras comparadas. El detalle del ahorro está en el panel."
+              : view === "heat"
+                ? "Mapa de calor de precios. La leyenda explica la escala; los precios de cada estación están en la lista accesible."
+                : "Mapa interactivo de gasolineras. Los resultados también están disponibles como lista accesible."
           }
         />
       </div>

@@ -211,6 +211,9 @@ jobs:
 
       - name: Generar la exportación estática
         if: steps.data_change.outputs.should_deploy == 'true' || vars.HISTORY_ENABLED == 'true' || steps.monthly_delivery.outputs.changed == 'true'
+        # URL pública del Worker de rutas (ADR 0007); Next.js la incrusta al compilar.
+        env:
+          NEXT_PUBLIC_ROUTING_URL: https://fuelshift-rutas.jorgearcenic7.workers.dev
         run: |
           npm run build
           python -m fuelshift_data.monthly_delivery check --root out/data/historico-miteco --against public/data/historico-miteco
