@@ -34,7 +34,7 @@ import {
   type CostBound,
 } from "./costs";
 import {
-  DEFAULT_LIMITS,
+  limitsFor,
   type Action,
   type Endpoint,
   type RoutingLimits,
@@ -49,7 +49,8 @@ export { RoutingBudget } from "./budget";
  * 1. Origen permitido (complementario), interruptores y lista cerrada de rutas.
  * 2. Cuerpo acotado y validación estricta, antes de tocar el presupuesto.
  * 3. Política económica: sin cota de coste verificable antes de llamar, no se
- *    llama salvo garantía efectiva del proveedor (`costs.ts`).
+ *    llama salvo garantía efectiva del proveedor o activación provisional
+ *    explícita, con presupuesto reducido (`costs.ts`, `limits.ts`).
  * 4. Reserva atómica en el Durable Object (fail-closed).
  * 5. Llamada al proveedor sin reintentos propios; un solo reintento, y solo
  *    si se obtiene una reserva nueva.
@@ -476,7 +477,7 @@ export async function handleRequest(
     const network = visitorNetwork(request.headers.get("CF-Connecting-IP"));
     if (!network) return fail("forbidden");
 
-    const limits = deps.limits ?? DEFAULT_LIMITS;
+    const limits = deps.limits ?? limitsFor(env.GEOAPIFY_CHARGE_GUARANTEE);
     const context: Context = {
       env,
       visitor: await visitorId(network, env.VISITOR_SALT),

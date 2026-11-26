@@ -4,6 +4,8 @@ import { BudgetLedger, RoutingBudget, type ReserveInput } from "../src/budget";
 import {
   autocompleteCost,
   CHARGE_GUARANTEE_CONFIRMED,
+  CHARGE_GUARANTEE_PROVISIONAL,
+  chargeMode,
   chargePolicy,
   matrixActualCredits,
   matrixBaseCredits,
@@ -11,8 +13,9 @@ import {
   NO_MODIFIERS,
   routeActualCredits,
   routeCost,
+  type CostBound,
 } from "../src/costs";
-import { DEFAULT_LIMITS } from "../src/limits";
+import { DEFAULT_LIMITS, limitsFor, PROVISIONAL_LIMITS } from "../src/limits";
 import { visitorId, visitorNetwork } from "../src/visitor";
 import { sqliteStorage } from "./harness";
 
@@ -107,6 +110,53 @@ describe("política económica previa", () => {
       allowed: true,
       reserveCredits: 1,
     });
+  });
+
+  it("la activación provisional es un modo propio, no una confirmación escrita", () => {
+    expect(chargeMode(CHARGE_GUARANTEE_PROVISIONAL)).toBe("provisional");
+    expect(chargeMode(CHARGE_GUARANTEE_CONFIRMED)).toBe("confirmed");
+    expect(CHARGE_GUARANTEE_PROVISIONAL).not.toBe(CHARGE_GUARANTEE_CONFIRMED);
+    for (const value of [
+      undefined,
+      "ninguna",
+      "provisional",
+      "PROVISIONAL-SIN-CONFIRMACION",
+      ` ${CHARGE_GUARANTEE_PROVISIONAL}`,
+    ]) {
+      expect(chargeMode(value)).toBe("blocked");
+    }
+    expect(
+      chargePolicy(matrixCost(1, 15), CHARGE_GUARANTEE_PROVISIONAL),
+    ).toEqual({ allowed: true, reserveCredits: 15 });
+  });
+
+  it("solo la confirmación escrita usa el presupuesto inicial; el resto, 300 créditos", () => {
+    expect(limitsFor(CHARGE_GUARANTEE_CONFIRMED)).toBe(DEFAULT_LIMITS);
+    for (const value of [CHARGE_GUARANTEE_PROVISIONAL, "ninguna", undefined]) {
+      expect(limitsFor(value)).toBe(PROVISIONAL_LIMITS);
+    }
+    const { providerCredits, endpointCredits } = PROVISIONAL_LIMITS;
+    expect(providerCredits.geoapify).toBe(300);
+    expect(
+      Object.values(endpointCredits).reduce((sum, value) => sum + value, 0),
+    ).toBeLessThanOrEqual(providerCredits.geoapify);
+    // Las reservas reales caben en su endpoint: una búsqueda reserva dos
+    // matrices de 15 candidatas; una ruta con parada, 2; un autocompletado, 1.
+    const minimum = (bound: CostBound) =>
+      bound.kind === "fixed" ? bound.credits : bound.minimumCredits;
+    expect(2 * minimum(matrixCost(1, 15))).toBeLessThanOrEqual(
+      endpointCredits.matrix,
+    );
+    expect(minimum(routeCost(3))).toBeLessThanOrEqual(endpointCredits.routing);
+    expect(minimum(autocompleteCost())).toBeLessThanOrEqual(
+      endpointCredits.autocomplete,
+    );
+    // Solo cambia el presupuesto: tasas, concurrencia y pausas son las mismas.
+    expect({
+      ...PROVISIONAL_LIMITS,
+      providerCredits: DEFAULT_LIMITS.providerCredits,
+      endpointCredits: DEFAULT_LIMITS.endpointCredits,
+    }).toEqual(DEFAULT_LIMITS);
   });
 });
 

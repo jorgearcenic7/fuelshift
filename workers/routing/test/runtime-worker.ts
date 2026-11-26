@@ -2,11 +2,17 @@
 // es el entrypoint de producción y no contiene credenciales reales.
 import { RoutingBudget as ProductionBudget } from "../src/budget";
 import { handleRequest } from "../src/index";
+import type { RoutingLimits } from "../src/limits";
 import type { DurableObjectStateLike, Env } from "../src/types";
 
 export class RoutingBudget extends ProductionBudget {
-  constructor(private readonly testState: DurableObjectStateLike) {
-    super(testState);
+  // Mismo constructor que en producción: workerd entrega `env` y el objeto
+  // elige el presupuesto según el modo económico.
+  constructor(
+    private readonly testState: DurableObjectStateLike,
+    env: Env,
+  ) {
+    super(testState, env);
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -15,9 +21,13 @@ export class RoutingBudget extends ProductionBudget {
       const alarmStorage = storage as typeof storage & {
         getAlarm(): Promise<number | null>;
       };
+      // Lectura de diagnóstico del presupuesto que eligió el constructor.
+      const { limits } = this as unknown as { limits: RoutingLimits };
       return Response.json({
+        providerCredits: limits.providerCredits.geoapify,
+        endpointCredits: limits.endpointCredits,
         rows: storage.sql
-          .exec("SELECT status, credits FROM reservations")
+          .exec("SELECT endpoint, status, credits FROM reservations")
           .toArray(),
         pending: storage.sql
           .exec("SELECT * FROM pending_settlements")

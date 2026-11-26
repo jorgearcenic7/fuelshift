@@ -22,7 +22,8 @@ import type { RoadLeg } from "@/domain/refuel/road-routing";
  * de la ruta que calcule el proveedor (rodeos, ferris, cortes de carretera) y
  * ninguna estimación geográfica lo acota. Por eso matriz y ruta no tienen cota
  * máxima verificable y solo se permiten con una garantía efectiva del
- * proveedor de que superar la cuota no genera cargos (ver `chargePolicy`).
+ * proveedor de que superar la cuota no genera cargos o con la activación
+ * provisional explícita del propietario (ver `chargePolicy`).
  */
 const SURCHARGE_METERS = 500_000;
 
@@ -155,6 +156,26 @@ export function autocompleteCost(): CostBound {
  */
 export const CHARGE_GUARANTEE_CONFIRMED = "confirmada-por-escrito";
 
+/**
+ * Activación provisional decidida por el propietario mientras Geoapify no
+ * responde (ADR 0007). No equivale a una confirmación escrita: acepta el
+ * riesgo económico residual y solo funciona con el presupuesto reducido de
+ * `PROVISIONAL_LIMITS` (limits.ts).
+ */
+export const CHARGE_GUARANTEE_PROVISIONAL = "provisional-sin-confirmacion";
+
+/**
+ * Modo económico según el valor exacto de `GEOAPIFY_CHARGE_GUARANTEE`.
+ * Cualquier otro valor, incluido uno vacío o mal escrito, bloquea.
+ */
+export type ChargeMode = "blocked" | "provisional" | "confirmed";
+
+export function chargeMode(guarantee: string | undefined): ChargeMode {
+  if (guarantee === CHARGE_GUARANTEE_CONFIRMED) return "confirmed";
+  if (guarantee === CHARGE_GUARANTEE_PROVISIONAL) return "provisional";
+  return "blocked";
+}
+
 export type ChargeDecision =
   | { allowed: true; reserveCredits: number }
   | { allowed: false; reason: "cost-unbounded" };
@@ -162,9 +183,9 @@ export type ChargeDecision =
 /**
  * Política económica previa a cada petición:
  * - coste fijo: se reserva exactamente ese coste;
- * - coste sin cota: bloqueado salvo garantía efectiva del proveedor; con ella
- *   se reserva el mínimo y se liquida el coste real, que sigue contando en el
- *   presupuesto y corta peticiones posteriores.
+ * - coste sin cota: bloqueado salvo garantía escrita o activación provisional;
+ *   en ambos casos se reserva el mínimo y se liquida el coste real, que sigue
+ *   contando en el presupuesto y corta peticiones posteriores.
  */
 export function chargePolicy(
   bound: CostBound,
@@ -173,7 +194,7 @@ export function chargePolicy(
   if (bound.kind === "fixed") {
     return { allowed: true, reserveCredits: bound.credits };
   }
-  if (guarantee !== CHARGE_GUARANTEE_CONFIRMED) {
+  if (chargeMode(guarantee) === "blocked") {
     return { allowed: false, reason: "cost-unbounded" };
   }
   return { allowed: true, reserveCredits: bound.minimumCredits };

@@ -455,7 +455,10 @@ export function RefuelPanel({
           {mode === "trip" ? ", el destino" : ""} y hasta{" "}
           {ROUTING_API_LIMITS.maxLocations} gasolineras se envían al servicio de
           rutas de FuelShift y a Geoapify. Al buscar una dirección se envía el
-          texto a ambos servicios. FuelShift no guarda trayectos.
+          texto a ambos servicios. FuelShift no guarda trayectos legibles; para
+          limitar abusos conserva unas 48 h códigos seudónimos de tu conexión y
+          de cada consulta. Según su política, Geoapify (alojado en la UE)
+          conserva las peticiones correctas hasta 24 h.
         </p>
 
         <div className="flex items-center gap-3">

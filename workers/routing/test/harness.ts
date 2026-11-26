@@ -174,14 +174,18 @@ export function createHarness(
     roadFactor?: number;
     env?: Partial<Env>;
     failingStorage?: () => boolean;
+    /** Como en producción: Worker y Durable Object deducen los límites del modo económico. */
+    limitsFromEnv?: boolean;
   } = {},
 ) {
-  const limits = { ...DEFAULT_LIMITS, ...options.limits };
+  const limits = options.limitsFromEnv
+    ? undefined
+    : { ...DEFAULT_LIMITS, ...options.limits };
   let clock = Date.parse("2026-11-26T12:00:00Z");
   const now = () => clock;
   const db = new DatabaseSync(":memory:");
   const storage = sqliteStorage(db, options.failingStorage);
-  let budget = new RoutingBudget({ storage }, undefined, limits, now);
+  let budget: RoutingBudget;
   const provider = fakeGeoapify(options.mode, options.roadFactor);
 
   const env: Env = {
@@ -201,6 +205,7 @@ export function createHarness(
     },
     ...options.env,
   };
+  budget = new RoutingBudget({ storage }, env, limits, now);
   const deps: Deps = { fetch: provider.fetch, limits, now };
 
   const spent = (endpoint?: string) => {
@@ -232,7 +237,7 @@ export function createHarness(
     spent,
     /** Nueva instancia del Durable Object sobre el mismo almacenamiento (despliegue o reinicio). */
     restart: () => {
-      budget = new RoutingBudget({ storage }, undefined, limits, now);
+      budget = new RoutingBudget({ storage }, env, limits, now);
     },
     advance: (ms: number) => {
       clock += ms;
