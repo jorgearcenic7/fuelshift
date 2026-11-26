@@ -16,8 +16,6 @@ test-results/
 .env.*
 !.env.example
 !.env.sample
-!.env.production
-!.env.development
 .venv/
 venv/
 __pycache__/

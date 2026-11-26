@@ -146,7 +146,7 @@ Esta discrepancia sigue bloqueando la activación hasta confirmación aplicable 
 - El Worker está desplegado con `workers_dev = true` y `preview_urls = false`, pero las
   consultas siguen desactivadas (`ROUTING_ENABLED` y `GEOAPIFY_ENABLED` valen `"false"`,
   `GEOAPIFY_CHARGE_GUARANTEE = "ninguna"`). Los secretos ya están cargados. La web se compila
-  con `NEXT_PUBLIC_ROUTING_URL` (`.env.production` y `.env.development`) y el origen del
+  con `NEXT_PUBLIC_ROUTING_URL` (en los workflows de CI y despliegue; `.env.local` en local) y el origen del
   Worker figura en `connect-src` de `public/_headers`; mientras siga desactivado, cada
   búsqueda responde «no disponible» sin consultar a Geoapify. Antes de activarlo hay que:
   1. Obtener de Geoapify por escrito que la cuenta, sin tarjeta, no puede generar cargos al
