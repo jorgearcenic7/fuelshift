@@ -19,6 +19,14 @@ Todos los cambios relevantes de FuelShift. El formato sigue
 
 ### Añadido
 
+- Modo de activación provisional del Worker de rutas
+  (`GEOAPIFY_CHARGE_GUARANTEE = "provisional-sin-confirmacion"`), sin confirmación
+  escrita de Geoapify y con el presupuesto reducido a 300 créditos por 24 h. Es una
+  excepción temporal autorizada por el propietario y no implica garantía económica.
+  Atribución a Geoapify y OpenStreetMap junto a las sugerencias y la dirección elegida,
+  y aviso de los plazos de conservación en el panel de repostaje. La prueba en workerd
+  cubre ambos presupuestos, su persistencia tras reiniciar y el estado seguro con la
+  clave restaurada (ADR 0007).
 - Correcciones finales de rutas: diario persistente de liquidaciones y pausas,
   bloqueo ante deuda sin reconciliar, matrices contabilizadas y reintentadas por
   separado, límite global de llamadas por segundo y borrado mediante alarma.

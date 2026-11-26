@@ -1,3 +1,5 @@
+import { chargeMode } from "./costs";
+
 /**
  * Límites iniciales y revisables del intermediario de rutas. Cambiarlos exige
  * revisar que la suma de presupuestos por endpoint no supere el global y que
@@ -86,3 +88,29 @@ export const DEFAULT_LIMITS: RoutingLimits = {
   cooldownAfterAuthMs: 60 * 60_000,
   providerTimeoutMs: 8000,
 };
+
+/**
+ * Presupuesto de la activación provisional (ADR 0007): 300 créditos en
+ * cualquier ventana de 24 h, un 10 % de la cuota gratuita. Mantiene el reparto
+ * proporcional de los límites iniciales. No es una cota del coste real: el
+ * recargo por distancia no tiene límite previo, así que la liquidación de la
+ * última operación admitida puede superar 300; en cuanto se liquida, corta las
+ * siguientes. Solo cambia el presupuesto; el resto de protecciones son las
+ * mismas.
+ */
+export const PROVISIONAL_LIMITS: RoutingLimits = {
+  ...DEFAULT_LIMITS,
+  providerCredits: { geoapify: 300 },
+  endpointCredits: { matrix: 220, routing: 40, autocomplete: 40 },
+};
+
+/**
+ * El presupuesto inicial solo se aplica con la confirmación escrita del
+ * proveedor. En modo provisional, y también cuando matriz y ruta están
+ * bloqueadas, se usa el reducido: ante la duda, el menor.
+ */
+export function limitsFor(guarantee: string | undefined): RoutingLimits {
+  return chargeMode(guarantee) === "confirmed"
+    ? DEFAULT_LIMITS
+    : PROVISIONAL_LIMITS;
+}

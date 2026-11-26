@@ -14,6 +14,37 @@ type Phase =
   | { status: "results"; suggestions: AddressSuggestion[] }
   | { status: "error"; message: string };
 
+/**
+ * Geoapify exige su atribución y la de OpenStreetMap junto a los datos que
+ * devuelve en el plan Free: se muestra con las sugerencias y mientras siga
+ * visible la dirección elegida.
+ */
+function GeoapifyAttribution() {
+  return (
+    <p className="text-muted mt-1 text-[0.75rem] leading-4">
+      Direcciones de{" "}
+      <a
+        className="text-ink-2 font-semibold underline underline-offset-[3px]"
+        href="https://www.geoapify.com/"
+        target="_blank"
+        rel="noreferrer"
+      >
+        Geoapify
+      </a>{" "}
+      con datos de{" "}
+      <a
+        className="text-ink-2 font-semibold underline underline-offset-[3px]"
+        href="https://www.openstreetmap.org/copyright"
+        target="_blank"
+        rel="noreferrer"
+      >
+        OpenStreetMap
+      </a>
+      .
+    </p>
+  );
+}
+
 function errorMessage(error: unknown): string {
   if (error instanceof RoutingError) {
     if (error.kind === "invalid-request") return error.message;
@@ -90,6 +121,7 @@ export function AddressField({
             Cambiar<span className="sr-only"> {label.toLowerCase()}</span>
           </button>
         </div>
+        <GeoapifyAttribution />
       </div>
     );
   }
@@ -172,6 +204,9 @@ export function AddressField({
             </li>
           ))}
         </ul>
+      ) : null}
+      {phase.status === "results" && phase.suggestions.length > 0 ? (
+        <GeoapifyAttribution />
       ) : null}
     </div>
   );
