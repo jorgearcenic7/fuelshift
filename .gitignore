@@ -16,6 +16,8 @@ test-results/
 .env.*
 !.env.example
 !.env.sample
+!.env.production
+!.env.development
 .venv/
 venv/
 __pycache__/
@@ -42,3 +44,6 @@ data/historico/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Archivos temporales de Wrangler (Worker de rutas)
+.wrangler/

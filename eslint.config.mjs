@@ -92,6 +92,7 @@ export default defineConfig([
     ".venv/**",
     "public/data/**",
     ".next/**",
+    ".wrangler/**",
     "out/**",
     "coverage/**",
     ".edge-profile*/**",

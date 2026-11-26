@@ -14,6 +14,8 @@ import {
 } from "react";
 
 import { PriceUnitLabel } from "@/components/price-unit";
+import { RefuelMapLegend } from "@/components/refuel/refuel-results";
+import { RefuelPanel, type RefuelMode } from "@/components/refuel/refuel-panel";
 import { Segmented } from "@/components/segmented";
 import {
   loadMitecoManifest,
@@ -24,6 +26,7 @@ import { getBrandIdentity } from "@/domain/brands";
 import { isStale } from "@/domain/freshness";
 import { summarizePrices } from "@/domain/fuel-statistics";
 import { PRICE_UNIT_NAMES, priceUnit } from "@/domain/fuel-units";
+import type { RefuelFeatureCollection } from "@/domain/refuel/map-features";
 import {
   buildFilteredHeatmap,
   buildPriceHeatmap,
@@ -46,7 +49,13 @@ import {
 import { formatPrice, formatRetrievedAt } from "@/lib/format";
 
 import { BrandMark } from "./brand-mark";
-import { AlertIcon, LocateIcon, SearchIcon, SlidersIcon } from "./icons";
+import {
+  AlertIcon,
+  LocateIcon,
+  RouteIcon,
+  SearchIcon,
+  SlidersIcon,
+} from "./icons";
 import { MapAttribution } from "./map-attribution";
 import { MobileMapLegend } from "./mobile-map-legend";
 import type { MapView } from "./price-heatmap-layer";
@@ -218,8 +227,20 @@ export function FuelMapApp() {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   // Adónde llevar el foco tras el próximo cambio de vista del panel.
   const focusRequest = useRef<
-    { to: "detail" } | { to: "row"; stationId: string } | null
+    | { to: "detail" }
+    | { to: "refuel" }
+    | { to: "entry" }
+    | { to: "row"; stationId: string }
+    | null
   >(null);
+  // Cálculo de repostaje: panel propio, resultado en el mapa y gasolinera
+  // resaltada. El panel conserva su estado al cerrarlo.
+  const [refuelOpen, setRefuelOpen] = useState(false);
+  const [refuelMode, setRefuelMode] = useState<RefuelMode>("nearby");
+  const [refuelMap, setRefuelMap] = useState<RefuelFeatureCollection | null>(
+    null,
+  );
+  const [refuelFocusId, setRefuelFocusId] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
   const [locationStatus, setLocationStatus] = useState<string | null>(null);
   const [rankingScope, setRankingScope] = useState<RankingScope>("visible");
@@ -398,11 +419,26 @@ export function FuelMapApp() {
     setDetailId(stationId);
   }
 
-  // Vuelve a la lista y devuelve el foco a la fila de la estación.
+  // Vuelve a la vista anterior (lista o repostaje) y le devuelve el foco.
   function closeDetail() {
     if (!selectedId) return;
-    focusRequest.current = { to: "row", stationId: selectedId };
+    focusRequest.current = refuelOpen
+      ? { to: "refuel" }
+      : { to: "row", stationId: selectedId };
     setSelectedId(null);
+  }
+
+  function openRefuel(mode: RefuelMode) {
+    setRefuelMode(mode);
+    setRefuelOpen(true);
+    setSheetExpanded(true);
+    focusRequest.current = { to: "refuel" };
+  }
+
+  function closeRefuel() {
+    setRefuelOpen(false);
+    setRefuelFocusId(null);
+    focusRequest.current = { to: "entry" };
   }
 
   // El foco se mueve justo después de pintar la vista nueva, sin esperar a un
@@ -415,12 +451,16 @@ export function FuelMapApp() {
       document
         .getElementById("station-detail-title")
         ?.focus({ preventScroll: true });
+    } else if (request.to === "refuel") {
+      document.getElementById("refuel-title")?.focus({ preventScroll: true });
+    } else if (request.to === "entry") {
+      document.getElementById("refuel-entry")?.focus({ preventScroll: true });
     } else {
       document
         .querySelector<HTMLElement>(`[data-station-row="${request.stationId}"]`)
         ?.focus();
     }
-  }, [selectedId]);
+  }, [selectedId, refuelOpen]);
 
   function requestLocation() {
     if (!("geolocation" in navigator)) {
@@ -454,6 +494,8 @@ export function FuelMapApp() {
   });
   const statusStyle = dataStatusStyle(loading, loadError);
   const showDetail = selectedStation !== null;
+  const showRefuel = refuelOpen && !showDetail;
+  const refuelOnMap = refuelOpen ? refuelMap : null;
 
   return (
     <main
@@ -505,8 +547,8 @@ export function FuelMapApp() {
           <section
             aria-labelledby="map-title"
             className="panel-view"
-            data-state={showDetail ? "hidden-left" : "shown"}
-            inert={showDetail}
+            data-state={showDetail || refuelOpen ? "hidden-left" : "shown"}
+            inert={showDetail || refuelOpen}
           >
             <div className="panel-scroll">
               {/* Presentación y estado de los datos */}
@@ -759,6 +801,43 @@ export function FuelMapApp() {
                 </div>
               </section>
 
+              {/* Acceso al cálculo de repostaje con ahorro neto */}
+              <section
+                aria-labelledby="refuel-entry-title"
+                className="flex flex-col gap-2.5 px-5 pt-4 pb-5 shadow-[inset_0_1px_0_var(--line-soft)]"
+              >
+                <div>
+                  <h2
+                    id="refuel-entry-title"
+                    className="text-ink text-[0.9375rem] font-extrabold tracking-[-0.01em]"
+                  >
+                    ¿Compensa desplazarse?
+                  </h2>
+                  <p className="text-muted mt-0.5 text-[0.8125rem] leading-[1.15rem]">
+                    Ahorro neto tras restar lo que cuesta llegar por carretera.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    id="refuel-entry"
+                    type="button"
+                    className="btn btn-soft"
+                    onClick={() => openRefuel("nearby")}
+                  >
+                    <LocateIcon className="size-4" />
+                    <span className="optical">Cerca de mí</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-soft"
+                    onClick={() => openRefuel("trip")}
+                  >
+                    <RouteIcon className="size-4" />
+                    <span className="optical">En un viaje</span>
+                  </button>
+                </div>
+              </section>
+
               {/* Ranking por precio */}
               <section
                 aria-labelledby="ranking-title"
@@ -960,6 +1039,43 @@ export function FuelMapApp() {
             </div>
           </section>
 
+          {/* Vista 3: repostaje. Entra desde la derecha; si se abre una
+              ficha encima, sale por la izquierda y vuelve al cerrarla. */}
+          <section
+            aria-label="Repostar con ahorro"
+            className="panel-view"
+            data-state={
+              showRefuel
+                ? "shown"
+                : showDetail && refuelOpen
+                  ? "hidden-left"
+                  : "hidden-right"
+            }
+            inert={!showRefuel}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") closeRefuel();
+            }}
+          >
+            <div className="panel-scroll">
+              <RefuelPanel
+                mode={refuelMode}
+                onModeChange={setRefuelMode}
+                stations={stations}
+                fuel={fuel}
+                pricesRetrievedAt={manifest?.retrieved_at ?? null}
+                dataReady={dataReady && stations.length > 0}
+                userLocation={userLocation}
+                locationStatus={locationStatus}
+                onRequestLocation={requestLocation}
+                focusedId={refuelFocusId}
+                onFocusStation={setRefuelFocusId}
+                onMapChange={setRefuelMap}
+                onClose={closeRefuel}
+              />
+              <MapAttribution manifest={manifest} />
+            </div>
+          </section>
+
           {/* Vista 2: ficha. Entra desde la derecha y sale por el mismo lado. */}
           <section
             aria-label="Ficha de la estación"
@@ -1003,6 +1119,9 @@ export function FuelMapApp() {
           view={mapView}
           heatmap={heatmap}
           colorScale={nationalHeatmap?.scale ?? null}
+          refuel={refuelOnMap}
+          refuelFocusId={refuelFocusId}
+          onRefuelSelect={setRefuelFocusId}
         />
         <div className="glass absolute top-3 left-3 z-10 w-[14.5rem] p-[3px]">
           <Segmented
@@ -1014,7 +1133,13 @@ export function FuelMapApp() {
             className="seg-sm seg-dark bg-transparent"
           />
         </div>
-        {mapView === "stations" &&
+        {refuelOnMap ? (
+          <div className="map-legend-position absolute z-10">
+            <RefuelMapLegend />
+          </div>
+        ) : null}
+        {!refuelOnMap &&
+        mapView === "stations" &&
         nationalHeatmap?.scale &&
         nationalHeatmap.scale.high - nationalHeatmap.scale.low > 1e-9 ? (
           <div className="map-legend-position absolute z-10">

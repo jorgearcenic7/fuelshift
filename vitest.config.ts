@@ -10,10 +10,16 @@ export default defineConfig({
   },
   test: {
     coverage: {
-      // Lógica sin React: dominio, contrato de datos y utilidades. Los scripts de
-      // despliegue se prueban ejecutándolos como procesos, que v8 no mide aquí.
-      include: ["src/lib/**/*.ts", "src/domain/**/*.ts", "src/data/**/*.ts"],
-      exclude: ["**/*.test.ts"],
+      // Lógica sin React: dominio, contrato de datos, utilidades y Worker de rutas.
+      // Los scripts de despliegue se prueban ejecutándolos como procesos, que v8
+      // no mide aquí.
+      include: [
+        "src/lib/**/*.ts",
+        "src/domain/**/*.ts",
+        "src/data/**/*.ts",
+        "workers/*/src/**/*.ts",
+      ],
+      exclude: ["**/*.test.ts", "workers/*/src/types.ts"],
       provider: "v8",
       reporter: ["text", "json-summary"],
       thresholds: {

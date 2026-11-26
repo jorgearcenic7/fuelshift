@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatDuration,
+  formatEuros,
+  formatKilometres,
+  formatSignedEuros,
   formatCount,
   formatLongDate,
   formatPrice,
@@ -49,5 +53,17 @@ describe("formatos en español", () => {
     expect(long).toMatch(/^5\D/);
     expect(long).toMatch(/octubre/i);
     expect(long).toMatch(/2026/);
+  });
+});
+
+describe("formatos de ahorro y trayecto", () => {
+  it("presenta euros, kilómetros y duraciones en español", () => {
+    expect(formatEuros(12.345)).toMatch(/^12,3[45]\s€$/);
+    expect(formatSignedEuros(2.5)).toMatch(/^\+2,50\s€$/);
+    expect(formatSignedEuros(-1.2)).toMatch(/^-1,20\s€$/);
+    expect(formatSignedEuros(-0.004)).toMatch(/^0,00\s€$/);
+    expect(formatKilometres(3250)).toBe("3,3 km");
+    expect(formatDuration(89)).toBe("1 min");
+    expect(formatDuration(3900)).toBe("1 h 05 min");
   });
 });

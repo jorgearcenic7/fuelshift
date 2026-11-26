@@ -299,8 +299,15 @@
       transform 140ms var(--ease-out);
   }
 
-  .btn:active {
+  .btn:active:not(:disabled) {
     transform: scale(0.97);
+  }
+
+  /* Deshabilitado: gris neutro, sin depender solo de la opacidad (contraste AA del texto). */
+  .btn:disabled {
+    background: var(--mist);
+    color: var(--muted);
+    cursor: not-allowed;
   }
 
   .btn-primary {
@@ -365,12 +372,12 @@
       color: var(--ink);
     }
 
-    .btn-primary:hover {
+    .btn-primary:not(:disabled):hover {
       background: var(--accent-strong);
       box-shadow: 0 8px 18px -10px rgb(31 98 176 / 80%);
     }
 
-    .btn-soft:hover {
+    .btn-soft:not(:disabled):hover {
       background: #dce8f7;
     }
 
@@ -1785,7 +1792,7 @@
 
   .press:active,
   .chip-option:active,
-  .btn:active,
+  .btn:active:not(:disabled),
   .seg-option:active,
   .station-row:active {
     transform: none;

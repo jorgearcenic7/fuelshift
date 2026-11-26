@@ -19,6 +19,29 @@ Todos los cambios relevantes de FuelShift. El formato sigue
 
 ### Añadido
 
+- Correcciones finales de rutas: diario persistente de liquidaciones y pausas,
+  bloqueo ante deuda sin reconciliar, matrices contabilizadas y reintentadas por
+  separado, límite global de llamadas por segundo y borrado mediante alarma.
+  Geometría real bajo demanda para una sola estación, con caché, cancelación y
+  contraste frente a las distancias del ahorro. Proveedores aún desactivados.
+- Next.js y sus paquetes relacionados actualizados de 16.4.3 a 16.4.6 por seguridad;
+  sin actualizaciones de dependencias ajenas a Next.js.
+
+- Motor de repostaje por carretera: contrato común de rutas, adaptador de Geoapify,
+  preselección de estaciones, ahorro bruto y neto frente a una estación
+  de referencia, desvíos durante un viaje y GeoJSON para el mapa.
+- Paneles «Cerca de mí» y «Durante un viaje»: supuestos de cantidad y consumo, búsqueda
+  de direcciones bajo demanda, ahorro bruto, coste del desplazamiento y ahorro neto,
+  cambio de referencia sin nuevas peticiones, ruta y gasolineras numeradas en MapLibre,
+  y estados de carga, error, cuota agotada y servicio desactivado. Conectados al Worker
+  mediante `NEXT_PUBLIC_ROUTING_URL` y `connect-src`.
+- Worker de rutas en Workers Free, con consultas desactivadas (ADR 0007 aceptada):
+  presupuesto global persistente y atómico en Durable Object SQLite con reserva previa y sin devoluciones,
+  límites por visitante y globales, validación estricta, interruptores de emergencia y
+  política fail-closed. Matriz y ruta quedan bloqueadas mientras no exista garantía
+  escrita de Geoapify de ausencia de cargos, porque su recargo por distancia no tiene
+  cota verificable antes de la petición.
+
 - Metodología reducida de desarrollo asistido por IA, tres perfiles especializados
   para Codex y Claude Code y dos skills de FuelShift, con control humano de Git.
 
