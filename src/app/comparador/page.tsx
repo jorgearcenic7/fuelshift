@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 
 import { pageMetadata } from "@/app/site-metadata";
 import { EnergyCalculator } from "@/components/comparison/energy-calculator";
+import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SkipLink } from "@/components/layout/skip-link";
 
@@ -19,6 +20,7 @@ export default function ComparadorPage() {
       <SkipLink />
       <SiteHeader active="comparador" />
       <EnergyCalculator />
+      <SiteFooter />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-// sitemap.xml con las tres páginas públicas; se genera estático en el build.
+// sitemap.xml con las páginas públicas; se genera estático en el build.
 import type { MetadataRoute } from "next";
 
 import { SITE_URL } from "@/app/site-metadata";
@@ -11,5 +11,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/`, changeFrequency: "daily", priority: 1 },
     { url: `${SITE_URL}/estadisticas/`, changeFrequency: "daily" },
     { url: `${SITE_URL}/comparador/`, changeFrequency: "monthly" },
+    { url: `${SITE_URL}/privacidad/`, changeFrequency: "yearly" },
   ];
 }

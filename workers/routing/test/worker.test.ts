@@ -2,9 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { ROUTING_LIMIT_MESSAGE } from "@/domain/refuel/road-routing";
 
-import { CHARGE_GUARANTEE_PROVISIONAL } from "../src/costs";
-import type { Env } from "../src/types";
-
 import {
   createHarness,
   get,
@@ -130,6 +127,8 @@ describe("coste sin cota verificable", () => {
     { GEOAPIFY_CHARGE_GUARANTEE: "ninguna" },
     { GEOAPIFY_CHARGE_GUARANTEE: "sin-tarjeta" },
     { GEOAPIFY_CHARGE_GUARANTEE: "true" },
+    // Valor del modo provisional retirado en 1.2.0: vuelve a bloquear.
+    { GEOAPIFY_CHARGE_GUARANTEE: "provisional-sin-confirmacion" },
   ];
 
   it("sin garantía del proveedor bloquea matriz y ruta sin reservar ni llamar", async () => {
@@ -237,86 +236,6 @@ describe("coste sin cota verificable", () => {
     ]) {
       expect(sent).not.toContain(option);
     }
-  });
-});
-
-describe("activación provisional sin confirmación escrita", () => {
-  const provisional = (env: Partial<Env> = {}, roadFactor = 1) =>
-    createHarness({
-      limitsFromEnv: true,
-      roadFactor,
-      env: { GEOAPIFY_CHARGE_GUARANTEE: CHARGE_GUARANTEE_PROVISIONAL, ...env },
-    });
-  const barcelona = { latitude: 41.3874, longitude: 2.1686 };
-
-  it("habilita matriz y ruta con el presupuesto reducido y corta al agotarlo", async () => {
-    const harness = provisional();
-    const statuses: number[] = [];
-    for (let index = 0; index < 12; index += 1) {
-      const response = await harness.send(
-        post("/v1/legs", nearbyBody(), ipFor(index)),
-      );
-      statuses.push(response.status);
-      harness.advance(MINUTE + 1);
-    }
-    // 2 × 15 créditos por búsqueda: caben 7 en los 220 de matriz.
-    expect(statuses.filter((status) => status === 200)).toHaveLength(7);
-    expect(statuses.slice(7).every((status) => status === 503)).toBe(true);
-    expect(harness.spent("matrix")).toBe(210);
-    expect(harness.spent()).toBeLessThanOrEqual(300);
-    expect(harness.provider.stats().calls).toBe(14);
-    expect(harness.provider.stats().charged).toBe(harness.spent());
-  });
-
-  it("liquida los recargos reales y solo la última operación admitida puede rebasar", async () => {
-    // Rodeo de 10 veces la recta: cada ruta cuesta 1 + 10 créditos (límite 40).
-    const harness = provisional({}, 10);
-    const statuses: number[] = [];
-    for (let index = 0; index < 6; index += 1) {
-      const response = await harness.send(
-        post("/v1/route", { start: madrid, end: barcelona }, ipFor(index)),
-      );
-      statuses.push(response.status);
-      harness.advance(MINUTE + 1);
-    }
-    expect(statuses).toEqual([200, 200, 200, 200, 503, 503]);
-    expect(harness.spent("routing")).toBe(44);
-    expect(harness.provider.stats().charged).toBe(harness.spent());
-  });
-
-  it("sin garantía ni modo provisional, el autocompletado también usa el presupuesto reducido", async () => {
-    const harness = provisional({ GEOAPIFY_CHARGE_GUARANTEE: "ninguna" });
-    const statuses: number[] = [];
-    for (let index = 0; index < 45; index += 1) {
-      const response = await harness.send(
-        get(`/v1/autocomplete?text=calle%20${index}`, ipFor(index)),
-      );
-      statuses.push(response.status);
-      harness.advance(1001);
-    }
-    expect(statuses.filter((status) => status === 200)).toHaveLength(40);
-    expect(statuses.slice(40).every((status) => status === 503)).toBe(true);
-    expect(harness.spent("autocomplete")).toBe(40);
-    expect(harness.provider.stats().charged).toBe(harness.spent());
-    const blocked = await harness.send(post("/v1/legs", nearbyBody()));
-    expect((await blocked.json()).error).toBe("cost-unbounded");
-  });
-
-  it("mantiene los interruptores de emergencia y vuelve a bloquear al retirar el modo", async () => {
-    for (const env of [
-      { ROUTING_ENABLED: "false" },
-      { GEOAPIFY_ENABLED: "false" },
-    ]) {
-      const harness = provisional(env);
-      const response = await harness.send(post("/v1/legs", nearbyBody()));
-      expect((await response.json()).error).toBe("disabled");
-      expect(harness.provider.stats().calls).toBe(0);
-    }
-    const reverted = provisional({ GEOAPIFY_CHARGE_GUARANTEE: "ninguna" });
-    const response = await reverted.send(post("/v1/legs", nearbyBody()));
-    expect((await response.json()).error).toBe("cost-unbounded");
-    expect(reverted.provider.stats().calls).toBe(0);
-    expect(reverted.spent()).toBe(0);
   });
 });
 

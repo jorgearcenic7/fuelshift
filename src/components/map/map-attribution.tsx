@@ -60,6 +60,14 @@ export function MapAttribution({
         Los logotipos son marcas de sus titulares y solo identifican la marca de
         cada estación.
       </p>
+      <p>
+        <a
+          className="hover-fine:text-ink text-ink-2 font-semibold underline decoration-[rgb(15_29_46/30%)] underline-offset-[3px]"
+          href="/privacidad/"
+        >
+          Privacidad
+        </a>
+      </p>
     </footer>
   );
 }

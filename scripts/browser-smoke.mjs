@@ -80,11 +80,12 @@ async function noOverflow(page, context) {
   );
 }
 try {
-  // Las tres rutas en los cinco anchos del encargo, incluidos dispositivos táctiles.
+  // Las rutas públicas en los cinco anchos del encargo, incluidos dispositivos táctiles.
   for (const [slug, route] of [
     ["map", "/"],
     ["comparison", "/comparador/"],
     ["statistics", "/estadisticas/"],
+    ["privacy", "/privacidad/"],
   ]) {
     for (const width of [320, 375, 768, 1024, 1440]) {
       const page = await newPage(width);

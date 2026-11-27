@@ -19,14 +19,18 @@ Todos los cambios relevantes de FuelShift. El formato sigue
 
 ### Añadido
 
-- Modo de activación provisional del Worker de rutas
-  (`GEOAPIFY_CHARGE_GUARANTEE = "provisional-sin-confirmacion"`), sin confirmación
-  escrita de Geoapify y con el presupuesto reducido a 300 créditos por 24 h. Es una
-  excepción temporal autorizada por el propietario y no implica garantía económica.
-  Atribución a Geoapify y OpenStreetMap junto a las sugerencias y la dirección elegida,
-  y aviso de los plazos de conservación en el panel de repostaje. La prueba en workerd
-  cubre ambos presupuestos, su persistencia tras reiniciar y el estado seguro con la
-  clave restaurada (ADR 0007).
+- Confirmación escrita de Geoapify (27 de noviembre de 2026): el plan Free no genera cargos al
+  superar la cuota (responde con HTTP 429), admite el uso público en producción y aplica su DPA
+  estándar. El Worker de rutas se activa con
+  `GEOAPIFY_CHARGE_GUARANTEE = "confirmada-por-escrito"` y un único presupuesto de 2400
+  créditos por cada 24 h; los valores de `wrangler.toml` siguen desactivados (ADR 0007).
+- Página `/privacidad/` con el tratamiento real de datos (Cloudflare, Geoapify, OpenFreeMap,
+  ubicación, seudónimos y plazos), enlazada desde el mapa, el panel de repostaje, el
+  comparador, las estadísticas y la página 404. Falta completar la identidad y el contacto
+  del responsable antes de publicar.
+- Atribución con el texto exacto «Powered by Geoapify | © OpenStreetMap contributors» junto a
+  las sugerencias de direcciones, la dirección elegida y los resultados de rutas.
+- Workers Logs desactivado en el Worker de rutas para no registrar las direcciones buscadas.
 - Correcciones finales de rutas: diario persistente de liquidaciones y pausas,
   bloqueo ante deuda sin reconciliar, matrices contabilizadas y reintentadas por
   separado, límite global de llamadas por segundo y borrado mediante alarma.
@@ -55,6 +59,12 @@ Todos los cambios relevantes de FuelShift. El formato sigue
 
 - Dependabot mensual para npm, Python y GitHub Actions, con actualizaciones agrupadas; la CI
   admite sus ramas `dependabot/`.
+
+### Retirado
+
+- Modo de activación provisional del Worker de rutas (`provisional-sin-confirmacion`) y su
+  presupuesto reducido de 300 créditos: la excepción terminó con la confirmación escrita de
+  Geoapify. Ese valor vuelve a bloquear matriz y ruta.
 
 ## [1.1.0] — 2026-11-16
 

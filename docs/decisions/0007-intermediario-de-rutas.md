@@ -1,10 +1,10 @@
 # 0007. Intermediario de rutas en Cloudflare Workers Free con presupuesto persistente
 
-Estado: Aceptada la arquitectura (26 de noviembre de 2026); confirmación económica de
-Geoapify pendiente. El propietario autoriza una excepción temporal: la
-[activación provisional](#activación-provisional-sin-confirmación-escrita) con presupuesto
-reducido mientras llega la respuesta. Modifica la [ADR 0001](0001-exportacion-estatica.md) solo en un
-punto: añade un Worker independiente para rutas, desplegado por el propietario en Workers Free
+Estado: Aceptada (26 de noviembre de 2026). Condición económica cumplida el 27 de noviembre de
+2026 con la [confirmación escrita de Geoapify](#confirmación-escrita-de-geoapify). La
+[activación provisional](#historial-activación-provisional-retirada) queda finalizada y retirada
+del código. Modifica la [ADR 0001](0001-exportacion-estatica.md) solo en un punto: añade un
+Worker independiente para rutas, desplegado por el propietario en Workers Free
 (`https://fuelshift-rutas.jorgearcenic7.workers.dev`). La web sigue siendo un sitio estático
 en Cloudflare Pages.
 
@@ -14,33 +14,32 @@ FuelShift 1.2.0 necesita distancias y tiempos por carretera. Los precios de MITE
 de cada visita, pero las rutas sí, y los proveedores exigen una clave. AGENTS.md prohíbe poner
 secretos en el navegador y exige 0 €/mes; para el proveedor de rutas, verificado antes de su
 aprobación. Cualquier vía para generar costes con peticiones externas cuenta como
-vulnerabilidad P0 y bloquea la publicación. La única excepción es la
-[activación provisional](#activación-provisional-sin-confirmación-escrita), autorizada
-expresamente por el propietario, temporal y con riesgo aceptado. No deroga esta regla ni
-AGENTS.md, y no da por verificado el coste de 0 €/mes.
+vulnerabilidad P0 y bloquea la publicación.
 
-Condiciones consultadas el 2026-11-26:
+Condiciones consultadas el 2026-11-26 y revisadas el 2026-11-27:
 
 - **Geoapify Free**
   ([precios](https://www.geoapify.com/pricing/),
   [detalle de créditos](https://www.geoapify.com/pricing-details/),
-  [términos](https://www.geoapify.com/term-and-conditions/),
-  [privacidad](https://www.geoapify.com/privacy-policy/)):
+  [términos](https://www.geoapify.com/term-and-conditions/) (versión 5, 2 de febrero de 2024),
+  [privacidad](https://www.geoapify.com/privacy-policy/),
+  [DPA](https://www.geoapify.com/data-processing-agreement/) (revisión 2024/08/15)):
   - 3000 créditos al día, hasta 5 peticiones/s y sin tarjeta.
   - Coste ([matriz](https://apidocs.geoapify.com/docs/route-matrix/),
     [ruta](https://apidocs.geoapify.com/docs/routing/)): parte fija conocida antes de llamar
     (celdas de la matriz, pares de puntos, cada opción `avoid`, países excluidos, lugares y
     polígonos evitados, detalles y elevación) más 1 crédito por cada 500 km de **cada**
     distancia devuelta. Ese recargo depende de la ruta que calcule el proveedor.
-  - No publica si cobra las peticiones fallidas.
-  - Los límites son «blandos»: avisan y pueden bloquear la cuenta. Su FAQ dice que no
-    bloquean de inmediato al superar el uso, sino que contactan; no aclara si cobran.
-  - Los términos permiten suspender el servicio o cobrar excesos, sin aclarar si esto último
-    se aplica al plan gratuito.
-  - El uso en producción se admite «con algunas limitaciones» sin detallar.
+  - No publica si cobra las peticiones fallidas ni a qué hora reinicia la cuota diaria.
+  - Los términos generales permiten suspender el servicio o cobrar excesos sin excluir Free de
+    forma expresa, y admiten Free en producción «con algunas limitaciones». La confirmación
+    escrita del 27 de noviembre de 2026 resuelve ambas dudas para FuelShift.
   - Exige atribución a Geoapify y a OpenStreetMap.
-  - Aloja en la UE y conserva las peticiones correctas 24 h como máximo.
-  - No publica a qué hora reinicia la cuota diaria.
+  - Su DPA lo define como encargado del tratamiento (KEPTAGO LTD, Chipre). Trata los datos en
+    la UE y conserva los datos identificativos de las peticiones 24 h en general, hasta 2 meses
+    ante actividad sospechosa o fraudulenta. Entre sus subencargados figura Cloudflare
+    (Cloudflare, Inc. y Cloudflare Germany GmbH) para `api.geoapify.com`; solo
+    `api-eu.geoapify.com` se declara «strictly EU-bound».
 - **openrouteservice:** no se han podido leer sus planes ni sus términos. Su política de
   privacidad menciona transferencias fuera de la UE y no trata las coordenadas.
 - **Workers Free**
@@ -48,11 +47,43 @@ Condiciones consultadas el 2026-11-26:
   [límites](https://developers.cloudflare.com/workers/platform/limits/)):
   - 100 000 peticiones al día, 10 ms de CPU y 50 subpeticiones.
   - Al superar el límite devuelve el error 1027; no hay cargos por exceso.
+  - [Workers Logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/)
+    registra la URL de cada invocación y la conserva 3 días en Free.
 - **Durable Objects Free**
   ([precios](https://developers.cloudflare.com/durable-objects/platform/pricing/)):
   - Solo con almacenamiento SQLite.
   - 100 000 peticiones, 5 millones de filas leídas y 100 000 escritas al día.
   - Al superar un límite, las operaciones «fail with an error».
+- **Cloudflare como encargado**
+  ([política de privacidad](https://www.cloudflare.com/privacypolicy/), vigente desde el 4 de
+  noviembre de 2025; [DPA de clientes](https://www.cloudflare.com/cloudflare-customer-dpa/),
+  versión 6.4 de 3 de abril de 2026): encargado del contenido que transita por sus servicios y
+  responsable de sus datos de red y seguridad. Transferencias a EE. UU. mediante el Marco de
+  Privacidad de Datos UE-EE. UU. y, en su defecto, cláusulas contractuales tipo. No publica un
+  plazo de conservación de las IP. El DPA forma parte del acuerdo principal; no dice de forma
+  expresa cómo se aplica a las cuentas Free de autoservicio.
+
+## Confirmación escrita de Geoapify
+
+El 27 de noviembre de 2026 Alfiya Tarasenko, cofundadora de Geoapify, respondió por correo
+electrónico a la consulta del propietario sobre la cuenta y el proyecto de FuelShift. El
+propietario conserva el original; aquí solo se recoge su contenido, sin direcciones de correo:
+
+- Superar los límites del plan Free nunca genera cargos, facturas ni obligaciones de pago,
+  tampoco por un uso no autorizado de la clave. Por encima del límite, las peticiones se
+  rechazan con HTTP 429.
+- El plan Free nunca pasa automáticamente a una suscripción de pago.
+- Ningún plan tiene cargos por exceso, así que no se aplican al proyecto gratuito.
+- Se permite el uso público en producción con la atribución
+  «Powered by Geoapify | © OpenStreetMap contributors».
+- No existe un tope de crédito configurable; la respuesta 429 actúa como límite.
+- El DPA estándar se aplica automáticamente a las cuentas del plan Free.
+- El correo constituye su confirmación escrita.
+
+**Alcance:** cubre la cuenta y el proyecto de Geoapify del Worker de producción de FuelShift en
+el plan Free. No cubre otros planes, otras cuentas ni un cambio posterior de las condiciones.
+Con ella se da por verificado el coste de 0 €/mes del proveedor de rutas que exige AGENTS.md y
+desaparece la vía de costes que bloqueaba matriz y ruta.
 
 ## Decisión
 
@@ -61,21 +92,18 @@ Condiciones consultadas el 2026-11-26:
 - Un único Durable Object SQLite (`RoutingBudget`) lleva un presupuesto global, persistente y
   atómico:
   - Ventana móvil de 24 h, para no depender de la hora de reinicio del proveedor.
-  - Presupuesto según el modo económico (`limitsFor` en `limits.ts`):
-    - 2400 créditos de Geoapify, repartidos en matriz 1800, ruta 300 y autocompletado 300,
-      solo con `GEOAPIFY_CHARGE_GUARANTEE = "confirmada-por-escrito"`.
-    - 300 créditos (matriz 220, ruta 40 y autocompletado 40) con cualquier otro valor,
-      incluidos el modo provisional y el bloqueado.
+  - **2400 créditos** de Geoapify en cualquier ventana de 24 h, repartidos en matriz 1800,
+    ruta 300 y autocompletado 300 (`DEFAULT_LIMITS` en `limits.ts`). Es el único presupuesto.
   - Antes de cada llamada se aplica una política económica (`costs.ts`):
     - Coste fijo (autocompletado, 1 crédito): se reserva exactamente.
     - Coste sin cota previa (matriz y ruta, por el recargo de distancia): **bloqueado** con
       el error `cost-unbounded`, sin reservar ni llamar, salvo que
-      `GEOAPIFY_CHARGE_GUARANTEE` valga exactamente `"confirmada-por-escrito"` o, durante la
-      excepción temporal, `"provisional-sin-confirmacion"`.
-    - En esos dos modos se reserva el mínimo y se liquida el coste real con todos sus
-      recargos; lo liquidado corta las peticiones siguientes.
-  - No se usan estimaciones geográficas (línea recta × factor) como cota económica: un
-    rodeo, un ferri o un corte pueden multiplicar la distancia sin límite conocido.
+      `GEOAPIFY_CHARGE_GUARANTEE` valga exactamente `"confirmada-por-escrito"`. Así un
+      despliegue con los valores del repositorio sigue sin llamar.
+    - Con ese valor se reserva el mínimo y se liquida el coste real con todos sus recargos;
+      lo liquidado corta las peticiones siguientes.
+  - No se usan estimaciones geográficas (línea recta × factor) como cota: un rodeo, un ferri o
+    un corte pueden multiplicar la distancia sin límite conocido.
   - Cada reintento se reserva aparte y solo repite las llamadas fallidas. Se esperan
     todas las matrices y se liquidan individualmente, incluidos sus recargos.
     Una petición fallida cuenta como cobrada al menos por su reserva.
@@ -83,8 +111,7 @@ Condiciones consultadas el 2026-11-26:
     Toda reserva sin liquidar bloquea operaciones nuevas, sin caducar su plaza de
     concurrencia. Se admite una operación atómica a la vez, con sus matrices en paralelo.
     Si el resultado no llegó a persistirse por una caída del almacenamiento o del
-    transporte, se conserva el bloqueo hasta reconciliarlo con el consumo del proveedor;
-    no se presupone que el mínimo reservado cubra sus recargos.
+    transporte, se conserva el bloqueo hasta reconciliarlo con el consumo del proveedor.
   - No hay devoluciones; la liquidación solo puede subir el coste.
   - Pausa automática tras un 429 o una clave rechazada.
 - Límites iniciales y revisables (`workers/routing/src/limits.ts`):
@@ -115,125 +142,74 @@ Condiciones consultadas el 2026-11-26:
   al menos una vez y puede retrasarlas o reintentarlas durante una incidencia; no es
   una garantía de borrado al milisegundo. La deuda contable se conserva sin identificador
   tras ese plazo y sigue bloqueando hasta reconciliarse.
-- Se descarta Turnstile por ahora. No añade garantía económica (la dan la política económica y
-  el presupuesto global, no la identidad del visitante) y exigiría un widget y una verificación más por búsqueda. Se reconsiderará
-  si el abuso agota el presupuesto a menudo y deja el servicio sin disponibilidad.
+- Workers Logs desactivado en `wrangler.toml` (`[observability] enabled = false`): el texto
+  de las direcciones viaja en la URL del autocompletado y no debe quedar registrado.
+- Se descarta Turnstile por ahora. No añade garantía económica y exigiría un widget y una
+  verificación más por búsqueda. Se reconsiderará si el abuso agota el presupuesto a menudo y
+  deja el servicio sin disponibilidad.
 
 ## Qué garantiza el código y qué depende de cuentas y contratos
 
-| Garantía                                                                     | Depende de                                                     |
-| ---------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| Las reservas de 24 h no superan 2400 créditos (300 sin confirmación escrita) | Código (pruebas de concurrencia y persistencia)                |
-| El contador sobrevive a despliegues y reinicios                              | Código y Durable Objects SQLite (no borrar la clase)           |
-| Sin consultas si hay dudas sobre el saldo                                    | Código (fail-closed)                                           |
-| Sin garantía ni modo provisional, solo sale coste fijo ya reservado          | Código (`chargePolicy`, pruebas con rodeos de 2, 5 y 10 veces) |
-| Con garantía o en modo provisional, todo recargo real se contabiliza         | Código; el total puede superar el presupuesto por recargos     |
-| Superar la cuota de Geoapify no genera cargos                                | **Solo** una confirmación escrita de Geoapify                  |
-| Activar sin confirmación escrita no genera cargos                            | Nada: riesgo aceptado temporalmente por el propietario         |
-| Exceder Workers o Durable Objects no genera cargos                           | Cuenta de Cloudflare en plan Free, sin Workers Paid ni tarjeta |
-| La clave no llega al navegador ni al repositorio                             | Código y secreto de Wrangler cargado por el propietario        |
+| Garantía                                                    | Depende de                                                        |
+| ----------------------------------------------------------- | ----------------------------------------------------------------- |
+| Las reservas de 24 h no superan 2400 créditos               | Código (pruebas de concurrencia y persistencia)                   |
+| El contador sobrevive a despliegues y reinicios             | Código y Durable Objects SQLite (no borrar la clase)              |
+| Sin consultas si hay dudas sobre el saldo                   | Código (fail-closed)                                              |
+| Sin el valor de garantía, solo sale coste fijo ya reservado | Código (`chargePolicy`, pruebas con rodeos de 2, 5 y 10 veces)    |
+| Con el valor de garantía, todo recargo real se contabiliza  | Código; el total puede superar el presupuesto por recargos        |
+| Superar la cuota de Geoapify no genera cargos               | Confirmación escrita de Geoapify del 27-11-2026 para FuelShift    |
+| Exceder Workers o Durable Objects no genera cargos          | Cuenta de Cloudflare en plan Free, sin Workers Paid ni tarjeta    |
+| La clave no llega al navegador ni al repositorio            | Código y secreto de Wrangler cargado por el propietario           |
+| Las peticiones del Worker no quedan en Workers Logs         | `wrangler.toml` desplegado; comprobar el panel tras el despliegue |
 
-No hay garantía económica de matriz ni ruta basada en el código: su coste no tiene cota antes
-de la petición. Una cuenta sin tarjeta tampoco es garantía contractual, porque los términos
-permiten cobrar excesos. El margen sobre la cuota (600 créditos con confirmación, 2700 en
-modo provisional) es solo disponibilidad.
+El presupuesto de 2400 créditos deja 600 de margen sobre la cuota. Ya no protege frente a
+cargos, que Geoapify descarta por escrito, sino la disponibilidad: evita que el abuso agote la
+cuota del día y deja hueco a los recargos por distancia, que pueden hacer que la última
+operación admitida rebase el presupuesto antes de cortar las siguientes. Si aun así se agota
+la cuota, Geoapify responde 429, el Worker pausa el proveedor y el resto de la web sigue.
 
-La [guía oficial de Geoapify](https://www.geoapify.com/get-started-with-maps-api/)
-sí afirma ahora que Free nunca se cobra ni se convierte automáticamente en pago. Sus
-términos generales mantienen la cláusula de recargos sin exclusión expresa de Free.
-Por esta discrepancia, el coste de 0 €/mes no está verificado. La activación definitiva sigue
-pendiente de una confirmación aplicable a la cuenta; hasta entonces solo cabe la excepción
-provisional descrita a continuación.
+## Privacidad y atribución
 
-## Activación provisional sin confirmación escrita
-
-Excepción temporal autorizada expresamente por el propietario el 26 de noviembre de 2026,
-mientras se espera la respuesta de Geoapify. **No es una confirmación escrita ni la sustituye,
-y no existe garantía económica**: el propietario acepta temporalmente el riesgo económico
-residual descrito arriba. Es una excepción a la regla P0 del contexto y a la verificación
-previa de 0 €/mes que exige AGENTS.md, que no se modifica. Termina cuando Geoapify responda.
-
-- Modo explícito: `GEOAPIFY_CHARGE_GUARANTEE = "provisional-sin-confirmacion"`
-  (`CHARGE_GUARANTEE_PROVISIONAL` en `costs.ts`). Es un valor distinto de
-  `"confirmada-por-escrito"`. Cualquier valor que no sea uno de esos dos, aunque solo difiera
-  en mayúsculas o espacios, bloquea matriz y ruta con `cost-unbounded`.
-- Presupuesto reducido (`PROVISIONAL_LIMITS` en `limits.ts`): **300 créditos** en cualquier
-  ventana móvil de 24 h, repartidos en matriz 220, ruta 40 y autocompletado 40. El Worker y el
-  Durable Object lo eligen a partir del mismo valor. Solo `"confirmada-por-escrito"` usa los
-  2400 créditos iniciales; ante cualquier otro valor se aplica el reducido.
-- Se mantienen sin cambios la reserva atómica, el diario de liquidaciones, la deuda sin
-  reconciliar como bloqueo, una operación a la vez, los límites por visitante y globales, las
-  pausas tras 429 o clave rechazada, el reintento único, CORS, la validación, la
-  seudonimización, el borrado por alarma, el fail-closed y los interruptores
-  `ROUTING_ENABLED` y `GEOAPIFY_ENABLED`.
-- Los valores de `wrangler.toml` siguen desactivados. La activación se pasa con `--var` al
-  desplegar; un despliegue sin esas opciones vuelve al estado seguro.
-- La clave y el proyecto de Geoapify son **exclusivos del Worker de producción de
-  FuelShift**. No se usan en desarrollo local, pruebas, otras aplicaciones ni otros
-  entornos. El presupuesto interno solo ve las llamadas del Worker; cualquier otro uso
-  consumiría el margen sin contabilizarse. Las páginas consultadas no aclaran si la cuota se
-  cuenta por proyecto o por cuenta, así que tampoco se crean otros proyectos en la misma
-  cuenta mientras dure la excepción. Las pruebas usan proveedores simulados y claves ficticias.
-- Activar y desactivar siempre con `wrangler deploy`, que publica la versión al 100 %. Con un
-  despliegue gradual (`wrangler versions deploy` por porcentajes), el Worker y el Durable
-  Object podrían leer modos distintos durante la transición.
-
-### Riesgos aceptados
-
-- Superar la cuota podría generar cargos, porque los términos lo permiten y no hay
-  exclusión escrita para la cuenta. Con 300 créditos internos sobre una cuota de 3000, hacen
-  falta unos 2700 créditos de recargos no previstos para rebasarla, siempre que la clave y el
-  proyecto no se usen fuera del Worker. Las pruebas comprueban
-  que solo la última operación admitida puede pasar del presupuesto, porque su coste real se
-  liquida al terminar y bloquea las siguientes. No es una cota garantizada: el recargo por
-  distancia no tiene cota previa.
-- Si el almacenamiento falla después de una llamada, la reserva queda bloqueando hasta
-  reconciliarla (sin nuevas consultas). El coste real de esa llamada puede no quedar
-  registrado.
-- Pocas búsquedas al día: unas 7 de «Repostar cerca de mí» (30 créditos cada una) si nadie
-  más consume. Al agotarse, la web muestra el límite y el resto de funciones siguen.
-- Uso en producción «con algunas limitaciones» sin detallar en los términos, aunque la
-  página de precios lo admite si se respetan cuota, límites y atribución.
-
-### Privacidad y atribución comprobadas antes del tráfico público
-
-Lectura del 26 de noviembre de 2026 de los
-[términos](https://www.geoapify.com/term-and-conditions/), los
-[precios](https://www.geoapify.com/pricing/) y la
-[privacidad](https://www.geoapify.com/privacy-policy/) de Geoapify:
-
-- La atribución a Geoapify es obligatoria en Free y la de OpenStreetMap siempre, «near the
-  map or information provided by the service». El panel de resultados ya la mostraba. Ahora
-  también aparece junto a las sugerencias de direcciones y mientras se muestre la dirección
-  elegida, porque ambas son datos de Geoapify.
-- Según su política, Geoapify aloja en la UE y «generally» conserva no más de 24 h el
-  cuerpo, las cabeceras, la IP y la hora de las peticiones correctas. Es un plazo publicado,
-  no una garantía. No publica cuánto conserva las fallidas ni si actúa como encargado del
-  tratamiento. El Worker no reenvía cabeceras ni la IP del visitante (solo `Content-Type`);
-  la petición sale desde Cloudflare.
+- Atribución con el texto exacto pedido por Geoapify,
+  «Powered by Geoapify | © OpenStreetMap contributors», con enlaces a Geoapify y a los
+  derechos de OpenStreetMap (`src/components/refuel/geoapify-attribution.tsx`). Aparece junto
+  a las sugerencias de direcciones, mientras se muestre la dirección elegida y en los
+  resultados de rutas.
+- El Worker no reenvía cabeceras ni la IP del visitante (solo `Content-Type`); la petición
+  sale desde Cloudflare hacia `api.geoapify.com`.
 - FuelShift no guarda trayectos legibles. El Durable Object conserva el seudónimo de la
   conexión (hash con secreto) y la clave de cada operación (hash del seudónimo y de la
-  consulta) hasta que la alarma los borra, unas 48 h. La alarma se entrega al menos una vez y
-  puede retrasarse, así que el plazo no es exacto.
-- La nota del panel avisa, antes de calcular, de qué se envía y de esos plazos, presentados
-  como aproximados o según la política de Geoapify.
+  consulta) hasta que la alarma los borra, unas 48 h.
 - La ubicación se redondea a unos 11 m antes de enviarla, solo con permiso del navegador, y
   el autocompletado no envía la ubicación.
+- La página de privacidad (`/privacidad/`, `src/app/privacidad/page.tsx`) describe este
+  tratamiento y se enlaza desde el pie del mapa, el aviso del panel de repostaje, el
+  comparador, las estadísticas y la página 404. Falta que el propietario complete la
+  identidad y el contacto del responsable antes de publicar.
 
-### Activar (lo hace el propietario)
+## Activar (lo hace el propietario)
 
 1. Comprobar que la cuenta de Cloudflare sigue en plan Free, sin Workers Paid.
 2. Desde `workers/routing/`, revisar sin publicar y después desplegar:
 
    ```sh
-   npx wrangler deploy --dry-run --var ROUTING_ENABLED:true --var GEOAPIFY_ENABLED:true --var GEOAPIFY_CHARGE_GUARANTEE:provisional-sin-confirmacion
-   npx wrangler deploy --var ROUTING_ENABLED:true --var GEOAPIFY_ENABLED:true --var GEOAPIFY_CHARGE_GUARANTEE:provisional-sin-confirmacion
+   npx wrangler deploy --dry-run --var ROUTING_ENABLED:true --var GEOAPIFY_ENABLED:true --var GEOAPIFY_CHARGE_GUARANTEE:confirmada-por-escrito
+   npx wrangler deploy --var ROUTING_ENABLED:true --var GEOAPIFY_ENABLED:true --var GEOAPIFY_CHARGE_GUARANTEE:confirmada-por-escrito
    ```
 
-3. Probar una búsqueda en `https://fuelshift.pages.dev` y revisar el consumo en el panel de
-   Geoapify.
+3. Comprobar en el panel de Cloudflare que el Worker no tiene Workers Logs activo.
+4. Probar una búsqueda en `https://fuelshift.pages.dev`, comprobar la atribución y revisar el
+   consumo en el panel de Geoapify.
 
-### Desactivar o revertir
+Los valores de `wrangler.toml` siguen desactivados: un despliegue sin `--var` vuelve al estado
+seguro. Activar y desactivar siempre con `wrangler deploy`, que publica la versión al 100 %.
+
+La clave y el proyecto de Geoapify siguen siendo **exclusivos del Worker de producción**. No se
+usan en desarrollo local, pruebas ni otros entornos: el presupuesto interno solo ve las llamadas
+del Worker y cualquier otro uso consumiría cuota sin contabilizarse. Las pruebas usan
+proveedores simulados y claves ficticias.
+
+## Desactivar o revertir
 
 - Emergencia (deja de llamar a Geoapify en cuanto se publica la versión):
 
@@ -247,8 +223,7 @@ Lectura del 26 de noviembre de 2026 de los
 - Corte sin desplegar: `npx wrangler secret delete GEOAPIFY_API_KEY`. Sin clave, el Worker
   responde «no disponible».
 - Restaurar la clave sin reactivar el servicio. `wrangler secret put` y
-  `wrangler secret delete` crean una versión nueva que hereda los valores de la vigente.
-  Cargar la clave con el modo provisional aún activo reactivaría el tráfico al instante. Por
+  `wrangler secret delete` crean una versión nueva que hereda los valores de la vigente. Por
   eso, en este orden:
   1. `npx wrangler deploy`, sin `--var`: publica los valores desactivados del repositorio.
   2. `npx wrangler deployments status`: comprobar que esa versión sirve el 100 %. Si la
@@ -260,14 +235,22 @@ Lectura del 26 de noviembre de 2026 de los
   `scripts/routing-runtime-smoke.mjs` comprueba en workerd que, con la clave presente y los
   valores de `wrangler.toml`, el Worker responde «no disponible» sin reservar ni llamar.
 
-- El contador persiste entre despliegues: lo consumido en modo provisional sigue contando en
-  su ventana de 24 h aunque cambie el modo.
-- Cuando Geoapify responda:
-  - Si confirma por escrito que no puede haber cargos, se pasa a
-    `GEOAPIFY_CHARGE_GUARANTEE:confirmada-por-escrito` (presupuesto de 2400) y se actualiza
-    esta ADR con la fecha y la referencia de la respuesta.
-  - Si no lo confirma o confirma que puede cobrar, se desactiva con el comando de emergencia.
-    Después se valora retirar el modo provisional del código.
+- El contador persiste entre despliegues: lo consumido sigue contando en su ventana de 24 h.
+
+## Historial: activación provisional retirada
+
+El 26 de noviembre de 2026 el propietario autorizó una excepción temporal mientras llegaba la
+respuesta de Geoapify: el valor `GEOAPIFY_CHARGE_GUARANTEE = "provisional-sin-confirmacion"`
+habilitaba matriz y ruta con un presupuesto reducido de 300 créditos por 24 h (matriz 220,
+ruta 40, autocompletado 40), aceptando el riesgo económico residual (PR #59).
+
+La excepción terminó con la confirmación del 27 de noviembre de 2026. Se retiró su código
+(`CHARGE_GUARANTEE_PROVISIONAL`, `PROVISIONAL_LIMITS`, `chargeMode` y `limitsFor`) para dejar
+un solo presupuesto y un solo valor de activación, y para que el Worker y el Durable Object no
+puedan leer modos distintos durante un despliegue. Las demás protecciones no cambian. Si el
+Worker siguiera desplegado con el valor provisional, la versión nueva bloquea matriz y ruta
+con `cost-unbounded` hasta desplegar con `confirmada-por-escrito`; las pruebas y el smoke de
+workerd lo comprueban.
 
 ## Alternativas descartadas
 
@@ -277,6 +260,12 @@ Lectura del 26 de noviembre de 2026 de los
   atómico.
 - **openrouteservice como respaldo automático**: no se han verificado sus condiciones ni su
   privacidad.
+- **Mantener el modo provisional como reserva**: duplicaba presupuestos, pruebas y
+  procedimientos sin aportar protección tras la confirmación; el comando de emergencia cubre
+  la vuelta atrás.
+- **Retirar `GEOAPIFY_CHARGE_GUARANTEE`**: haría que `ROUTING_ENABLED` y `GEOAPIFY_ENABLED`
+  bastaran para llamar. Se conserva como tercer interruptor explícito, que deja constancia en
+  cada despliegue de en qué se apoya la activación.
 
 ## Consecuencias
 
@@ -285,34 +274,19 @@ Lectura del 26 de noviembre de 2026 de los
 - El Worker está desplegado con `workers_dev = true` y `preview_urls = false`. Los valores
   del repositorio mantienen las consultas desactivadas (`ROUTING_ENABLED` y
   `GEOAPIFY_ENABLED` valen `"false"`, `GEOAPIFY_CHARGE_GUARANTEE = "ninguna"`). Los secretos
-  ya están cargados. La web se compila
-  con `NEXT_PUBLIC_ROUTING_URL` (en los workflows de CI y despliegue; `.env.local` en local) y el origen del
-  Worker figura en `connect-src` de `public/_headers`; mientras siga desactivado, cada
-  búsqueda responde «no disponible» sin consultar a Geoapify. Hay dos formas de activarlo:
-  - **Provisional**, mientras dure la excepción: se sigue la
-    [sección anterior](#activación-provisional-sin-confirmación-escrita).
-  - **Definitiva**:
-    1. Obtener de Geoapify por escrito que la cuenta, sin tarjeta, no puede generar cargos
-       al superar la cuota, y confirmar las «limitaciones» del uso en producción.
-    2. Comprobar que la cuenta de Cloudflare sigue en plan Free.
-    3. Desplegar con `GEOAPIFY_CHARGE_GUARANTEE:confirmada-por-escrito` en lugar del valor
-       provisional, con los mismos `--var` de activación, y anotar aquí la respuesta.
-    4. Comprobar la atribución a Geoapify y OpenStreetMap.
-
-    Sin uno de los dos modos, «Repostar cerca de mí» y «Repostar durante un viaje» siguen
-    desactivados aunque el Worker esté activo.
-
-- Los límites de Workers y Durable Objects pueden agotarse por abuso. En ese caso se pierde
-  disponibilidad de rutas, no dinero, y el mapa, los filtros, el comparador y las estadísticas
-  siguen funcionando.
+  ya están cargados. La web se compila con `NEXT_PUBLIC_ROUTING_URL` (en los workflows de CI
+  y despliegue; `.env.local` en local) y el origen del Worker figura en `connect-src` de
+  `public/_headers`; mientras siga desactivado, cada búsqueda responde «no disponible» sin
+  consultar a Geoapify.
+- Los límites de Workers y Durable Objects y la cuota de Geoapify pueden agotarse por abuso. En
+  ese caso se pierde disponibilidad de rutas, no dinero, y el mapa, los filtros, el comparador y
+  las estadísticas siguen funcionando.
 
 ## Revisar si
 
-- Geoapify publica su hora de reinicio, cambia sus créditos o aclara los cargos del plan
-  gratuito.
-- Geoapify ofrece un tope de gasto o un parámetro que limite el recargo por distancia antes de
-  la petición: permitiría una cota verificable sin depender de la garantía.
+- Geoapify cambia sus planes, créditos, atribución o condiciones del plan Free, o FuelShift
+  cambia de cuenta, proyecto o plan: la confirmación escrita solo cubre el caso actual.
+- Geoapify publica su hora de reinicio o un parámetro que acote el recargo por distancia.
+- Se decide usar `api-eu.geoapify.com` para que todo el tratamiento de Geoapify quede en la UE.
 - Cloudflare cambia los límites de Workers Free o de Durable Objects Free.
 - El presupuesto se agota de forma habitual.
-- Geoapify responde a la consulta económica, o el consumo de su panel se acerca a la cuota:
-  termina o se revisa la excepción provisional.

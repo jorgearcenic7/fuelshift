@@ -36,6 +36,7 @@ import {
 } from "@/lib/format";
 
 import { AddressField } from "./address-field";
+import { GeoapifyAttribution } from "./geoapify-attribution";
 import { RefuelResults } from "./refuel-results";
 import {
   useAddressSearch,
@@ -457,8 +458,15 @@ export function RefuelPanel({
           rutas de FuelShift y a Geoapify. Al buscar una dirección se envía el
           texto a ambos servicios. FuelShift no guarda trayectos legibles; para
           limitar abusos conserva unas 48 h códigos seudónimos de tu conexión y
-          de cada consulta. Según su política, Geoapify (alojado en la UE)
-          conserva las peticiones correctas hasta 24 h.
+          de cada consulta. Según su política, Geoapify suele conservar las
+          peticiones hasta 24 h, y más en casos de abuso. Más detalles en{" "}
+          <a
+            className="text-ink-2 font-semibold underline underline-offset-[3px]"
+            href="/privacidad/"
+          >
+            Privacidad
+          </a>
+          .
         </p>
 
         <div className="flex items-center gap-3">
@@ -595,26 +603,10 @@ export function RefuelPanel({
                 ) : null}
               </p>
               <p>
-                <strong className="text-ink-2">Rutas</strong>: calculadas por{" "}
-                <a
-                  className="text-ink-2 font-semibold underline underline-offset-[3px]"
-                  href="https://www.geoapify.com/"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Geoapify
-                </a>{" "}
-                con datos de{" "}
-                <a
-                  className="text-ink-2 font-semibold underline underline-offset-[3px]"
-                  href="https://www.openstreetmap.org/copyright"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  OpenStreetMap
-                </a>
-                , {formatRetrievedAt(done.result.routesComputedAt)}.
+                <strong className="text-ink-2">Rutas</strong>: consulta{" "}
+                {formatRetrievedAt(done.result.routesComputedAt)}.
               </p>
+              <GeoapifyAttribution className="" />
               <p>
                 <strong className="text-ink-2">Cálculo de FuelShift</strong> con
                 tus supuestos. Repostaje de referencia:{" "}

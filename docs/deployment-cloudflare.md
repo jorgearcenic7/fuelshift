@@ -5,7 +5,8 @@
 FuelShift se publica como una exportación estática de Next.js mediante **Direct Upload**. GitHub
 Actions descarga y valida MITECO, prepara los JSON, construye `out/` y solo entonces llama a
 Wrangler. No se despliegan Pages Functions, Workers, servidores, bases de datos ni servicios de
-pago.
+pago. El Worker de rutas (`workers/routing/`) es independiente: ningún workflow lo despliega y lo
+publica a mano el propietario según la [ADR 0007](decisions/0007-intermediario-de-rutas.md).
 
 El workflow [`.github/workflows/deploy-cloudflare.yml`](../.github/workflows/deploy-cloudflare.yml)
 se ejecuta cada cuatro horas y también admite `workflow_dispatch`. Solo opera sobre `main` y

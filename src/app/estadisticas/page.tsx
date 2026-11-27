@@ -3,6 +3,7 @@
 import type { Metadata } from "next";
 
 import { pageMetadata } from "@/app/site-metadata";
+import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SkipLink } from "@/components/layout/skip-link";
 import { StatisticsDashboard } from "@/components/statistics/statistics-dashboard";
@@ -23,6 +24,7 @@ export default async function EstadisticasPage() {
       <SkipLink />
       <SiteHeader active="estadisticas" />
       <StatisticsDashboard data={data} />
+      <SiteFooter />
     </div>
   );
 }
