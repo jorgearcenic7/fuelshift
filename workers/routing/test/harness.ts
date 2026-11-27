@@ -174,13 +174,9 @@ export function createHarness(
     roadFactor?: number;
     env?: Partial<Env>;
     failingStorage?: () => boolean;
-    /** Como en producción: Worker y Durable Object deducen los límites del modo económico. */
-    limitsFromEnv?: boolean;
   } = {},
 ) {
-  const limits = options.limitsFromEnv
-    ? undefined
-    : { ...DEFAULT_LIMITS, ...options.limits };
+  const limits = { ...DEFAULT_LIMITS, ...options.limits };
   let clock = Date.parse("2026-11-26T12:00:00Z");
   const now = () => clock;
   const db = new DatabaseSync(":memory:");
@@ -191,7 +187,7 @@ export function createHarness(
   const env: Env = {
     ROUTING_ENABLED: "true",
     GEOAPIFY_ENABLED: "true",
-    // Simula el estado futuro autorizado; las pruebas de la política la retiran.
+    // Estado de producción autorizado; las pruebas de la política lo retiran.
     GEOAPIFY_CHARGE_GUARANTEE: CHARGE_GUARANTEE_CONFIRMED,
     GEOAPIFY_API_KEY: "clave-de-prueba",
     VISITOR_SALT: "sal-de-prueba",

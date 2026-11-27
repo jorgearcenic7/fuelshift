@@ -13,12 +13,9 @@ preview_urls = false
 ROUTING_ENABLED = "false"
 GEOAPIFY_ENABLED = "false"
 # Matriz y ruta no tienen cota de coste previa (recargo por distancia). Solo se habilitan
-# con uno de estos valores exactos (ADR 0007):
-# - "confirmada-por-escrito": Geoapify ha confirmado por escrito que superar la cuota no
-#   genera cargos. Presupuesto de 2400 créditos por 24 h.
-# - "provisional-sin-confirmacion": el propietario acepta el riesgo residual sin esa
-#   confirmación. Presupuesto reducido a 300 créditos por 24 h.
-# Cualquier otro valor bloquea matriz y ruta. La ausencia de tarjeta no es garantía.
+# con el valor exacto "confirmada-por-escrito": Geoapify confirmó por escrito el
+# 27-11-2026 que superar la cuota Free no genera cargos (HTTP 429). Cualquier otro valor
+# las bloquea. Presupuesto propio: 2400 créditos por cada 24 h (ADR 0007).
 # Estos valores del repositorio quedan desactivados: la activación se hace con --var al
 # desplegar, de modo que un despliegue sin ellas vuelve al estado seguro.
 GEOAPIFY_CHARGE_GUARANTEE = "ninguna"
@@ -26,6 +23,11 @@ ALLOWED_ORIGINS = "https://fuelshift.pages.dev"
 # Secretos (wrangler secret put): GEOAPIFY_API_KEY, VISITOR_SALT. La clave y el proyecto de
 # Geoapify son exclusivos de este Worker de producción. Restaurar la clave solo después de
 # desplegar los valores desactivados: secret put hereda los vars vigentes (ADR 0007).
+
+# Sin Workers Logs: las direcciones buscadas viajan en la URL del autocompletado y no
+# deben quedar registradas en Cloudflare (política de privacidad de FuelShift).
+[observability]
+enabled = false
 
 [[durable_objects.bindings]]
 name = "ROUTING_BUDGET"

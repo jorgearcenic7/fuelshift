@@ -21,9 +21,8 @@ import type { RoadLeg } from "@/domain/refuel/road-routing";
  * La parte fija se conoce antes de llamar. El recargo por distancia no: depende
  * de la ruta que calcule el proveedor (rodeos, ferris, cortes de carretera) y
  * ninguna estimación geográfica lo acota. Por eso matriz y ruta no tienen cota
- * máxima verificable y solo se permiten con una garantía efectiva del
- * proveedor de que superar la cuota no genera cargos o con la activación
- * provisional explícita del propietario (ver `chargePolicy`).
+ * máxima verificable y solo se permiten con la garantía escrita del proveedor
+ * de que superar la cuota no genera cargos (ver `chargePolicy`).
  */
 const SURCHARGE_METERS = 500_000;
 
@@ -148,33 +147,14 @@ export function autocompleteCost(): CostBound {
 }
 
 /**
- * Valor exacto que el propietario asigna a `GEOAPIFY_CHARGE_GUARANTEE` solo
- * tras obtener de Geoapify, por escrito, que la cuenta no puede generar cargos
- * aunque se supere la cuota. No basta con que la cuenta no tenga tarjeta: los
- * términos permiten cobrar excesos sin excluir Free, aunque la guía oficial
- * dice que nunca se cobra. Se mantiene el bloqueo hasta aclarar la discrepancia.
+ * Valor exacto que el propietario asigna a `GEOAPIFY_CHARGE_GUARANTEE` al
+ * activar matriz y ruta. Geoapify confirmó por escrito el 27 de noviembre de
+ * 2026 que el plan Free no genera cargos al superar la cuota: responde con
+ * HTTP 429 (ADR 0007). El valor sigue siendo obligatorio para que un despliegue
+ * sin él, como el de `wrangler.toml`, mantenga bloqueado lo que no tiene cota.
+ * Se compara exactamente: mayúsculas, espacios o valores vacíos bloquean.
  */
 export const CHARGE_GUARANTEE_CONFIRMED = "confirmada-por-escrito";
-
-/**
- * Activación provisional decidida por el propietario mientras Geoapify no
- * responde (ADR 0007). No equivale a una confirmación escrita: acepta el
- * riesgo económico residual y solo funciona con el presupuesto reducido de
- * `PROVISIONAL_LIMITS` (limits.ts).
- */
-export const CHARGE_GUARANTEE_PROVISIONAL = "provisional-sin-confirmacion";
-
-/**
- * Modo económico según el valor exacto de `GEOAPIFY_CHARGE_GUARANTEE`.
- * Cualquier otro valor, incluido uno vacío o mal escrito, bloquea.
- */
-export type ChargeMode = "blocked" | "provisional" | "confirmed";
-
-export function chargeMode(guarantee: string | undefined): ChargeMode {
-  if (guarantee === CHARGE_GUARANTEE_CONFIRMED) return "confirmed";
-  if (guarantee === CHARGE_GUARANTEE_PROVISIONAL) return "provisional";
-  return "blocked";
-}
 
 export type ChargeDecision =
   | { allowed: true; reserveCredits: number }
@@ -183,9 +163,9 @@ export type ChargeDecision =
 /**
  * Política económica previa a cada petición:
  * - coste fijo: se reserva exactamente ese coste;
- * - coste sin cota: bloqueado salvo garantía escrita o activación provisional;
- *   en ambos casos se reserva el mínimo y se liquida el coste real, que sigue
- *   contando en el presupuesto y corta peticiones posteriores.
+ * - coste sin cota: bloqueado salvo garantía escrita; con ella se reserva el
+ *   mínimo y se liquida el coste real, que sigue contando en el presupuesto y
+ *   corta peticiones posteriores.
  */
 export function chargePolicy(
   bound: CostBound,
@@ -194,7 +174,7 @@ export function chargePolicy(
   if (bound.kind === "fixed") {
     return { allowed: true, reserveCredits: bound.credits };
   }
-  if (chargeMode(guarantee) === "blocked") {
+  if (guarantee !== CHARGE_GUARANTEE_CONFIRMED) {
     return { allowed: false, reason: "cost-unbounded" };
   }
   return { allowed: true, reserveCredits: bound.minimumCredits };

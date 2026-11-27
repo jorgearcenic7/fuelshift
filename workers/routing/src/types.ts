@@ -41,10 +41,8 @@ export interface Env {
   /** Interruptor de emergencia del proveedor. */
   GEOAPIFY_ENABLED?: string;
   /**
-   * Modo económico. Solo los valores exactos `CHARGE_GUARANTEE_CONFIRMED`
-   * (garantía escrita del proveedor) y `CHARGE_GUARANTEE_PROVISIONAL`
-   * (riesgo aceptado por el propietario, presupuesto reducido) de costs.ts
-   * habilitan matriz y ruta.
+   * Solo el valor exacto `CHARGE_GUARANTEE_CONFIRMED` de costs.ts (garantía
+   * escrita del proveedor) habilita matriz y ruta.
    */
   GEOAPIFY_CHARGE_GUARANTEE?: string;
   /** Secreto de Wrangler; nunca en el repositorio ni en el navegador. */

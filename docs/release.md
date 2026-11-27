@@ -44,6 +44,20 @@ y despliegue de ese mismo commit en Cloudflare Pages. Evidencias del 15 de novie
       GitHub): solo puede confirmarla el propietario.
 - [x] `CHANGELOG.md` revisado: cada entrada corresponde a una PR fusionada.
 
+## Preparación de v1.2.0: pendiente
+
+Bloqueantes antes de la PR de versión (propietario):
+
+- [ ] Completar `CONTROLLER` en `src/app/privacidad/page.tsx` con la identidad y un contacto
+      de privacidad del responsable. Mientras falte, la página muestra el aviso «Pendiente».
+- [ ] Validar la base jurídica propuesta en `/privacidad/` (interés legítimo, art. 6.1.f RGPD).
+- [ ] Conservar el correo original de Geoapify del 27 de noviembre de 2026 fuera del
+      repositorio ([ADR 0007](decisions/0007-intermediario-de-rutas.md)).
+- [ ] Comprobar en el panel de Cloudflare que Pages no tiene Web Analytics activo y que la
+      cuenta sigue en plan Free.
+- [ ] Desplegar el Worker de rutas con `confirmada-por-escrito` siguiendo la ADR 0007 y
+      comprobar que no tiene Workers Logs activo.
+
 ## Publicar una versión
 
 1. Fusionar la PR de versión con **Squash and merge**.
@@ -68,13 +82,16 @@ Sobre `https://fuelshift.pages.dev` (o el dominio vigente):
 
 - El mapa carga las estaciones, el mapa de calor se dibuja y la ficha de una estación muestra
   «€/L». Sin errores en la consola del navegador ni violaciones de CSP.
-- `/comparador/` y `/estadisticas/` cargan; el histórico se dibuja.
+- `/comparador/`, `/estadisticas/` y `/privacidad/` cargan; el histórico se dibuja.
+- Desde v1.2.0: «Repostar cerca de mí» calcula una búsqueda y muestra
+  «Powered by Geoapify | © OpenStreetMap contributors»; el consumo aparece en el panel de
+  Geoapify.
 - Una ruta inexistente (por ejemplo `/no-existe/`) responde 404 con la página en español.
 - Cabeceras: `curl.exe -sI https://fuelshift.pages.dev/` muestra `content-security-policy`,
   `x-frame-options`, `x-content-type-options`, `referrer-policy` y `permissions-policy`.
 - `curl.exe -sI https://fuelshift.pages.dev/data/miteco/manifest.json` incluye
   `x-robots-tag: noindex`.
-- `/og-image.png` responde `image/png`; `/sitemap.xml` lista las tres páginas.
+- `/og-image.png` responde `image/png`; `/sitemap.xml` lista las páginas públicas.
 - `/robots.txt` es el de FuelShift (con la línea `Sitemap:`). Si Cloudflare sirve su
   `robots.txt` gestionado en su lugar, revisar la opción de robots.txt gestionado en el panel de
   Cloudflare antes de dar el release por terminado.

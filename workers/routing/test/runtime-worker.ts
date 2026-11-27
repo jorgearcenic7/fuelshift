@@ -2,17 +2,35 @@
 // es el entrypoint de producción y no contiene credenciales reales.
 import { RoutingBudget as ProductionBudget } from "../src/budget";
 import { handleRequest } from "../src/index";
-import type { RoutingLimits } from "../src/limits";
+import { DEFAULT_LIMITS, type RoutingLimits } from "../src/limits";
 import type { DurableObjectStateLike, Env } from "../src/types";
 
+type SmokeEnv = Env & { SMOKE_AUTOCOMPLETE_CREDITS?: string };
+
+/**
+ * Sin variables de prueba usa el presupuesto de producción. Solo esta prueba
+ * puede reducir el del autocompletado con `SMOKE_AUTOCOMPLETE_CREDITS`, para
+ * comprobar el corte y su persistencia en workerd sin cientos de peticiones;
+ * el Durable Object de producción no lee ninguna variable.
+ */
+function smokeLimits(env: SmokeEnv): RoutingLimits | undefined {
+  const credits = Number(env.SMOKE_AUTOCOMPLETE_CREDITS);
+  if (!Number.isInteger(credits) || credits <= 0) return undefined;
+  return {
+    ...DEFAULT_LIMITS,
+    endpointCredits: {
+      ...DEFAULT_LIMITS.endpointCredits,
+      autocomplete: credits,
+    },
+  };
+}
+
 export class RoutingBudget extends ProductionBudget {
-  // Mismo constructor que en producción: workerd entrega `env` y el objeto
-  // elige el presupuesto según el modo económico.
   constructor(
     private readonly testState: DurableObjectStateLike,
-    env: Env,
+    env: SmokeEnv,
   ) {
-    super(testState, env);
+    super(testState, env, smokeLimits(env));
   }
 
   async fetch(request: Request): Promise<Response> {

@@ -4,8 +4,6 @@ import { BudgetLedger, RoutingBudget, type ReserveInput } from "../src/budget";
 import {
   autocompleteCost,
   CHARGE_GUARANTEE_CONFIRMED,
-  CHARGE_GUARANTEE_PROVISIONAL,
-  chargeMode,
   chargePolicy,
   matrixActualCredits,
   matrixBaseCredits,
@@ -15,7 +13,7 @@ import {
   routeCost,
   type CostBound,
 } from "../src/costs";
-import { DEFAULT_LIMITS, limitsFor, PROVISIONAL_LIMITS } from "../src/limits";
+import { DEFAULT_LIMITS } from "../src/limits";
 import { visitorId, visitorNetwork } from "../src/visitor";
 import { sqliteStorage } from "./harness";
 
@@ -95,6 +93,8 @@ describe("política económica previa", () => {
       "sin-tarjeta",
       "CONFIRMADA-POR-ESCRITO",
       ` ${CHARGE_GUARANTEE_CONFIRMED}`,
+      // Valor del modo provisional retirado: ya no habilita nada.
+      "provisional-sin-confirmacion",
     ]) {
       expect(chargePolicy(matrixCost(1, 15), guarantee)).toEqual({
         allowed: false,
@@ -112,34 +112,19 @@ describe("política económica previa", () => {
     });
   });
 
-  it("la activación provisional es un modo propio, no una confirmación escrita", () => {
-    expect(chargeMode(CHARGE_GUARANTEE_PROVISIONAL)).toBe("provisional");
-    expect(chargeMode(CHARGE_GUARANTEE_CONFIRMED)).toBe("confirmed");
-    expect(CHARGE_GUARANTEE_PROVISIONAL).not.toBe(CHARGE_GUARANTEE_CONFIRMED);
-    for (const value of [
-      undefined,
-      "ninguna",
-      "provisional",
-      "PROVISIONAL-SIN-CONFIRMACION",
-      ` ${CHARGE_GUARANTEE_PROVISIONAL}`,
-    ]) {
-      expect(chargeMode(value)).toBe("blocked");
-    }
-    expect(
-      chargePolicy(matrixCost(1, 15), CHARGE_GUARANTEE_PROVISIONAL),
-    ).toEqual({ allowed: true, reserveCredits: 15 });
-  });
-
-  it("solo la confirmación escrita usa el presupuesto inicial; el resto, 300 créditos", () => {
-    expect(limitsFor(CHARGE_GUARANTEE_CONFIRMED)).toBe(DEFAULT_LIMITS);
-    for (const value of [CHARGE_GUARANTEE_PROVISIONAL, "ninguna", undefined]) {
-      expect(limitsFor(value)).toBe(PROVISIONAL_LIMITS);
-    }
-    const { providerCredits, endpointCredits } = PROVISIONAL_LIMITS;
-    expect(providerCredits.geoapify).toBe(300);
+  it("un solo presupuesto de 2400 créditos por 24 h, bajo la cuota gratuita", () => {
+    const { providerCredits, endpointCredits, windowMs } = DEFAULT_LIMITS;
+    expect(windowMs).toBe(24 * 60 * 60 * 1000);
+    expect(providerCredits.geoapify).toBe(2400);
+    expect(endpointCredits).toEqual({
+      matrix: 1800,
+      routing: 300,
+      autocomplete: 300,
+    });
     expect(
       Object.values(endpointCredits).reduce((sum, value) => sum + value, 0),
     ).toBeLessThanOrEqual(providerCredits.geoapify);
+    expect(providerCredits.geoapify).toBeLessThan(3000);
     // Las reservas reales caben en su endpoint: una búsqueda reserva dos
     // matrices de 15 candidatas; una ruta con parada, 2; un autocompletado, 1.
     const minimum = (bound: CostBound) =>
@@ -151,12 +136,6 @@ describe("política económica previa", () => {
     expect(minimum(autocompleteCost())).toBeLessThanOrEqual(
       endpointCredits.autocomplete,
     );
-    // Solo cambia el presupuesto: tasas, concurrencia y pausas son las mismas.
-    expect({
-      ...PROVISIONAL_LIMITS,
-      providerCredits: DEFAULT_LIMITS.providerCredits,
-      endpointCredits: DEFAULT_LIMITS.endpointCredits,
-    }).toEqual(DEFAULT_LIMITS);
   });
 });
 

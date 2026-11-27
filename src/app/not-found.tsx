@@ -61,6 +61,13 @@ export default function NotFound() {
           >
             Estadísticas
           </Link>
+          <span aria-hidden="true"> · </span>
+          <Link
+            href="/privacidad"
+            className="text-accent hover:text-accent-strong font-medium underline underline-offset-2"
+          >
+            Privacidad
+          </Link>
         </p>
       </main>
     </div>

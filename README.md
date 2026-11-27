@@ -47,6 +47,13 @@ enero de 2007 a noviembre de 2026. Las imágenes están optimizadas en WebP.
   día 1 de cada mes, para España y los 52 ámbitos provinciales, con selección de combustible,
   ámbito y periodo según la cobertura real.
 
+- **Repostar cerca de mí y durante un viaje**: ordena gasolineras por ahorro neto con
+  distancias y tiempos reales por carretera, calculados por Geoapify a través de un Worker
+  propio de Cloudflare (ADR 0007). Solo consulta al pulsar, con presupuesto diario y límites
+  por visitante; si el servicio no está disponible, el resto de la web sigue funcionando.
+- **[Privacidad](https://fuelshift.pages.dev/privacidad/)**: sin cuentas, cookies ni
+  analítica; la página explica qué datos se envían, a quién y durante cuánto tiempo.
+
 Ambos históricos muestran gasolina 95 E5, gasolina 98 E5 y gasóleo A. Las medias las calcula
 FuelShift a partir de los precios oficiales de estaciones; no son estadísticas publicadas por
 MITECO. Las dos series se presentan por separado y no se rellenan los huecos con datos inventados.
@@ -60,7 +67,11 @@ MITECO. Las dos series se presentan por separado y no se rellenan los huecos con
 - GitHub Actions con controles reproducibles y servicios gratuitos.
 
 No se usan bases de datos, autenticación ni APIs de pago. El mapa usa la instancia pública y
-gratuita de OpenFreeMap, sin clave; no ofrece garantía de disponibilidad.
+gratuita de OpenFreeMap, sin clave; no ofrece garantía de disponibilidad. Las rutas usan el plan
+Free de Geoapify desde un Worker en Cloudflare Workers Free con Durable Objects SQLite
+(`workers/routing/`), que guarda la clave como secreto y limita el consumo a 2400 créditos por
+cada 24 h. Geoapify confirmó por escrito el 27 de noviembre de 2026 que superar la cuota Free
+no genera cargos: las peticiones se rechazan con HTTP 429.
 
 ## Requisitos e instalación
 
@@ -217,6 +228,9 @@ npm run build
 # FUELSHIFT_URL cambia la dirección, por defecto http://localhost:3000)
 npm run test:browser
 
+# Worker de rutas en workerd local (Wrangler), con proveedores simulados y sin red
+node scripts/routing-runtime-smoke.mjs
+
 # Python (las pruebas usan fixtures y no acceden a la red)
 .\.venv\Scripts\python.exe -m ruff format --check pipeline
 .\.venv\Scripts\python.exe -m ruff check pipeline
@@ -233,7 +247,7 @@ prueban ejecutándolos como procesos y quedan fuera de esa medición.
 
 En Windows, Next.js 16.4 escribe ciertos fragmentos de rutas anidadas como
 `out/comparador/__next.comparador/__PAGE__.txt` en lugar de `__next.comparador.__PAGE__.txt`.
-La navegación actual usa enlaces HTML entre las tres páginas y no depende de precargar esos
+La navegación actual usa enlaces HTML entre las páginas y no depende de precargar esos
 fragmentos RSC. Los builds de CI y de Cloudflare Pages se generan en Linux.
 
 ## Estructura
@@ -291,7 +305,10 @@ La versión actual es la **1.1.0** (16 de noviembre de 2026), que añade el hist
 oficial desde 2007 y el rediseño. Las versiones etiquetadas y las fechas de los datos son
 independientes.
 
-La web no usa credenciales en el navegador ni servicios de pago. Las cabeceras de seguridad
+La web no usa credenciales en el navegador ni servicios de pago. El Worker de rutas lo
+despliega a mano el propietario; su activación, desactivación de emergencia y garantías están en
+la [ADR 0007](docs/decisions/0007-intermediario-de-rutas.md), y el tratamiento de datos, en la
+página `/privacidad/` (`src/app/privacidad/page.tsx`). Las cabeceras de seguridad
 (CSP, `X-Frame-Options`, `Permissions-Policy` y otras) se publican desde `public/_headers`; su
 motivo y cómo se probaron están en [`docs/security-headers.md`](docs/security-headers.md). Los
 cambios de cada versión se recogen en [`CHANGELOG.md`](CHANGELOG.md) y el procedimiento de

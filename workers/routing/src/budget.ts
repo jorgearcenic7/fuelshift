@@ -2,17 +2,12 @@ import {
   ACTIONS,
   DEFAULT_LIMITS,
   ENDPOINTS,
-  limitsFor,
   type Action,
   type BillableProvider,
   type Endpoint,
   type RoutingLimits,
 } from "./limits";
-import type {
-  DurableObjectStateLike,
-  DurableObjectStorageLike,
-  Env,
-} from "./types";
+import type { DurableObjectStateLike, DurableObjectStorageLike } from "./types";
 
 /**
  * Presupuesto global, persistente y atómico. Vive en un único Durable Object
@@ -434,19 +429,15 @@ const json = (body: unknown, status = 200) =>
  */
 export class RoutingBudget {
   private ledger: BudgetLedger | null = null;
-  private readonly limits: RoutingLimits;
 
+  // workerd entrega `env` como segundo argumento; el presupuesto ya no depende
+  // de ninguna variable, así que se ignora.
   constructor(
     private readonly state: DurableObjectStateLike,
-    env?: Pick<Env, "GEOAPIFY_CHARGE_GUARANTEE">,
-    limits?: RoutingLimits,
+    _env?: unknown,
+    private readonly limits: RoutingLimits = DEFAULT_LIMITS,
     private readonly now: () => number = Date.now,
-  ) {
-    // El presupuesto depende del modo económico desplegado (limits.ts). Un
-    // despliegue reinicia el objeto, así que un cambio de modo se aplica al
-    // siguiente uso; lo ya reservado en la ventana sigue contando.
-    this.limits = limits ?? limitsFor(env?.GEOAPIFY_CHARGE_GUARANTEE);
-  }
+  ) {}
 
   private getLedger(): BudgetLedger {
     this.ledger ??= new BudgetLedger(this.state.storage, this.limits, this.now);
